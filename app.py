@@ -427,13 +427,13 @@ def plot_result(result: dict, title="Fitness Evolution"):
 
 # ---------- Streamlit UI ----------
 
-st.set_page_config(page_title="UGE - Grammatical Evolution", layout="wide")
-st.title("🧬 UGE - Grammatical Evolution Platform")
-st.markdown("**Experiment-based GE with comprehensive analysis and comparison**")
+st.set_page_config(page_title="Grammatical Evolution", layout="wide")
+st.title("🧬 Grammatical Evolution ")
+st.markdown("** Learning GE with comprehensive analysis and comparison**")
 
 # Sidebar navigation (like real software)
 with st.sidebar:
-    st.title("🧬 UGE Platform")
+    st.title("🧬 GE")
     st.markdown("---")
     
     # Main navigation with better styling
