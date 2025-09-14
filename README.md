@@ -1,6 +1,6 @@
-# 🧬 UGE: Universal Grammatical Evolution Platform
+# 🧬 UGE: Grammatical Evolution for Classification
 
-A comprehensive Streamlit web application for running, analyzing, and comparing Grammatical Evolution (GE) experiments with advanced visualization and statistical analysis capabilities.
+A comprehensive Streamlit web application for running, analyzing, and comparing Grammatical Evolution (GE) experiments for classification tasks with advanced visualization and statistical analysis capabilities.
 
 ## ✨ Key Features
 
@@ -54,7 +54,9 @@ UGE/
 ├── grape.py                  # GRAPE framework core
 ├── requirements.txt          # Python dependencies
 ├── README.md                 # This file
-├── config_help.json          # Configuration help text
+├── uge/
+│   ├── utils/
+│   │   └── config_help.json  # Configuration help text
 ├── datasets/                 # Input datasets
 │   ├── processed.cleveland.data
 │   ├── clinical_breast_cancer_RFC.csv

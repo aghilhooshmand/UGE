@@ -1,3 +1,12 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+INSTALLATION.md
+RELEASE_NOTES.md
+
 # Python
 __pycache__/
 *.py[cod]
@@ -41,14 +50,14 @@ Thumbs.db
 # Logs
 *.log
 
+# Results (will be mounted as volume)
+results/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
 # Temporary files
 *.tmp
 *.temp
-app_backup.py
-app_new.py
-app_old.py
-
-# Note: grape/ module is needed for the application to work
-
-# Results (optional - uncomment if you don't want to track experiment results)
-# results/

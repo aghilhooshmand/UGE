@@ -1,0 +1,89 @@
+{
+  "performance_insights": {
+    "success_rate": {
+      "0_percent": "Success Rate: (Runs achieving target / Total runs) × 100. 0% means no runs met the target fitness. Try increasing generations, adjusting parameters, or different initialization.",
+      "low_percent": "Success Rate: (Runs achieving target / Total runs) × 100. <50% indicates algorithm needs improvement. Consider parameter tuning or running more experiments.",
+      "good_percent": "Success Rate: (Runs achieving target / Total runs) × 100. ≥50% indicates good performance. Higher percentages mean more reliable algorithm."
+    },
+    "consistency": {
+      "high": "Consistency: (Standard Deviation / Mean) × 100. <10% means very stable results with low variation between runs.",
+      "medium": "Consistency: (Standard Deviation / Mean) × 100. 10-20% means moderate variation. Some runs perform better than others.",
+      "low": "Consistency: (Standard Deviation / Mean) × 100. >20% means high variation. Algorithm performance is unpredictable between runs."
+    },
+    "convergence": {
+      "fast": "Convergence: Generation where 95% of total improvement is achieved. <50% of total generations means efficient algorithm.",
+      "slow": "Convergence: Generation where 95% of total improvement is achieved. >50% of total generations means algorithm needs more time."
+    },
+    "performance_range": {
+      "small": "Performance Range: Best Fitness - Worst Fitness. <10% of average means very consistent results across all runs.",
+      "large": "Performance Range: Best Fitness - Worst Fitness. >10% of average means significant variation between best and worst runs."
+    }
+  },
+  "metrics": {
+    "total_runs": "Number of independent runs completed. More runs provide better statistical reliability.",
+    "best_fitness": {
+      "maximize": "Highest fitness achieved. Higher values are better.",
+      "minimize": "Lowest fitness achieved. Lower values are better."
+    },
+    "average_fitness": "Mean performance across all runs. Shows typical algorithm performance.",
+    "status": "Experiment completion status. All runs must finish for complete analysis.",
+    "std_dev": "Standard deviation of fitness values. Lower = more consistent results.",
+    "range": "Difference between best and worst fitness. Smaller range = more stable algorithm.",
+    "avg_depth": "Average tree depth of best individuals. Indicates solution complexity.",
+    "max_depth": "Maximum tree depth reached. Shows if depth limit is being used effectively.",
+    "avg_length": "Average genome length. Longer genomes may indicate more complex solutions.",
+    "max_length": "Maximum genome length. Shows if length limits are being utilized.",
+    "used_codons": "Percentage of genome actually used. Higher = more efficient genome utilization.",
+    "avg_generations": "Average generations completed. Shows if runs are finishing early or using full time.",
+    "best_run": "The run that achieved the highest fitness value.",
+    "worst_run": "The run with the lowest fitness value.",
+    "success_rate": "Percentage of runs that achieved the target fitness. Higher is better.",
+    "avg_convergence_gen": "Average generation where 95% of total improvement was achieved. Lower means faster convergence.",
+    "consistency": "Coefficient of variation (CV). Lower values indicate more consistent results across runs."
+  },
+  "analysis_thresholds": {
+    "success_target": "Minimum fitness value to consider a run successful",
+    "convergence_threshold": "Threshold for determining convergence (percentage of total improvement)",
+    "high_consistency_threshold": "Coefficient of variation below this is considered 'High' consistency",
+    "medium_consistency_threshold": "Coefficient of variation below this is considered 'Medium' consistency"
+  },
+  "charts": {
+    "individual_run": "Shows fitness evolution for each individual run with min/max/avg bars per generation",
+    "experiment_wide": "Shows average fitness across all runs with min/max/avg bars per generation",
+    "best_fitness": "Best fitness achieved in each generation across all runs",
+    "average_fitness": "Average fitness across all runs for each generation",
+    "test_fitness": "Test fitness performance across all runs for each generation"
+  },
+  "export": {
+    "json": "Export experiment data in JSON format for further analysis",
+    "csv": "Export experiment data in CSV format for spreadsheet analysis",
+    "config": "Export experiment configuration in JSON format"
+  },
+  "experiment_parameters": {
+    "dataset": "Path or name of the dataset to load. Use 'processed.cleveland.data' for a ready-to-use example. CSVs require setting 'label_column'. Tips: ensure headers match feature names used in grammar/expressions; handle missing values before training or use operators robust to NaN; large datasets increase evaluation time linearly with population × generations.",
+    "grammar": "BNF grammar file that defines the legal programs/expressions (nonterminals, terminals, and production rules). Required for Grammatical Evolution and grammar-guided GP. Terminals (feature names) should match your dataset columns. Keep recursion under control via max_tree_depth. Smaller, well-curated grammars search faster; overly broad grammars explore more but slow convergence.",
+    "population": "Number of individuals evaluated per generation. Bigger population = more diversity and better exploration but higher compute cost (runtime roughly scales with population × eval_cost). Typical ranges: 50–500; for quick tests, 50–100; for thorough runs, 200–500.",
+    "generations": "How many evolutionary steps to run. More generations allow continued improvement but risk overfitting and longer runs. Typical: 30–200. If supported, consider early stopping when fitness plateaus.",
+    "p_crossover": "Probability that a selected pair of parents recombines to produce offspring. High values (0.7–0.95) are common to exploit useful building blocks. If you lower crossover, consider raising mutation to maintain exploration.",
+    "p_mutation": "Probability to mutate an individual (or, in some frameworks, per-gene). Typical 0.02–0.1 for tree/GE individuals; vector GAs may use higher per-gene rates. If interpreted per-gene, effective per-individual mutation grows with genome length.",
+    "elite_size": "Count of top individuals copied unchanged to the next generation. Preserves the best-so-far. Typical: 1–5% of population. Too high can reduce diversity and cause premature convergence.",
+    "tournsize": "Tournament size for selection. Larger tournaments increase selection pressure (faster convergence, higher risk of premature convergence). Typical: 2–7. Lower it if you see stagnation or loss of diversity.",
+    "halloffame_size": "Number of globally best individuals to archive across all generations (should be ≥ elite_size). Ensures you keep the top solutions even if later lost. Typical: 5–50; consider ~10% of population for long runs.",
+    "n_runs": "Number of independent runs with different seeds (executed sequentially). Use this to assess stability and get best-of-N results. Report mean/σ of fitness across runs. Seeds usually increment automatically from 'random_seed'.",
+    "max_tree_depth": "Hard limit on expression/program tree depth during mapping/evaluation. Prevents bloat and runaway recursion. Too small can underfit; too large slows evaluation and may overfit. Typical: 8–15 for classification, 10–17 for symbolic regression.",
+    "min_init_tree_depth": "Minimum depth when creating initial trees for 'sensible' (ramped grow/full) initialisation. Smaller minimum adds shallow, simple models that generalize well.",
+    "max_init_tree_depth": "Maximum initial depth for ramped initialisation. Larger maximum seeds more complex starting structures. Typical ramp: min 2–3, max 6–8.",
+    "min_init_genome_length": "GE-only: minimum genome length (number of codons) for random initialisation. Longer genomes can map to deeper trees but increase evaluation time. Typical: 50–100.",
+    "max_init_genome_length": "GE-only: maximum initial genome length. Controls initial expressivity and runtime. Typical: 120–200. Pair with a cap on wraps to avoid excessive mapping.",
+    "codon_size": "GE-only: maximum codon value (each gene ∈ [0, codon_size]). Classic choice is 255 (8-bit). Mapping often uses codon % num_choices at a production; very small codon_size can bias expansions.",
+    "codon_consumption": "GE-only mapping policy. 'lazy' consumes a codon only when expanding a production (less waste, slightly more deterministic). 'eager' consumes codons more uniformly (more stochasticity). Try 'lazy' first; switch to 'eager' if you observe structural stagnation.",
+    "genome_representation": "Internal container for genomes (e.g., 'list' of ints). Must support fast indexing, slicing, and in-place mutation. Lists are flexible; arrays can be faster but less convenient.",
+    "initialisation": "How to create the initial population. 'sensible' (ramped grow/full) mixes shallow and deeper trees for diversity. 'random' (GE) samples genomes uniformly within length bounds. For most problems, start with 'sensible'.",
+    "report_items": "Per-generation metrics to log and display. Common: gen, time_ms, best_fitness, mean_fitness, std_fitness, best_size, train_score, test_score. Heavy items (confusion_matrix, model_string) are useful but increase log size.",
+    "label_column": "For CSV datasets: the target column name. For classification, ensure it is categorical or integer-coded; for regression, numeric. If multiclass, verify the fitness/metrics support it.",
+    "test_size": "Fraction of data reserved for the final test split (e.g., 0.2 = 20%). For classification, stratify to preserve class ratios if supported. Alternative: use cross-validation for fitness and keep a small hold-out test.",
+    "random_seed": "Base seed for reproducibility (controls initial population, splits, and operator randomness). Use a fixed seed for debugging; set multiple 'n_runs' for reliability. Convention: -1 or null for non-deterministic seeding if supported.",
+    "fitness_metric": "The metric used to evaluate individual performance. 'mae' (Mean Absolute Error) for regression, 'accuracy' for classification. Both are treated as maximization problems in this system.",
+    "fitness_direction": "Direction of fitness optimization: 1 for maximization (higher is better), -1 for minimization (lower is better). Automatically set based on fitness metric selection."
+  }
+}
