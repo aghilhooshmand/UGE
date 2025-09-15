@@ -408,26 +408,41 @@ class Charts:
         gens = list(range(max_gens))
         
         # Calculate min/max/avg across all runs for each generation
-        min_values = []
-        max_values = []
-        avg_values = []
+        # For experiment-wide analysis, we aggregate min/max/avg data across all runs
+        min_values = []  # Minimum fitness across all runs for each generation
+        max_values = []  # Maximum fitness across all runs for each generation  
+        avg_values = []  # Average fitness across all runs for each generation
         
         for gen in range(max_gens):
-            gen_values = []
+            # Collect all min/max/avg values from all runs for this generation
+            gen_min_values = []
+            gen_max_values = []
+            gen_avg_values = []
+            
             for result in results.values():
                 # Handle both ExperimentResult objects and dictionaries
-                if hasattr(result, 'max'):
+                if hasattr(result, 'min'):
+                    min_vals = result.min
                     max_vals = result.max
+                    avg_vals = result.avg
                 else:
+                    min_vals = result.get('min', [])
                     max_vals = result.get('max', [])
+                    avg_vals = result.get('avg', [])
                 
+                # Collect data for this generation from this run
+                if gen < len(min_vals):
+                    gen_min_values.append(min_vals[gen])
                 if gen < len(max_vals):
-                    gen_values.append(max_vals[gen])
+                    gen_max_values.append(max_vals[gen])
+                if gen < len(avg_vals):
+                    gen_avg_values.append(avg_vals[gen])
             
-            if gen_values:
-                min_values.append(min(gen_values))
-                max_values.append(max(gen_values))
-                avg_values.append(sum(gen_values) / len(gen_values))
+            # Calculate aggregate values across all runs for this generation
+            if gen_min_values:
+                min_values.append(min(gen_min_values))  # Worst minimum across runs
+                max_values.append(max(gen_max_values))  # Best maximum across runs
+                avg_values.append(sum(gen_avg_values) / len(gen_avg_values))  # Average of averages
             else:
                 min_values.append(np.nan)
                 max_values.append(np.nan)

@@ -382,6 +382,7 @@ class AnalysisView(BaseView):
                     )
                     
                     # Consistency analysis using configurable thresholds
+                    cv = 0  # Initialize cv variable
                     if len(fitnesses) > 1:
                         cv = (fitness_std / (sum(fitnesses)/len(fitnesses))) * 100 if sum(fitnesses)/len(fitnesses) != 0 else 0
                         st.metric(
