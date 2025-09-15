@@ -50,5 +50,5 @@ app_old.py
 
 # Note: grape/ module is needed for the application to work
 
-# Results (optional - uncomment if you don't want to track experiment results)
-# results/
+# Results - experiment outputs shouldn't be tracked
+results/

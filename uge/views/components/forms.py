@@ -201,9 +201,8 @@ class Forms:
                 label_column = None
                 test_size = DEFAULT_CONFIG['test_size']
                 
-                if dataset and dataset.endswith('.csv') and dataset != 'processed.cleveland.data':
-                    # This would need to be handled by the controller
-                    # For now, we'll use a placeholder
+                if dataset and dataset != "none":
+                    # Allow label column selection for all datasets
                     label_column = st.text_input(
                         "Label Column", 
                         value="target", 
