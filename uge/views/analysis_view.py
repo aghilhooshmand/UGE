@@ -546,19 +546,35 @@ class AnalysisView(BaseView):
             self._render_experiment_wide_chart(experiment, measurement_options)
     
     def _render_individual_run_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
-        """Render individual run charts with min/max/avg bars per generation."""
+        """Render individual run chart for selected run."""
         # Sort runs by timestamp to get consistent ordering
         sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp)
         
+        # Create run selection options
+        run_options = []
         for run_idx, (run_id, result) in enumerate(sorted_runs, 1):
-            st.subheader(f"Run RUN_{run_idx}")
-            Charts.plot_individual_run_with_bars(
-                result, 
-                title=f"Fitness Evolution - RUN_{run_idx}",
-                fitness_metric=experiment.config.fitness_metric,
-                fitness_direction=experiment.config.fitness_direction,
-                measurement_options=measurement_options
-            )
+            run_options.append(f"RUN_{run_idx}")
+        
+        # Add run selection dropdown
+        selected_run = st.selectbox(
+            "Select Run to Display:",
+            options=run_options,
+            help="Choose which individual run to display in the chart"
+        )
+        
+        # Find the selected run
+        selected_run_idx = run_options.index(selected_run)
+        selected_run_id, selected_result = sorted_runs[selected_run_idx]
+        
+        # Display the selected run
+        st.subheader(f"{selected_run}")
+        Charts.plot_individual_run_with_bars(
+            selected_result, 
+            title=f"Fitness Evolution - {selected_run}",
+            fitness_metric=experiment.config.fitness_metric,
+            fitness_direction=experiment.config.fitness_direction,
+            measurement_options=measurement_options
+        )
     
     def _render_experiment_wide_chart(self, experiment: Experiment, measurement_options: Dict[str, bool]):
         """Render experiment-wide chart with min/max/avg across all runs."""
