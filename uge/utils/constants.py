@@ -66,7 +66,7 @@ DEFAULT_CONFIG = {
     'test_size': 0.3,
     'random_seed': 42,
     'fitness_metric': 'mae',
-    
+    'label_column': 'class',
     # Report Items
     'default_report_items': [
         'gen', 'invalid', 'avg', 'std', 'min', 'max', 'fitness_test',

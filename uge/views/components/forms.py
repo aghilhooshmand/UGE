@@ -88,7 +88,7 @@ class Forms:
                 )
                 n_runs = st.number_input(
                     "Number of Runs", 
-                    min_value=1, max_value=20, 
+                    min_value=1, max_value=100, 
                     value=DEFAULT_CONFIG['n_runs'], 
                     help=help_texts.get('n_runs', "Number of independent runs for this experiment")
                 )
@@ -198,16 +198,15 @@ class Forms:
             
             with col4:
                 st.subheader("Dataset Options")
-                label_column = None
-                test_size = DEFAULT_CONFIG['test_size']
                 
-                if dataset and dataset != "none":
-                    # Allow label column selection for all datasets
-                    label_column = st.text_input(
-                        "Label Column", 
-                        value="target", 
-                        help=help_texts.get('label_column', "Name of the label column")
-                    )
+                # Always show label column input (required field)
+                label_column = st.text_input(
+                    "Label Column", 
+                    value=DEFAULT_CONFIG['label_column'], 
+                    help=help_texts.get('label_column', "Name of the label column")
+                )
+                
+                test_size = DEFAULT_CONFIG['test_size']
                 
                 test_size = st.slider(
                     "Test Size", 

@@ -204,13 +204,16 @@ class GEService:
             np.random.seed(config.random_seed)
             random.seed(config.random_seed)
             
-            # Prepare data - ALL datasets use the same method
-            # Use 'class' as the default label column
-            from uge.utils.constants import DEFAULT_CONFIG
-            label_column = config.label_column or DEFAULT_CONFIG['label_column']
-            X_train, Y_train, X_test, Y_test = dataset.preprocess_csv_data(
-                label_column, config.test_size, config.random_seed
-            )
+            # Prepare data - Cleveland dataset needs special preprocessing
+            if config.dataset == 'processed.cleveland.data':
+                X_train, Y_train, X_test, Y_test = dataset.preprocess_cleveland_data(config.random_seed)
+            else:
+                # Use 'class' as the default label column
+                from uge.utils.constants import DEFAULT_CONFIG
+                label_column = config.label_column or DEFAULT_CONFIG['label_column']
+                X_train, Y_train, X_test, Y_test = dataset.preprocess_csv_data(
+                    label_column, config.test_size, config.random_seed
+                )
             
             # Load grammar
             grammar.load()

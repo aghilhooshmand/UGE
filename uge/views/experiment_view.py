@@ -103,10 +103,22 @@ class ExperimentView(BaseView):
                 genome_representation=form_data['genome_representation'],
                 initialisation=form_data['initialisation'],
                 random_seed=form_data['random_seed'],
-                label_column=form_data.get('label_column'),
+                label_column=form_data['label_column'],
                 test_size=form_data['test_size'],
                 report_items=form_data['report_items']
             )
+            
+            # Validate that label column exists in dataset
+            if config.dataset != "none":
+                try:
+                    dataset_service = self.experiment_controller.dataset_service
+                    dataset_info = dataset_service.get_dataset_info(config.dataset)
+                    if dataset_info and dataset_info.columns:
+                        if config.label_column not in dataset_info.columns:
+                            st.error(f"❌ Label column '{config.label_column}' not found in dataset '{config.dataset}'. Available columns: {', '.join(dataset_info.columns)}")
+                            return
+                except Exception as e:
+                    st.warning(f"⚠️ Could not validate label column: {e}")
             
             # Run the experiment using the controller
             st.info(f"🚀 Starting experiment '{config.experiment_name}'...")
