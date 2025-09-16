@@ -323,8 +323,8 @@ class AnalysisView(BaseView):
                     best_run = min(experiment.results.items(), key=lambda x: x[1].best_training_fitness or float('inf'))
                     worst_run = max(experiment.results.items(), key=lambda x: x[1].best_training_fitness or 0)
                 
-                # Convert run IDs to simple run numbers
-                sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp)
+                # Convert run IDs to simple run numbers (sorted by timestamp descending - newest first)
+                sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
                 run_id_to_number = {run_id: idx + 1 for idx, (run_id, _) in enumerate(sorted_runs)}
                 
                 best_run_number = run_id_to_number.get(best_run[0], 1)
@@ -450,8 +450,8 @@ class AnalysisView(BaseView):
         if experiment.results:
             with st.expander("📋 Runs Statistics", expanded=True):
                 run_data = []
-                # Sort runs by timestamp to get consistent ordering
-                sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp)
+                # Sort runs by timestamp to get consistent ordering (newest first)
+                sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
                 
                 for run_idx, (run_id, result) in enumerate(sorted_runs, 1):
                     # Calculate comprehensive metrics for each run
@@ -547,8 +547,8 @@ class AnalysisView(BaseView):
     
     def _render_individual_run_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
         """Render individual run chart for selected run."""
-        # Sort runs by timestamp to get consistent ordering
-        sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp)
+        # Sort runs by timestamp to get consistent ordering (newest first)
+        sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
         
         # Create run selection options
         run_options = []

@@ -141,32 +141,42 @@ class StorageService:
     
     def list_experiments(self) -> List[Path]:
         """
-        List all experiment directories.
+        List all experiment directories sorted by name (newest first).
         
         Returns:
-            List[Path]: List of experiment directory paths
+            List[Path]: List of experiment directory paths sorted by name descending
         """
         if not self.experiments_dir.exists():
             return []
         
-        return [p for p in self.experiments_dir.iterdir() 
-                if p.is_dir() and p.name.startswith('exp_')]
+        # Get all experiment directories and sort by name descending (newest first)
+        # Since experiment names include timestamp (exp_YYYYMMDD_HHMMSS_*), 
+        # sorting by name descending gives us newest experiments first
+        experiment_dirs = [p for p in self.experiments_dir.iterdir() 
+                          if p.is_dir() and p.name.startswith('exp_')]
+        
+        return sorted(experiment_dirs, key=lambda x: x.name, reverse=True)
     
     def list_experiment_runs(self, exp_id: str) -> List[Path]:
         """
-        List all runs for an experiment.
+        List all runs for an experiment sorted by name (newest first).
         
         Args:
             exp_id (str): Experiment ID
             
         Returns:
-            List[Path]: List of run directory paths
+            List[Path]: List of run directory paths sorted by name descending
         """
         runs_dir = self.experiments_dir / exp_id / "runs"
         if not runs_dir.exists():
             return []
         
-        return [p for p in runs_dir.iterdir() if p.is_dir()]
+        # Get all run directories and sort by name descending (newest first)
+        # Since run names include timestamp (run_YYYYMMDD_HHMMSS_*), 
+        # sorting by name descending gives us newest runs first
+        run_dirs = [p for p in runs_dir.iterdir() if p.is_dir()]
+        
+        return sorted(run_dirs, key=lambda x: x.name, reverse=True)
     
     def load_experiment(self, exp_id: str) -> Optional[Experiment]:
         """

@@ -319,10 +319,10 @@ class ExperimentController(BaseController):
     
     def list_experiments(self) -> List[Experiment]:
         """
-        List all experiments.
+        List all experiments sorted by creation time (newest first).
         
         Returns:
-            List[Experiment]: List of experiments
+            List[Experiment]: List of experiments sorted by creation time descending
         """
         try:
             experiments = []
@@ -333,6 +333,10 @@ class ExperimentController(BaseController):
                 experiment = self.get_experiment(exp_id)
                 if experiment:
                     experiments.append(experiment)
+            
+            # Sort experiments by creation time (newest first)
+            # Since experiment IDs include timestamp, we can sort by ID descending
+            experiments.sort(key=lambda x: x.created_at, reverse=True)
             
             return experiments
         except Exception as e:
