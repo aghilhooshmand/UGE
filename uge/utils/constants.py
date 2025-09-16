@@ -94,7 +94,7 @@ UI_CONSTANTS = {
     
     # Default Dataset and Grammar
     'default_dataset': 'processed.cleveland.data',
-    'default_grammar': 'UGE_Classification.bnf',
+    'default_grammar': 'heartDisease.bnf',
     
     # Chart Configuration
     'chart_height': 500,

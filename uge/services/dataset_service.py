@@ -119,12 +119,11 @@ class DatasetService:
             raise ValueError(f"Dataset not found: {dataset_name}")
         
         try:
-            if dataset_name == 'processed.cleveland.data':
-                return dataset.preprocess_cleveland_data(random_seed)
-            else:
-                if not label_column:
-                    raise ValueError('label_column not provided for CSV dataset')
-                return dataset.preprocess_csv_data(label_column, test_size, random_seed)
+            # ALL datasets use the same preprocessing method
+            # Use 'class' as the default label column if not provided
+            from uge.utils.constants import DEFAULT_CONFIG
+            label_column = label_column or DEFAULT_CONFIG['label_column']
+            return dataset.preprocess_csv_data(label_column, test_size, random_seed)
         except Exception as e:
             raise ValueError(f"Error preprocessing dataset: {e}")
     
@@ -313,27 +312,26 @@ class DatasetService:
         try:
             data = dataset.load()
             
-            # Check for label column in CSV datasets
-            if dataset_name != 'processed.cleveland.data':
-                if not label_column:
-                    issues.append("Label column not specified for CSV dataset")
-                elif label_column not in data.columns:
-                    issues.append(f"Label column '{label_column}' not found in dataset")
-                else:
-                    # Check if label column has appropriate values
-                    unique_labels = data[label_column].nunique()
-                    if unique_labels < 2:
-                        issues.append("Label column has less than 2 unique values")
-                    elif unique_labels > 10:
-                        issues.append("Label column has many unique values (consider if this is classification)")
+            # Check for label column in ALL datasets
+            # Use 'class' as the default label column if not provided
+            from uge.utils.constants import DEFAULT_CONFIG
+            label_column = label_column or DEFAULT_CONFIG['label_column']
+            if label_column not in data.columns:
+                issues.append(f"Label column '{label_column}' not found in dataset")
+            else:
+                # Check if label column has appropriate values
+                unique_labels = data[label_column].nunique()
+                if unique_labels < 2:
+                    issues.append("Label column has less than 2 unique values")
+                elif unique_labels > 10:
+                    issues.append("Label column has many unique values (consider if this is classification)")
             
-            # Check for numerical features
-            if dataset_name != 'processed.cleveland.data':
-                numerical_cols = data.select_dtypes(include=[np.number]).columns
-                if len(numerical_cols) == 0:
-                    issues.append("Dataset has no numerical features")
-                elif len(numerical_cols) < 2:
-                    issues.append("Dataset has very few numerical features")
+            # Check for numerical features in ALL datasets
+            numerical_cols = data.select_dtypes(include=[np.number]).columns
+            if len(numerical_cols) == 0:
+                issues.append("Dataset has no numerical features")
+            elif len(numerical_cols) < 2:
+                issues.append("Dataset has very few numerical features")
             
         except Exception as e:
             issues.append(f"Error checking compatibility: {e}")
