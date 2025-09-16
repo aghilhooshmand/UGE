@@ -165,11 +165,11 @@ class ExperimentController(BaseController):
                         if st.session_state.get(cancel_key):
                             break
                         
-                        # Update status text like UGE_ref
+                        # Update status text
                         if status_text:
                             status_text.text(f"Running {config.experiment_name} - Run {run_idx+1}/{config.n_runs}")
                         
-                        # Create run section in container like UGE_ref
+                        # Create run section in container
                         if all_runs_container:
                             with all_runs_container:
                                 st.subheader(f"🏃 Run {run_idx+1} Details")
@@ -181,7 +181,7 @@ class ExperimentController(BaseController):
                         run_config.random_seed = config.random_seed + run_idx
                         run_id = create_run_id()
                         
-                        # Simple approach like UGE_ref - just pass the placeholder
+                        # Simple approach - just pass the placeholder
 
                         result = self._run_single_experiment(
                             run_config, dataset, grammar, run_id, run_idx + 1, config.n_runs, run_placeholder
@@ -190,7 +190,7 @@ class ExperimentController(BaseController):
                             all_run_results[run_id] = result
                             self.storage_service.save_run_result(experiment.id, run_id, result)
                         
-                        # Update progress bar like UGE_ref
+                        # Update progress bar
                         if progress_bar:
                             progress_bar.progress((run_idx + 1) / config.n_runs)
                         
@@ -201,7 +201,7 @@ class ExperimentController(BaseController):
                     experiment.status = 'completed' if experiment.is_completed() else 'running'
                     self.storage_service.save_experiment(experiment)
                     
-                    # Store results in session state like UGE_ref for analysis page
+                    # Store results in session state for analysis page
                     st.session_state['latest_experiment'] = {
                         'config': config.to_dict(),
                         'results': {run_id: result.to_dict() for run_id, result in all_run_results.items()},
@@ -209,7 +209,7 @@ class ExperimentController(BaseController):
                         'experiment_name': config.experiment_name
                     }
                     
-                    # Update status text to completed like UGE_ref
+                    # Update status text to completed
                     if status_text:
                         status_text.text("✅ Experiment completed!")
                     

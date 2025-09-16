@@ -1,255 +1,582 @@
-# 🧬 UGE: Grammatical Evolution for Classification
+# 🧬 UGE (Unified Grammatical Evolution) Application
 
-A comprehensive Streamlit web application for running, analyzing, and comparing Grammatical Evolution (GE) experiments for classification tasks with advanced visualization and statistical analysis capabilities.
+## 📖 Complete Project Documentation
 
-## ✨ Key Features
+Welcome to the UGE application - a comprehensive Streamlit-based web application for running and analyzing Grammatical Evolution experiments. This document provides complete documentation for understanding, using, and developing with the UGE system.
 
-### 🚀 **Experiment Management**
-- **Multi-experiment support** - Run and manage multiple GE experiments
-- **Flexible configuration** - Comprehensive parameter tuning for GA and GE algorithms
-- **Experiment tracking** - Automatic saving and organization of experiment results
-- **Batch processing** - Run multiple independent runs per experiment
+## 🎯 Table of Contents
 
-### 📊 **Advanced Analysis & Visualization**
-- **Individual experiment analysis** - Detailed performance metrics and visualizations
-- **Multi-experiment comparison** - Compare any number of experiments side-by-side
-- **Aggregate statistics** - Average performance across runs and generations
-- **Interactive charts** - Plotly-based visualizations with confidence intervals
-- **Generation-by-generation analysis** - Track fitness evolution over time
+1. [Project Overview](#project-overview)
+2. [Quick Start Guide](#quick-start-guide)
+3. [Architecture Deep Dive](#architecture-deep-dive)
+4. [Class Documentation](#class-documentation)
+5. [API Reference](#api-reference)
+6. [Development Guide](#development-guide)
+7. [Troubleshooting](#troubleshooting)
 
-### 🎯 **Professional Interface**
-- **Modern UI** - Clean, professional interface with intuitive navigation
-- **Real-time monitoring** - Live progress tracking during experiment execution
-- **Export functionality** - Download comprehensive analysis data as CSV
-- **Responsive design** - Optimized for different screen sizes
+## 🌟 Project Overview
 
-## 🛠️ Technical Features
+### What is UGE?
 
-### **Algorithm Support**
-- **Grammatical Evolution** using DEAP framework
-- **Multiple fitness metrics** (MAE, Accuracy)
-- **Flexible initialization** (Sensible, Random)
-- **Advanced genetic operators** (Tournament selection, One-point crossover, Mutation)
+UGE is a sophisticated web application that provides a user-friendly interface for conducting Grammatical Evolution (GE) experiments. It combines the power of evolutionary algorithms with modern web technologies to make GE research accessible and efficient.
 
-### **Data Management**
-- **Multiple dataset formats** (CSV, .data files)
-- **Automatic data preprocessing** (Normalization, encoding)
-- **Train/test splitting** with configurable ratios
-- **Label column selection** for CSV datasets
+### Key Features
 
-### **Analysis Capabilities**
-- **Cross-run aggregation** - Average performance across multiple runs
-- **Cross-generation analysis** - Fitness evolution over generations
-- **Statistical measures** - Mean, standard deviation, confidence intervals
-- **Performance ranking** - Automatic ranking of experiments
-- **Best individual tracking** - Store and display best solutions
+- 🖥️ **Interactive Web Interface**: Built with Streamlit for easy use
+- 🧬 **Grammatical Evolution**: Full GE implementation using GRAPE library
+- 📊 **Advanced Visualization**: Interactive charts with Plotly
+- 📁 **Dataset Management**: Support for multiple dataset formats
+- 🔄 **Multiple Runs**: Automated execution of multiple independent runs
+- 📈 **Comprehensive Analysis**: Detailed performance metrics and comparisons
+- 💾 **Persistent Storage**: Automatic saving and loading of experiments
 
-## 📁 Project Structure
+### Technologies Used
 
-```
-UGE/
-├── app.py                    # Main Streamlit application
-├── algorithms.py             # GE algorithm implementations
-├── functions.py              # Primitive functions for GE
-├── grape.py                  # GRAPE framework core
-├── requirements.txt          # Python dependencies
-├── README.md                 # This file
-├── uge/
-│   ├── utils/
-│   │   └── config_help.json  # Configuration help text
-├── datasets/                 # Input datasets
-│   ├── processed.cleveland.data
-│   ├── clinical_breast_cancer_RFC.csv
-│   └── ...
-├── grammars/                 # BNF grammar files
-│   ├── heartDisease.bnf
-│   ├── UGE_Classification.bnf
-│   └── ...
-├── results/                  # Experiment results
-│   ├── experiments/          # Organized by experiment
-│   └── runs/                 # Individual run results
-└── UGE_env/                  # Virtual environment
-```
+- **Frontend**: Streamlit (Python web framework)
+- **Backend**: Python with DEAP (Distributed Evolutionary Algorithms)
+- **GE Library**: GRAPE (Grammatical Evolution framework)
+- **Visualization**: Plotly (Interactive charts)
+- **Data Processing**: Pandas, NumPy, scikit-learn
+- **Architecture**: Model-View-Controller (MVC) pattern
 
-## 🚀 Quick Start
+## 🚀 Quick Start Guide
 
-### 1. **Setup Environment**
+### Prerequisites
+
+- Python 3.8 or higher
+- pip (Python package manager)
+
+### Installation
+
+1. **Clone the repository**:
+
 ```bash
-# Navigate to project directory
+git clone <repository-url>
 cd UGE
+```
 
-# Activate virtual environment
-# For Bash:
-source UGE_env/bin/activate
+2. **Create virtual environment**:
 
-# For PowerShell:
-& "./UGE_env/bin/Activate.ps1"
+```bash
+python -m venv UGE_env
+source UGE_env/bin/activate  # On Windows: UGE_env\Scripts\activate
+```
 
-# Install dependencies (if needed)
+3. **Install dependencies**:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. **Run the Application**
+4. **Run the application**:
+
 ```bash
 streamlit run app.py
 ```
 
-The application will be available at `http://localhost:8501` (or next available port).
+5. **Open your browser** to `http://localhost:8501`
 
-### 3. **Create Your First Experiment**
-1. Navigate to **"🏃 Run Experiment"** page
-2. Configure your experiment parameters
-3. Select dataset and grammar
-4. Set GA and GE parameters
-5. Click **"🚀 Run Experiment"**
+### First Experiment
 
-## 📖 Usage Guide
+1. **Navigate to "Run Experiment"** page
+2. **Select a dataset** (e.g., `clinical_breast_cancer_RFC.csv`)
+3. **Choose a grammar** (e.g., `UGE_Classification.bnf`)
+4. **Set experiment name** (auto-generated)
+5. **Configure parameters** (or use defaults)
+6. **Click "🚀 Run Experiment"**
+7. **View results** in the "Analysis" page
 
-### **Running Experiments**
-1. **Experiment Configuration**:
-   - Choose experiment name and dataset
-   - Select appropriate grammar file
-   - Configure GA parameters (population, generations, operators)
-   - Set GE-specific parameters (tree depth, genome length, etc.)
+## 🏗️ Architecture Deep Dive
 
-2. **Multiple Runs**:
-   - Set number of independent runs
-   - Each run uses different random seeds
-   - Results are automatically aggregated
+### MVC Pattern Implementation
 
-### **Analysis & Comparison**
-1. **Individual Analysis**:
-   - View detailed statistics for single experiments
-   - Analyze fitness evolution across generations
-   - Export run data and configurations
+The UGE application follows the Model-View-Controller (MVC) architectural pattern:
 
-2. **Multi-Experiment Comparison**:
-   - Select multiple experiments to compare
-   - View aggregate performance across runs and generations
-   - See performance rankings and best experiment identification
-   - Export comprehensive comparison data
+#### Models (`uge/models/`)
 
-### **Data Management**
-1. **Dataset Manager**:
-   - Upload new datasets
-   - Preview existing datasets
-   - Manage dataset files
+**Purpose**: Define data structures and business entities
 
-2. **Grammar Editor**:
-   - Create new BNF grammars
-   - Edit existing grammars
-   - Preview grammar files
-
-## ⚙️ Configuration Options
-
-### **GA Parameters**
-- **Population Size**: Number of individuals per generation
-- **Generations**: Number of evolutionary cycles
-- **Crossover Probability**: Likelihood of crossover operation
-- **Mutation Probability**: Likelihood of mutation operation
-- **Elite Size**: Number of best individuals preserved
-- **Tournament Size**: Selection pressure for tournament selection
-
-### **GE Parameters**
-- **Tree Depth**: Maximum depth of evolved trees
-- **Genome Length**: Length of genetic representation
-- **Codon Size**: Size of genetic codons
-- **Initialization**: Sensible (guided) or Random initialization
-- **Codon Consumption**: Lazy or Eager consumption strategy
-
-### **Fitness Metrics**
-- **MAE (Mean Absolute Error)**: Lower is better (minimization)
-- **Accuracy**: Higher is better (maximization)
-
-## 📊 Analysis Features
-
-### **Performance Metrics**
-- **Training Fitness**: Performance on training data
-- **Test Fitness**: Performance on test data
-- **Best Individual**: Best solution found
-- **Statistical Measures**: Mean, standard deviation, confidence intervals
-
-### **Visualizations**
-- **Fitness Evolution**: Line charts showing performance over generations
-- **Aggregate Charts**: Average performance across runs with confidence intervals
-- **Comparison Charts**: Side-by-side comparison of multiple experiments
-- **Interactive Features**: Hover details, zoom, pan capabilities
-
-### **Export Options**
-- **Summary Statistics**: High-level performance metrics
-- **Detailed Data**: Generation-by-generation results
-- **Comparison Reports**: Multi-experiment analysis
-- **Configuration Data**: Complete experiment settings
-
-## 🔧 Extending the Platform
-
-### **Adding New Functions**
-Extend `functions.py` to add new primitive functions for your grammars:
 ```python
-def new_function(x, y):
-    # Your function implementation
-    return result
+# Core Models
+- Dataset: Represents datasets with loading and preprocessing capabilities
+- DatasetInfo: Metadata about datasets (columns, rows, file info)
+- Experiment: Complete experiment with multiple runs
+- ExperimentConfig: Configuration parameters for experiments
+- ExperimentResult: Results from individual experiment runs
 ```
 
-### **Adding New Datasets**
-1. Place dataset files in `datasets/` directory
-2. For CSV files, ensure proper format with label column
-3. Use Dataset Manager in the app to preview and manage
+#### Views (`uge/views/`)
 
-### **Adding New Grammars**
-1. Create BNF grammar files in `grammars/` directory
-2. Use Grammar Editor in the app to create and edit
-3. Ensure grammar uses available primitive functions
+**Purpose**: Handle user interface and presentation logic
+
+```python
+# View Components
+- BaseView: Common functionality for all views
+- ExperimentView: Experiment configuration and execution interface
+- DatasetView: Dataset management and browsing
+- AnalysisView: Results visualization and analysis
+- Forms: Reusable form components
+- Charts: Interactive chart generation
+```
+
+#### Controllers (`uge/controllers/`)
+
+**Purpose**: Orchestrate business logic and coordinate between views and services
+
+```python
+# Controllers
+- ExperimentController: Manages experiment lifecycle
+- DatasetController: Handles dataset operations
+- AnalysisController: Coordinates analysis operations
+```
+
+#### Services (`uge/services/`)
+
+**Purpose**: Implement business logic and external integrations
+
+```python
+# Services
+- GEService: Grammatical Evolution algorithm execution
+- DatasetService: Dataset loading, preprocessing, and validation
+- StorageService: File system operations and persistence
+```
+
+### Data Flow Architecture
+
+```
+User Input → Views → Controllers → Services → Models → External Libraries
+     ↑                                                      ↓
+User Interface ← Views ← Controllers ← Services ← Results Storage
+```
+
+## 📚 Class Documentation
+
+### Core Models
+
+#### ExperimentConfig
+
+```python
+@dataclass
+class ExperimentConfig:
+    """
+    Configuration parameters for Grammatical Evolution experiments.
+  
+    This class encapsulates all parameters needed to run a GE experiment,
+    including GA parameters, GE parameters, dataset settings, and options.
+  
+    Key Parameters:
+    - experiment_name: Human-readable experiment identifier
+    - dataset: Dataset file name (e.g., 'clinical_breast_cancer_RFC.csv')
+    - grammar: BNF grammar file (e.g., 'UGE_Classification.bnf')
+    - fitness_metric: Optimization target ('mae' or 'accuracy')
+    - n_runs: Number of independent runs (typically 3-10)
+    - generations: Evolution duration (typically 50-200)
+    - population: Population size (typically 100-500)
+    """
+```
+
+#### ExperimentResult
+
+```python
+@dataclass
+class ExperimentResult:
+    """
+    Results from a single experiment run.
+  
+    Contains performance metrics tracked across generations:
+    - max: Best fitness values per generation
+    - avg: Average fitness values per generation
+    - min: Worst fitness values per generation
+    - fitness_test: Test set performance per generation
+    - best_phenotype: The best solution found
+    """
+```
+
+#### Dataset
+
+```python
+class Dataset:
+    """
+    Main dataset class with comprehensive data handling capabilities.
+  
+    Features:
+    - Lazy loading: Data loaded only when needed
+    - Multiple formats: CSV, DATA file support
+    - Preprocessing: Automated data cleaning and preparation
+    - Validation: Dataset compatibility checking
+    """
+```
+
+### View Components
+
+#### BaseView
+
+```python
+class BaseView(ABC):
+    """
+    Abstract base class for all views.
+  
+    Provides common functionality:
+    - Session state management
+    - Error/success message handling
+    - Header rendering
+    - Consistent UI patterns
+    """
+```
+
+#### Forms
+
+```python
+class Forms:
+    """
+    Static class for creating form components.
+  
+    Methods:
+    - create_experiment_form(): Main experiment configuration form
+    - create_dataset_form(): Dataset selection and preview
+    - create_analysis_form(): Analysis options and filters
+    """
+```
+
+#### Charts
+
+```python
+class Charts:
+    """
+    Static class for creating interactive visualizations.
+  
+    Chart Types:
+    - plot_fitness_evolution(): Individual run performance
+    - plot_experiment_wide(): Multi-run aggregated analysis
+    - plot_comparison_chart(): Cross-experiment comparisons
+    """
+```
+
+### Service Classes
+
+#### GEService
+
+```python
+class GEService:
+    """
+    Core service for Grammatical Evolution execution.
+  
+    Responsibilities:
+    - Algorithm execution using GRAPE/DEAP
+    - Population management and evolution
+    - Fitness evaluation and selection
+    - Progress tracking and UI updates
+    """
+```
+
+#### DatasetService
+
+```python
+class DatasetService:
+    """
+    Service for dataset management operations.
+  
+    Capabilities:
+    - Dataset discovery and listing
+    - Metadata extraction and validation
+    - Data loading and preprocessing
+    - Compatibility checking
+    """
+```
+
+## 🔌 API Reference
+
+### Experiment Execution
+
+#### Running an Experiment
+
+```python
+# Through UI
+experiment_view = ExperimentView(experiment_controller)
+experiment_view.render()
+
+# Programmatically
+config = ExperimentConfig(
+    experiment_name="My Experiment",
+    dataset="clinical_breast_cancer_RFC.csv",
+    grammar="UGE_Classification.bnf",
+    n_runs=3,
+    generations=50
+)
+experiment = experiment_controller.run_experiment(config)
+```
+
+#### Accessing Results
+
+```python
+# Get experiment by ID
+experiment = experiment_controller.get_experiment("exp_20250915_143849_001d4e52")
+
+# Get best result across all runs
+best_result = experiment.get_best_result()
+
+# Get average fitness
+avg_fitness = experiment.get_average_fitness()
+
+# Access individual run results
+for run_id, result in experiment.results.items():
+    print(f"Run {run_id}: Best fitness = {result.best_training_fitness}")
+```
+
+### Dataset Operations
+
+#### Loading and Preprocessing
+
+```python
+# List available datasets
+datasets = dataset_service.list_datasets()
+
+# Get dataset information
+info = dataset_service.get_dataset_info("clinical_breast_cancer_RFC.csv")
+
+# Load and preprocess
+X_train, Y_train, X_test, Y_test = dataset_service.preprocess_dataset(
+    "clinical_breast_cancer_RFC.csv",
+    label_column="class",
+    test_size=0.3
+)
+```
+
+### Visualization
+
+#### Creating Charts
+
+```python
+# Individual run chart
+Charts.plot_individual_run_with_bars(
+    result=experiment_result,
+    title="Fitness Evolution",
+    fitness_metric="mae"
+)
+
+# Experiment-wide comparison
+Charts.plot_experiment_wide_with_bars(
+    results=experiment.results,
+    title="Multi-Run Analysis"
+)
+```
+
+## 🛠️ Development Guide
+
+### Project Structure
+
+```
+UGE/
+├── app.py                    # Main Streamlit application
+├── requirements.txt          # Python dependencies
+├── README.md                # Basic project information
+├── ARCHITECTURE.md          # Detailed architecture documentation
+├── README_COMPLETE.md       # This comprehensive guide
+├── uge/                     # Main application package
+│   ├── __init__.py
+│   ├── models/              # Data models
+│   │   ├── dataset.py
+│   │   ├── experiment.py
+│   │   └── grammar.py
+│   ├── views/               # User interface
+│   │   ├── components/
+│   │   │   ├── base_view.py
+│   │   │   ├── forms.py
+│   │   │   └── charts.py
+│   │   ├── dataset_view.py
+│   │   ├── experiment_view.py
+│   │   └── analysis_view.py
+│   ├── controllers/         # Business logic orchestration
+│   │   ├── base_controller.py
+│   │   ├── dataset_controller.py
+│   │   └── experiment_controller.py
+│   ├── services/            # Business logic services
+│   │   ├── dataset_service.py
+│   │   ├── ge_service.py
+│   │   └── storage_service.py
+│   └── utils/               # Utilities and constants
+│       ├── constants.py
+│       ├── helpers.py
+│       ├── logger.py
+│       └── tooltip_manager.py
+├── datasets/                # Dataset files
+│   ├── clinical_breast_cancer_RFC.csv
+│   └── processed.cleveland.data
+├── grammars/                # BNF grammar files
+│   ├── UGE_Classification.bnf
+│   ├── heartDisease.bnf
+│   └── Your_Grammar.bnf
+└── results/                 # Experiment results
+    └── experiments/
+        └── exp_*/
+```
+
+### Adding New Features
+
+#### 1. Adding a New View
+
+```python
+from uge.views.components.base_view import BaseView
+
+class MyNewView(BaseView):
+    def __init__(self):
+        super().__init__(
+            title="My New View",
+            description="Description of what this view does"
+        )
+  
+    def render(self):
+        self.render_header()
+        # Your view implementation here
+```
+
+#### 2. Adding a New Service
+
+```python
+class MyNewService:
+    def __init__(self, dependency_service=None):
+        self.dependency_service = dependency_service
+  
+    def my_service_method(self, parameter):
+        # Your service logic here
+        return result
+```
+
+#### 3. Adding a New Chart Type
+
+```python
+class Charts:
+    @staticmethod
+    def plot_my_new_chart(data, title="My Chart"):
+        fig = go.Figure()
+        # Create your Plotly figure
+        fig.update_layout(title=title)
+        st.plotly_chart(fig, use_container_width=True)
+```
+
+### Testing
+
+#### Running Tests
+
+```bash
+# Run all tests
+python -m pytest tests/
+
+# Run specific test file
+python -m pytest tests/test_experiment.py
+
+# Run with coverage
+python -m pytest --cov=uge tests/
+```
+
+#### Writing Tests
+
+```python
+import pytest
+from uge.models.experiment import ExperimentConfig
+
+def test_experiment_config_creation():
+    config = ExperimentConfig(
+        experiment_name="Test Experiment",
+        dataset="test.csv",
+        grammar="test.bnf"
+    )
+    assert config.experiment_name == "Test Experiment"
+    assert config.dataset == "test.csv"
+```
+
+### Code Style
+
+The project follows Python best practices:
+
+- **PEP 8**: Python style guide compliance
+- **Type Hints**: All functions include type annotations
+- **Docstrings**: Comprehensive documentation for all classes and methods
+- **Error Handling**: Proper exception handling with meaningful messages
+- **Logging**: Structured logging for debugging and monitoring
 
 ## 🐛 Troubleshooting
 
-### **Common Issues**
-1. **Port already in use**: Streamlit will automatically use the next available port
-2. **Dataset loading errors**: Check file format and column names
-3. **Grammar parsing errors**: Validate BNF syntax and function availability
-4. **Memory issues**: Reduce population size or generations for large experiments
+### Common Issues
 
-### **Performance Tips**
-1. **Smaller populations** for quick testing
-2. **Fewer generations** for initial parameter tuning
-3. **Multiple runs** for statistical significance
-4. **Export data** for external analysis
+#### 1. Import Errors
 
-## 📈 Example Workflows
+```bash
+# Error: ModuleNotFoundError: No module named 'streamlit'
+# Solution: Activate virtual environment
+source UGE_env/bin/activate
+pip install -r requirements.txt
+```
 
-### **Parameter Tuning**
-1. Create baseline experiment with default parameters
-2. Create variations with different parameter values
-3. Compare experiments to identify best settings
-4. Use aggregate analysis to see parameter effects
+#### 2. Dataset Loading Issues
 
-### **Algorithm Comparison**
-1. Run experiments with different grammars
-2. Compare performance across different approaches
-3. Analyze which grammar works best for your dataset
-4. Export results for publication or further analysis
+```bash
+# Error: Dataset file not found
+# Solution: Check dataset file exists in datasets/ folder
+ls datasets/
+```
 
-## 🤝 Contributing
+#### 3. Experiment Execution Errors
 
-This platform is designed for research and educational purposes. Feel free to:
-- Add new analysis features
-- Implement additional genetic operators
-- Create new visualization types
-- Extend the framework capabilities
+```bash
+# Error: Index out of bounds
+# Solution: Check dataset preprocessing compatibility
+# Ensure label column exists in dataset
+```
 
-## 📄 License
+#### 4. Memory Issues
 
-This project is part of the GA Course curriculum and is intended for educational and research purposes.
+```bash
+# Error: Out of memory during experiment
+# Solution: Reduce population size or generations
+# Or increase system memory
+```
 
-## 🎓 Educational Context
+### Debug Mode
 
-This UGE platform was developed as part of the Grammatical Evolution course, demonstrating:
-- **Evolutionary Computation** principles
-- **Grammatical Evolution** implementation
-- **Statistical Analysis** of evolutionary algorithms
-- **Web Application** development for research tools
-- **Data Visualization** and analysis techniques
+Enable debug logging:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+### Performance Optimization
+
+1. **Reduce Population Size**: Lower `population` parameter
+2. **Fewer Generations**: Reduce `generations` parameter
+3. **Smaller Datasets**: Use smaller test datasets
+4. **Fewer Runs**: Reduce `n_runs` parameter
+
+## 📞 Support
+
+For questions, issues, or contributions:
+
+1. **Check Documentation**: Review this guide and ARCHITECTURE.md
+2. **Search Issues**: Look for similar problems in issue tracker
+3. **Create Issue**: Provide detailed error messages and steps to reproduce
+4. **Contribute**: Submit pull requests with improvements
+
+## 🎓 Learning Resources
+
+### Grammatical Evolution
+
+- [Grammatical Evolution: Tutorial](https://www.grammatical-evolution.org/)
+- [DEAP Documentation](https://deap.readthedocs.io/)
+- [GRAPE Library](https://github.com/bdsul/grape)
+
+### Streamlit
+
+- [Streamlit Documentation](https://docs.streamlit.io/)
+- [Streamlit Tutorials](https://docs.streamlit.io/library/get-started)
+
+### Python Best Practices
+
+- [PEP 8 Style Guide](https://pep8.org/)
+- [Python Type Hints](https://docs.python.org/3/library/typing.html)
 
 ---
 
-**Happy Evolving! 🧬✨**
+**Happy Experimenting with UGE! 🧬✨**
+
+This comprehensive documentation should provide everything needed to understand, use, and develop with the UGE application. The modular architecture makes it easy to extend and customize for specific research needs.

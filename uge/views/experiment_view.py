@@ -123,7 +123,7 @@ class ExperimentView(BaseView):
             # Run the experiment using the controller
             st.info(f"🚀 Starting experiment '{config.experiment_name}'...")
             
-            # Create expandable section for running details like UGE_ref
+            # Create expandable section for running details
             with st.expander("🔍 Show Running Details", expanded=True):
                 progress_bar = st.progress(0)
                 status_text = st.empty()

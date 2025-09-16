@@ -25,33 +25,39 @@ class ExperimentConfig:
     This class encapsulates all the parameters needed to run a GE experiment,
     including GA parameters, GE parameters, dataset settings, and other options.
     
+    The configuration follows the MVC pattern where:
+    - Models: Data structures (this class)
+    - Views: User interface (forms, charts)
+    - Controllers: Business logic (experiment execution)
+    
     Attributes:
         experiment_name (str): Human-readable name for the experiment
-        dataset (str): Name of the dataset to use
-        grammar (str): Name of the BNF grammar file
+        dataset (str): Name of the dataset to use (e.g., 'clinical_breast_cancer_RFC.csv')
+        grammar (str): Name of the BNF grammar file (e.g., 'UGE_Classification.bnf')
         fitness_metric (str): Fitness metric to optimize ('mae' or 'accuracy')
-        n_runs (int): Number of independent runs to perform
-        generations (int): Number of generations to evolve
-        population (int): Population size
-        p_crossover (float): Crossover probability
-        p_mutation (float): Mutation probability
-        elite_size (int): Number of elite individuals to preserve
-        tournsize (int): Tournament size for selection
-        halloffame_size (int): Size of hall of fame
-        max_tree_depth (int): Maximum tree depth
+        fitness_direction (int): Optimization direction (1 for maximize, -1 for minimize)
+        n_runs (int): Number of independent runs to perform (typically 3-10)
+        generations (int): Number of generations to evolve (typically 50-200)
+        population (int): Population size (typically 100-500)
+        p_crossover (float): Crossover probability (typically 0.7-0.9)
+        p_mutation (float): Mutation probability (typically 0.1-0.3)
+        elite_size (int): Number of elite individuals to preserve (typically 5-20)
+        tournsize (int): Tournament size for selection (typically 3-7)
+        halloffame_size (int): Size of hall of fame (typically 10-50)
+        max_tree_depth (int): Maximum tree depth (prevents overfitting)
         min_init_tree_depth (int): Minimum initial tree depth
         max_init_tree_depth (int): Maximum initial tree depth
         min_init_genome_length (int): Minimum initial genome length
         max_init_genome_length (int): Maximum initial genome length
-        codon_size (int): Codon size for genome representation
+        codon_size (int): Codon size for genome representation (typically 255)
         codon_consumption (str): Codon consumption strategy ('lazy' or 'eager')
-        genome_representation (str): Genome representation type
+        genome_representation (str): Genome representation type ('list' or 'array')
         initialisation (str): Initialization strategy ('sensible' or 'random')
         random_seed (int): Random seed for reproducibility
-        label_column (Optional[str]): Label column for CSV datasets
-        test_size (float): Test set size ratio
-        report_items (List[str]): Items to include in reports
-        created_at (str): ISO timestamp of creation
+        label_column (str): Name of the target/label column in dataset
+        test_size (float): Proportion of data for testing (typically 0.2-0.3)
+        report_items (List[str]): Metrics to track during evolution
+        created_at (str): ISO timestamp of configuration creation
     """
     
     # Experiment metadata

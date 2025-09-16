@@ -233,7 +233,7 @@ class GEService:
             hof = tools.HallOfFame(config.halloffame_size)
             stats = self._setup_statistics()
             
-            # Setup logging like UGE_ref
+            # Setup logging
             logger = StreamlitLogger(live_placeholder) if live_placeholder else None
             
             # Run the evolutionary algorithm
