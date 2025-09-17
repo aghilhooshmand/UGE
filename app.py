@@ -340,7 +340,7 @@ class UGEApp:
         self.render_sidebar()
         
         # Get current page from session state
-        current_page = st.session_state.get('current_page', "🏃 Run Setup")
+        current_page = st.session_state.get('current_page', "🏠 Home")
         
         # Render the selected page
         self.render_page(current_page)
