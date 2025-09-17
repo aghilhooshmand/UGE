@@ -291,7 +291,7 @@ class GEService:
         # Extract series from logbook
         available = set(logbook.header)
         series = {}
-        for key in ['max', 'avg', 'min', 'std', 'fitness_test', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max']:
+        for key in ['max', 'avg', 'min', 'std', 'fitness_test', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'invalid_count_std', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'nodes_length_std']:
             if key in available:
                 series[key] = logbook.select(key)
             else:
@@ -330,9 +330,11 @@ class GEService:
             invalid_count_min=list(map(int, series.get('invalid_count_min', []))) if series.get('invalid_count_min') else [],
             invalid_count_avg=list(map(float, series.get('invalid_count_avg', []))) if series.get('invalid_count_avg') else [],
             invalid_count_max=list(map(int, series.get('invalid_count_max', []))) if series.get('invalid_count_max') else [],
+            invalid_count_std=list(map(float, series.get('invalid_count_std', []))) if series.get('invalid_count_std') else [],
             nodes_length_min=list(map(int, series.get('nodes_length_min', []))) if series.get('nodes_length_min') else [],
             nodes_length_avg=list(map(float, series.get('nodes_length_avg', []))) if series.get('nodes_length_avg') else [],
-            nodes_length_max=list(map(int, series.get('nodes_length_max', []))) if series.get('nodes_length_max') else []
+            nodes_length_max=list(map(int, series.get('nodes_length_max', []))) if series.get('nodes_length_max') else [],
+            nodes_length_std=list(map(float, series.get('nodes_length_std', []))) if series.get('nodes_length_std') else []
         )
         
         return result

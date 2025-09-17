@@ -1,7 +1,7 @@
 # ===== MODIFICATIONS BY AGHIL FOR UGE INTEGRATION =====
 # This file contains modifications made by Aghil for UGE (Unified Grammatical Evolution) integration:
-# 1. Invalid individuals tracking (min/max/avg) - tracks number of invalid individuals per generation
-# 2. Nodes length tracking (min/max/avg) - tracks number of terminal symbols per generation
+# 1. Invalid individuals tracking (min/max/avg/std) - tracks number of invalid individuals per generation
+# 2. Nodes length tracking (min/max/avg/std) - tracks number of terminal symbols per generation
 # All modifications are clearly marked with "MODIFICATION BY AGHIL" comments
 # ===== END MODIFICATIONS BY AGHIL =====
 #
@@ -108,16 +108,16 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
             raise ValueError("You should add a hof object to use elitism.") 
         else:
             warnings.warn('You will not register results of the best individual while not using a hof object.', hofWarning)
-            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['avg_length', 'avg_nodes', 'avg_depth', 'avg_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
+            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['avg_length', 'avg_nodes', 'avg_depth', 'avg_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'invalid_count_std', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'nodes_length_std', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
     else:
         if halloffame.maxsize < 1:
             raise ValueError("HALLOFFAME_SIZE should be greater or equal to 1")
         if elite_size > halloffame.maxsize:
             raise ValueError("HALLOFFAME_SIZE should be greater or equal to ELITE_SIZE")         
         if points_test:
-            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['fitness_test', 'best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
+            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['fitness_test', 'best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'invalid_count_std', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'nodes_length_std', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
         else:
-            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
+            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'invalid_count_std', 'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'nodes_length_std', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
 
     start_gen = time.time()        
     # Evaluate the individuals with an invalid fitness
@@ -137,6 +137,7 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
     invalid_count_min = invalid
     invalid_count_max = invalid
     invalid_count_avg = float(invalid)
+    invalid_count_std = 0.0  # Standard deviation is 0 when all values are the same
     # ===== END MODIFICATION BY AGHIL =====
     
     list_structures = []
@@ -184,6 +185,11 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
     nodes_length_min = min(nodes) if nodes else 0
     nodes_length_max = max(nodes) if nodes else 0
     nodes_length_avg = avg_nodes
+    # Calculate standard deviation for nodes length
+    if len(nodes) > 1:
+        nodes_length_std = math.sqrt(sum((x - avg_nodes) ** 2 for x in nodes) / (len(nodes) - 1))
+    else:
+        nodes_length_std = 0.0
     # ===== END MODIFICATION BY AGHIL =====
     
     depth = [ind.depth for ind in valid]
@@ -215,11 +221,13 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
                        invalid_count_min=invalid_count_min,
                        invalid_count_avg=invalid_count_avg,
                        invalid_count_max=invalid_count_max,
+                       invalid_count_std=invalid_count_std,
                        # ===== END MODIFICATION BY AGHIL =====
                        # ===== MODIFICATION BY AGHIL FOR UGE NODES LENGTH TRACKING =====
                        nodes_length_min=nodes_length_min,
                        nodes_length_avg=nodes_length_avg,
                        nodes_length_max=nodes_length_max,
+                       nodes_length_std=nodes_length_std,
                        # ===== END MODIFICATION BY AGHIL =====
                        behavioural_diversity=behavioural_diversity,
                        structural_diversity=structural_diversity,
@@ -239,11 +247,13 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
                        invalid_count_min=invalid_count_min,
                        invalid_count_avg=invalid_count_avg,
                        invalid_count_max=invalid_count_max,
+                       invalid_count_std=invalid_count_std,
                        # ===== END MODIFICATION BY AGHIL =====
                        # ===== MODIFICATION BY AGHIL FOR UGE NODES LENGTH TRACKING =====
                        nodes_length_min=nodes_length_min,
                        nodes_length_avg=nodes_length_avg,
                        nodes_length_max=nodes_length_max,
+                       nodes_length_std=nodes_length_std,
                        # ===== END MODIFICATION BY AGHIL =====
                        behavioural_diversity=behavioural_diversity,
                        structural_diversity=structural_diversity,
@@ -291,6 +301,7 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
         invalid_count_min = invalid
         invalid_count_max = invalid
         invalid_count_avg = float(invalid)
+        invalid_count_std = 0.0  # Standard deviation is 0 when all values are the same
         # ===== END MODIFICATION BY AGHIL =====
         
         list_structures = []
@@ -340,6 +351,11 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
         nodes_length_min = min(nodes) if nodes else 0
         nodes_length_max = max(nodes) if nodes else 0
         nodes_length_avg = avg_nodes
+        # Calculate standard deviation for nodes length
+        if len(nodes) > 1:
+            nodes_length_std = math.sqrt(sum((x - avg_nodes) ** 2 for x in nodes) / (len(nodes) - 1))
+        else:
+            nodes_length_std = 0.0
         # ===== END MODIFICATION BY AGHIL =====
         
         depth = [ind.depth for ind in valid]
@@ -367,11 +383,13 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
                        invalid_count_min=invalid_count_min,
                        invalid_count_avg=invalid_count_avg,
                        invalid_count_max=invalid_count_max,
+                       invalid_count_std=invalid_count_std,
                        # ===== END MODIFICATION BY AGHIL =====
                        # ===== MODIFICATION BY AGHIL FOR UGE NODES LENGTH TRACKING =====
                        nodes_length_min=nodes_length_min,
                        nodes_length_avg=nodes_length_avg,
                        nodes_length_max=nodes_length_max,
+                       nodes_length_std=nodes_length_std,
                        # ===== END MODIFICATION BY AGHIL =====
                        behavioural_diversity=behavioural_diversity,
                        structural_diversity=structural_diversity,
@@ -391,11 +409,13 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
                        invalid_count_min=invalid_count_min,
                        invalid_count_avg=invalid_count_avg,
                        invalid_count_max=invalid_count_max,
+                       invalid_count_std=invalid_count_std,
                        # ===== END MODIFICATION BY AGHIL =====
                        # ===== MODIFICATION BY AGHIL FOR UGE NODES LENGTH TRACKING =====
                        nodes_length_min=nodes_length_min,
                        nodes_length_avg=nodes_length_avg,
                        nodes_length_max=nodes_length_max,
+                       nodes_length_std=nodes_length_std,
                        # ===== END MODIFICATION BY AGHIL =====
                        behavioural_diversity=behavioural_diversity,
                        structural_diversity=structural_diversity,

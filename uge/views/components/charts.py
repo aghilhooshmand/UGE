@@ -15,6 +15,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 import numpy as np
+import math
 from typing import Dict, List, Optional, Any
 
 
@@ -610,12 +611,21 @@ class Charts:
             ))
         
         if measurement_options.get("invalid_avg", True):
+            # Add average line with error bars (like fitness charts)
             fig.add_trace(go.Scatter(
                 x=generations, y=result.invalid_count_avg,
                 mode="lines+markers",
                 name="Average Invalid Count",
                 line=dict(color="blue", width=2),
-                marker=dict(size=6)
+                marker=dict(size=6),
+                error_y=dict(
+                    type='data',
+                    symmetric=True,
+                    array=result.invalid_count_std if result.invalid_count_std else [0] * len(result.invalid_count_avg),
+                    visible=True,
+                    color='lightblue',
+                    thickness=2
+                )
             ))
         
         if measurement_options.get("invalid_max", True):
@@ -700,12 +710,32 @@ class Charts:
             ))
         
         if measurement_options.get("invalid_avg", True):
+            # Calculate STD for experiment-wide (standard deviation of averages across runs)
+            aggregated_std = []
+            for gen in range(max_generations):
+                gen_avg_values = [run_data[gen] for run_data in all_avg_data if gen < len(run_data)]
+                if len(gen_avg_values) > 1:
+                    mean_val = sum(gen_avg_values) / len(gen_avg_values)
+                    std_val = math.sqrt(sum((x - mean_val) ** 2 for x in gen_avg_values) / (len(gen_avg_values) - 1))
+                    aggregated_std.append(std_val)
+                else:
+                    aggregated_std.append(0.0)
+            
+            # Add average line with error bars (like fitness charts)
             fig.add_trace(go.Scatter(
                 x=generations, y=aggregated_avg,
                 mode="lines+markers",
                 name="Average Across Runs",
                 line=dict(color="blue", width=3),
-                marker=dict(size=8)
+                marker=dict(size=8),
+                error_y=dict(
+                    type='data',
+                    symmetric=True,
+                    array=aggregated_std,
+                    visible=True,
+                    color='lightblue',
+                    thickness=2
+                )
             ))
         
         if measurement_options.get("invalid_max", True):
@@ -758,12 +788,21 @@ class Charts:
             ))
         
         if measurement_options.get("nodes_length_avg", True):
+            # Add average line with error bars (like fitness charts)
             fig.add_trace(go.Scatter(
                 x=generations, y=result.nodes_length_avg,
                 mode="lines+markers",
                 name="Average Nodes Length",
                 line=dict(color="blue", width=2),
-                marker=dict(size=6)
+                marker=dict(size=6),
+                error_y=dict(
+                    type='data',
+                    symmetric=True,
+                    array=result.nodes_length_std if result.nodes_length_std else [0] * len(result.nodes_length_avg),
+                    visible=True,
+                    color='lightblue',
+                    thickness=2
+                )
             ))
         
         if measurement_options.get("nodes_length_max", True):
@@ -848,12 +887,32 @@ class Charts:
             ))
         
         if measurement_options.get("nodes_length_avg", True):
+            # Calculate STD for experiment-wide (standard deviation of averages across runs)
+            aggregated_std = []
+            for gen in range(max_generations):
+                gen_avg_values = [run_data[gen] for run_data in all_avg_data if gen < len(run_data)]
+                if len(gen_avg_values) > 1:
+                    mean_val = sum(gen_avg_values) / len(gen_avg_values)
+                    std_val = math.sqrt(sum((x - mean_val) ** 2 for x in gen_avg_values) / (len(gen_avg_values) - 1))
+                    aggregated_std.append(std_val)
+                else:
+                    aggregated_std.append(0.0)
+            
+            # Add average line with error bars (like fitness charts)
             fig.add_trace(go.Scatter(
                 x=generations, y=aggregated_avg,
                 mode="lines+markers",
                 name="Average Across Runs",
                 line=dict(color="blue", width=3),
-                marker=dict(size=8)
+                marker=dict(size=8),
+                error_y=dict(
+                    type='data',
+                    symmetric=True,
+                    array=aggregated_std,
+                    visible=True,
+                    color='lightblue',
+                    thickness=2
+                )
             ))
         
         if measurement_options.get("nodes_length_max", True):
