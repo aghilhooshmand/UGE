@@ -10,6 +10,7 @@ Author: FORGE Team
 import streamlit as st
 import sys
 import json
+import numpy as np
 from pathlib import Path
 from typing import Dict, Any
 
@@ -665,22 +666,36 @@ class UGEApp:
                 elif chart_type == "Test Fitness":
                     # Plot test fitness evolution (generalization performance)
                     if 'avg_test' in data and data['avg_test']:
-                        fig.add_trace(go.Scatter(
-                            x=data['generations'],
-                            y=data['avg_test'],
-                            mode='lines+markers',
-                            name=f'{exp_name} - Test',
-                            line=dict(color=color, width=3),
-                            marker=dict(size=4),
-                            error_y=dict(
-                                type='data',
-                                array=data.get('std_test', []),
-                                visible=True,
-                                color=color,
-                                thickness=1
-                            )
-                        ))
-                        traces_added += 1
+                        # Find first generation with valid test data
+                        test_values = data['avg_test']
+                        first_valid_gen = None
+                        for i, val in enumerate(test_values):
+                            if val is not None and val != 0 and not np.isnan(val):
+                                first_valid_gen = i
+                                break
+                        
+                        if first_valid_gen is not None:
+                            # Only plot test data from first valid generation onwards
+                            valid_test_values = test_values[first_valid_gen:]
+                            valid_test_gens = data['generations'][first_valid_gen:]
+                            valid_std_test = data.get('std_test', [])[first_valid_gen:] if data.get('std_test') else []
+                            
+                            fig.add_trace(go.Scatter(
+                                x=valid_test_gens,
+                                y=valid_test_values,
+                                mode='lines+markers',
+                                name=f'{exp_name} - Test',
+                                line=dict(color=color, width=3),
+                                marker=dict(size=4),
+                                error_y=dict(
+                                    type='data',
+                                    array=valid_std_test,
+                                    visible=True,
+                                    color=color,
+                                    thickness=1
+                                )
+                            ))
+                            traces_added += 1
                 elif chart_type == "All Metrics":
                     # Plot all three fitness metrics (best, average, test) for comprehensive comparison
                     if 'avg_max' in data and data['avg_max']:
@@ -704,15 +719,28 @@ class UGEApp:
                         ))
                         traces_added += 1
                     if 'avg_test' in data and data['avg_test']:
-                        fig.add_trace(go.Scatter(
-                            x=data['generations'],
-                            y=data['avg_test'],
-                            mode='lines+markers',
-                            name=f'{exp_name} - Test',
-                            line=dict(color=color, width=2, dash='dot'),
-                            marker=dict(size=3)
-                        ))
-                        traces_added += 1
+                        # Find first generation with valid test data
+                        test_values = data['avg_test']
+                        first_valid_gen = None
+                        for i, val in enumerate(test_values):
+                            if val is not None and val != 0 and not np.isnan(val):
+                                first_valid_gen = i
+                                break
+                        
+                        if first_valid_gen is not None:
+                            # Only plot test data from first valid generation onwards
+                            valid_test_values = test_values[first_valid_gen:]
+                            valid_test_gens = data['generations'][first_valid_gen:]
+                            
+                            fig.add_trace(go.Scatter(
+                                x=valid_test_gens,
+                                y=valid_test_values,
+                                mode='lines+markers',
+                                name=f'{exp_name} - Test',
+                                line=dict(color=color, width=2, dash='dot'),
+                                marker=dict(size=3)
+                            ))
+                            traces_added += 1
             
             # Check if any traces were added
             if traces_added == 0:

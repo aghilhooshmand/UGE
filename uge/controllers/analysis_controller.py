@@ -422,8 +422,8 @@ class AnalysisController(BaseController):
             aggregate_data['std_avg'].append(self._calculate_std(gen_avg_values) if gen_avg_values else 0)
             aggregate_data['avg_min'].append(sum(gen_min_values) / len(gen_min_values) if gen_min_values else 0)
             aggregate_data['std_min'].append(self._calculate_std(gen_min_values) if gen_min_values else 0)
-            aggregate_data['avg_test'].append(sum(gen_test_values) / len(gen_test_values) if gen_test_values else 0)
-            aggregate_data['std_test'].append(self._calculate_std(gen_test_values) if gen_test_values else 0)
+            aggregate_data['avg_test'].append(sum(gen_test_values) / len(gen_test_values) if gen_test_values else None)
+            aggregate_data['std_test'].append(self._calculate_std(gen_test_values) if gen_test_values else None)
         
         return aggregate_data
     
