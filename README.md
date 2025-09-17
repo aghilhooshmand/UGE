@@ -2,7 +2,7 @@
 
 ## 📖 Complete Project Documentation
 
-Welcome to the UGE application - a comprehensive Streamlit-based web application for running and analyzing Grammatical Evolution experiments. This document provides complete documentation for understanding, using, and developing with the UGE system.
+Welcome to the UGE application - a comprehensive Streamlit-based web application for running and analyzing Grammatical Evolution setups. This document provides complete documentation for understanding, using, and developing with the UGE system.
 
 ## 🎯 Table of Contents
 
@@ -18,7 +18,7 @@ Welcome to the UGE application - a comprehensive Streamlit-based web application
 
 ### What is UGE?
 
-UGE is a sophisticated web application that provides a user-friendly interface for conducting Grammatical Evolution (GE) experiments. It combines the power of evolutionary algorithms with modern web technologies to make GE research accessible and efficient.
+UGE is a sophisticated web application that provides a user-friendly interface for conducting Grammatical Evolution (GE) setups. It combines the power of evolutionary algorithms with modern web technologies to make GE research accessible and efficient.
 
 ### Key Features
 
@@ -30,7 +30,7 @@ UGE is a sophisticated web application that provides a user-friendly interface f
 - 📈 **Comprehensive Analysis**: Detailed performance metrics and comparisons
 - 🚫 **Invalid Individuals Tracking**: Monitor and analyze invalid individuals across generations
 - 🌳 **Nodes Length Tracking**: Track evolution of terminal symbols (nodes) across generations
-- 💾 **Persistent Storage**: Automatic saving and loading of experiments
+- 💾 **Persistent Storage**: Automatic saving and loading of setups
 
 ### Technologies Used
 
@@ -78,14 +78,14 @@ streamlit run app.py
 
 5. **Open your browser** to `http://localhost:8501`
 
-### First Experiment
+### First Setup
 
-1. **Navigate to "Run Experiment"** page
+1. **Navigate to "Run Setup"** page
 2. **Select a dataset** (e.g., `clinical_breast_cancer_RFC.csv`)
 3. **Choose a grammar** (e.g., `UGE_Classification.bnf`)
-4. **Set experiment name** (auto-generated)
+4. **Set setup name** (auto-generated)
 5. **Configure parameters** (or use defaults)
-6. **Click "🚀 Run Experiment"**
+6. **Click "🚀 Run Setup"**
 7. **View results** in the "Analysis" page
 
 ## 🏗️ Architecture Deep Dive
@@ -102,9 +102,9 @@ The UGE application follows the Model-View-Controller (MVC) architectural patter
 # Core Models
 - Dataset: Represents datasets with loading and preprocessing capabilities
 - DatasetInfo: Metadata about datasets (columns, rows, file info)
-- Experiment: Complete experiment with multiple runs
-- ExperimentConfig: Configuration parameters for experiments
-- ExperimentResult: Results from individual experiment runs
+- Setup: Complete setup with multiple runs
+- SetupConfig: Configuration parameters for setups
+- SetupResult: Results from individual setup runs
 ```
 
 #### Views (`uge/views/`)
@@ -114,7 +114,7 @@ The UGE application follows the Model-View-Controller (MVC) architectural patter
 ```python
 # View Components
 - BaseView: Common functionality for all views
-- ExperimentView: Experiment configuration and execution interface
+- SetupView: Setup configuration and execution interface
 - DatasetView: Dataset management and browsing
 - AnalysisView: Results visualization and analysis
 - Forms: Reusable form components
@@ -127,7 +127,7 @@ The UGE application follows the Model-View-Controller (MVC) architectural patter
 
 ```python
 # Controllers
-- ExperimentController: Manages experiment lifecycle
+- SetupController: Manages setup lifecycle
 - DatasetController: Handles dataset operations
 - AnalysisController: Coordinates analysis operations
 ```
@@ -155,19 +155,19 @@ User Interface ← Views ← Controllers ← Services ← Results Storage
 
 ### Core Models
 
-#### ExperimentConfig
+#### SetupConfig
 
 ```python
 @dataclass
-class ExperimentConfig:
+class SetupConfig:
     """
-    Configuration parameters for Grammatical Evolution experiments.
+    Configuration parameters for Grammatical Evolution setups.
   
-    This class encapsulates all parameters needed to run a GE experiment,
+    This class encapsulates all parameters needed to run a GE setup,
     including GA parameters, GE parameters, dataset settings, and options.
   
     Key Parameters:
-    - experiment_name: Human-readable experiment identifier
+    - setup_name: Human-readable setup identifier
     - dataset: Dataset file name (e.g., 'clinical_breast_cancer_RFC.csv')
     - grammar: BNF grammar file (e.g., 'UGE_Classification.bnf')
     - fitness_metric: Optimization target ('mae' or 'accuracy')
@@ -177,13 +177,13 @@ class ExperimentConfig:
     """
 ```
 
-#### ExperimentResult
+#### SetupResult
 
 ```python
 @dataclass
-class ExperimentResult:
+class SetupResult:
     """
-    Results from a single experiment run.
+    Results from a single setup run.
   
     Contains performance metrics tracked across generations:
     - max: Best fitness values per generation
@@ -234,7 +234,7 @@ class Forms:
     Static class for creating form components.
   
     Methods:
-    - create_experiment_form(): Main experiment configuration form
+    - create_setup_form(): Main setup configuration form
     - create_dataset_form(): Dataset selection and preview
     - create_analysis_form(): Analysis options and filters
     """
@@ -249,8 +249,8 @@ class Charts:
   
     Chart Types:
     - plot_fitness_evolution(): Individual run performance
-    - plot_experiment_wide(): Multi-run aggregated analysis
-    - plot_comparison_chart(): Cross-experiment comparisons
+    - plot_setup_wide(): Multi-run aggregated analysis
+    - plot_comparison_chart(): Cross-setup comparisons
     """
 ```
 
@@ -288,40 +288,40 @@ class DatasetService:
 
 ## 🔌 API Reference
 
-### Experiment Execution
+### Setup Execution
 
-#### Running an Experiment
+#### Running an Setup
 
 ```python
 # Through UI
-experiment_view = ExperimentView(experiment_controller)
-experiment_view.render()
+setup_view = SetupView(setup_controller)
+setup_view.render()
 
 # Programmatically
-config = ExperimentConfig(
-    experiment_name="My Experiment",
+config = SetupConfig(
+    setup_name="My Setup",
     dataset="clinical_breast_cancer_RFC.csv",
     grammar="UGE_Classification.bnf",
     n_runs=3,
     generations=50
 )
-experiment = experiment_controller.run_experiment(config)
+setup = setup_controller.run_setup(config)
 ```
 
 #### Accessing Results
 
 ```python
-# Get experiment by ID
-experiment = experiment_controller.get_experiment("exp_20250915_143849_001d4e52")
+# Get setup by ID
+setup = setup_controller.get_setup("exp_20250915_143849_001d4e52")
 
 # Get best result across all runs
-best_result = experiment.get_best_result()
+best_result = setup.get_best_result()
 
 # Get average fitness
-avg_fitness = experiment.get_average_fitness()
+avg_fitness = setup.get_average_fitness()
 
 # Access individual run results
-for run_id, result in experiment.results.items():
+for run_id, result in setup.results.items():
     print(f"Run {run_id}: Best fitness = {result.best_training_fitness}")
 ```
 
@@ -351,14 +351,14 @@ X_train, Y_train, X_test, Y_test = dataset_service.preprocess_dataset(
 ```python
 # Individual run chart
 Charts.plot_individual_run_with_bars(
-    result=experiment_result,
+    result=setup_result,
     title="Fitness Evolution",
     fitness_metric="mae"
 )
 
-# Experiment-wide comparison
-Charts.plot_experiment_wide_with_bars(
-    results=experiment.results,
+# Setup-wide comparison
+Charts.plot_setup_wide_with_bars(
+    results=setup.results,
     title="Multi-Run Analysis"
 )
 ```
@@ -378,7 +378,7 @@ UGE/
 │   ├── __init__.py
 │   ├── models/              # Data models
 │   │   ├── dataset.py
-│   │   ├── experiment.py
+│   │   ├── setup.py
 │   │   └── grammar.py
 │   ├── views/               # User interface
 │   │   ├── components/
@@ -386,12 +386,12 @@ UGE/
 │   │   │   ├── forms.py
 │   │   │   └── charts.py
 │   │   ├── dataset_view.py
-│   │   ├── experiment_view.py
+│   │   ├── setup_view.py
 │   │   └── analysis_view.py
 │   ├── controllers/         # Business logic orchestration
 │   │   ├── base_controller.py
 │   │   ├── dataset_controller.py
-│   │   └── experiment_controller.py
+│   │   └── setup_controller.py
 │   ├── services/            # Business logic services
 │   │   ├── dataset_service.py
 │   │   ├── ge_service.py
@@ -408,8 +408,8 @@ UGE/
 │   ├── UGE_Classification.bnf
 │   ├── heartDisease.bnf
 │   └── Your_Grammar.bnf
-└── results/                 # Experiment results
-    └── experiments/
+└── results/                 # Setup results
+    └── setups/
         └── exp_*/
 ```
 
@@ -465,7 +465,7 @@ class Charts:
 python -m pytest tests/
 
 # Run specific test file
-python -m pytest tests/test_experiment.py
+python -m pytest tests/test_setup.py
 
 # Run with coverage
 python -m pytest --cov=uge tests/
@@ -475,15 +475,15 @@ python -m pytest --cov=uge tests/
 
 ```python
 import pytest
-from uge.models.experiment import ExperimentConfig
+from uge.models.setup import SetupConfig
 
-def test_experiment_config_creation():
-    config = ExperimentConfig(
-        experiment_name="Test Experiment",
+def test_setup_config_creation():
+    config = SetupConfig(
+        setup_name="Test Setup",
         dataset="test.csv",
         grammar="test.bnf"
     )
-    assert config.experiment_name == "Test Experiment"
+    assert config.setup_name == "Test Setup"
     assert config.dataset == "test.csv"
 ```
 
@@ -518,7 +518,7 @@ pip install -r requirements.txt
 ls datasets/
 ```
 
-#### 3. Experiment Execution Errors
+#### 3. Setup Execution Errors
 
 ```bash
 # Error: Index out of bounds
@@ -529,7 +529,7 @@ ls datasets/
 #### 4. Memory Issues
 
 ```bash
-# Error: Out of memory during experiment
+# Error: Out of memory during setup
 # Solution: Reduce population size or generations
 # Or increase system memory
 ```
@@ -579,6 +579,6 @@ For questions, issues, or contributions:
 
 ---
 
-**Happy Experimenting with UGE! 🧬✨**
+**Happy Setuping with UGE! 🧬✨**
 
 This comprehensive documentation should provide everything needed to understand, use, and develop with the UGE application. The modular architecture makes it easy to extend and customize for specific research needs.

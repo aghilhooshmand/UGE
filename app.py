@@ -20,9 +20,9 @@ if str(CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(CURRENT_DIR))
 
 # Import MVC components
-from uge.controllers.experiment_controller import ExperimentController
+from uge.controllers.setup_controller import SetupController
 from uge.controllers.analysis_controller import AnalysisController
-from uge.views.experiment_view import ExperimentView
+from uge.views.setup_view import SetupView
 from uge.views.dataset_view import DatasetView
 from uge.views.analysis_view import AnalysisView
 from uge.services.storage_service import StorageService
@@ -42,11 +42,11 @@ class UGEApp:
     
     def __init__(self):
         """Initialize the UGE application."""
-        self.experiment_controller = ExperimentController(
-            on_experiment_start=self._on_experiment_start,
-            on_experiment_progress=self._on_experiment_progress,
-            on_experiment_complete=self._on_experiment_complete,
-            on_experiment_error=self._on_experiment_error
+        self.setup_controller = SetupController(
+            on_setup_start=self._on_setup_start,
+            on_setup_progress=self._on_setup_progress,
+            on_setup_complete=self._on_setup_complete,
+            on_setup_error=self._on_setup_error
         )
         
         self.analysis_controller = AnalysisController(
@@ -59,21 +59,21 @@ class UGEApp:
         self.dataset_service = DatasetService()
         
         # Initialize views
-        self.experiment_view = ExperimentView(self.experiment_controller)
+        self.setup_view = SetupView(self.setup_controller)
         # Initialize dataset view with preview callback
         self.dataset_view = DatasetView(
             on_dataset_preview=self._on_dataset_preview
         )
         self.analysis_view = AnalysisView(
-            on_experiment_select=self._on_experiment_select,
+            on_setup_select=self._on_setup_select,
             on_analysis_options_change=self._on_analysis_options_change,
             on_export_data=self._on_export_data
         )
     
-    def _on_experiment_start(self, experiment):
-        """Callback when experiment starts."""
-        st.success(f"🚀 Experiment '{experiment.config.experiment_name}' started!")
-        st.session_state['current_experiment'] = experiment
+    def _on_setup_start(self, setup):
+        """Callback when setup starts."""
+        st.success(f"🚀 Setup '{setup.config.setup_name}' started!")
+        st.session_state['current_setup'] = setup
         # Initialize persistent placeholders for live progress
         if 'uge_progress_bar' not in st.session_state:
             st.session_state['uge_progress_bar'] = st.progress(0)
@@ -84,8 +84,8 @@ class UGEApp:
                 st.session_state['uge_progress_bar'] = st.progress(0)
         st.session_state['uge_progress_text'] = st.empty()
     
-    def _on_experiment_progress(self, experiment, run_number, total_runs, progress):
-        """Callback for experiment progress updates."""
+    def _on_setup_progress(self, setup, run_number, total_runs, progress):
+        """Callback for setup progress updates."""
         # Update persistent progress bar and text
         try:
             if 'uge_progress_bar' in st.session_state and st.session_state['uge_progress_bar']:
@@ -96,58 +96,58 @@ class UGEApp:
             st.session_state['uge_progress_bar'] = st.progress(min(max(progress, 0.0), 1.0))
         if 'uge_progress_text' in st.session_state and st.session_state['uge_progress_text']:
             st.session_state['uge_progress_text'].info(
-                f"🔄 Run {run_number}/{total_runs} in '{experiment.config.experiment_name}'"
+                f"🔄 Run {run_number}/{total_runs} in '{setup.config.setup_name}'"
             )
         else:
-            st.info(f"🔄 Run {run_number}/{total_runs} in '{experiment.config.experiment_name}'")
+            st.info(f"🔄 Run {run_number}/{total_runs} in '{setup.config.setup_name}'")
     
-    def _on_experiment_complete(self, experiment):
-        """Callback when experiment completes."""
-        st.success(f"✅ Experiment '{experiment.config.experiment_name}' completed successfully!")
-        st.session_state['current_experiment'] = None
+    def _on_setup_complete(self, setup):
+        """Callback when setup completes."""
+        st.success(f"✅ Setup '{setup.config.setup_name}' completed successfully!")
+        st.session_state['current_setup'] = None
         # Clear progress placeholders
         st.session_state['uge_progress_text'] = None
         st.session_state['uge_progress_bar'] = None
     
-    def _on_experiment_error(self, error):
-        """Callback when experiment errors."""
-        st.error(f"❌ Experiment failed: {str(error)}")
-        st.session_state['current_experiment'] = None
+    def _on_setup_error(self, error):
+        """Callback when setup errors."""
+        st.error(f"❌ Setup failed: {str(error)}")
+        st.session_state['current_setup'] = None
         # Clear progress placeholders
         st.session_state['uge_progress_text'] = None
         st.session_state['uge_progress_bar'] = None
     
-    def _on_analysis_start(self, experiment_id):
+    def _on_analysis_start(self, setup_id):
         """Callback when analysis starts."""
-        # Try to get experiment name
+        # Try to get setup name
         try:
-            experiment = self.storage_service.load_experiment(experiment_id)
-            exp_name = experiment.config.experiment_name if experiment and experiment.config else experiment_id
+            setup = self.storage_service.load_setup(setup_id)
+            exp_name = setup.config.setup_name if setup and setup.config else setup_id
         except:
-            exp_name = experiment_id
-        st.info(f"🔍 Starting analysis for experiment '{exp_name}'...")
+            exp_name = setup_id
+        st.info(f"🔍 Starting analysis for setup '{exp_name}'...")
     
-    def _on_analysis_complete(self, experiment_id, results):
+    def _on_analysis_complete(self, setup_id, results):
         """Callback when analysis completes."""
-        # Try to get experiment name
+        # Try to get setup name
         try:
-            experiment = self.storage_service.load_experiment(experiment_id)
-            exp_name = experiment.config.experiment_name if experiment and experiment.config else experiment_id
+            setup = self.storage_service.load_setup(setup_id)
+            exp_name = setup.config.setup_name if setup and setup.config else setup_id
         except:
-            exp_name = experiment_id
-        st.success(f"✅ Analysis completed for experiment '{exp_name}'")
+            exp_name = setup_id
+        st.success(f"✅ Analysis completed for setup '{exp_name}'")
     
     def _on_analysis_error(self, error):
         """Callback when analysis errors."""
         st.error(f"❌ Analysis failed: {str(error)}")
     
-    def _on_experiment_select(self, experiment_id: str):
-        """Callback when experiment is selected for analysis."""
+    def _on_setup_select(self, setup_id: str):
+        """Callback when setup is selected for analysis."""
         try:
-            experiment = self.storage_service.load_experiment(experiment_id)
-            return experiment
+            setup = self.storage_service.load_setup(setup_id)
+            return setup
         except Exception as e:
-            st.error(f"Error loading experiment: {str(e)}")
+            st.error(f"Error loading setup: {str(e)}")
             return None
     
     def _on_analysis_options_change(self, options):
@@ -155,10 +155,10 @@ class UGEApp:
         # Store analysis options in session state if needed
         st.session_state['analysis_options'] = options
     
-    def _on_export_data(self, experiment, export_type):
+    def _on_export_data(self, setup, export_type):
         """Callback for data export."""
         try:
-            return self.analysis_controller.export_experiment_data(experiment.id, export_type)
+            return self.analysis_controller.export_setup_data(setup.id, export_type)
         except Exception as e:
             st.error(f"Export error: {str(e)}")
             return None
@@ -191,8 +191,8 @@ class UGEApp:
             st.markdown("### 📋 Navigation")
             page = st.selectbox(
                 "Select Page:",
-                ["🏃 Run Experiment", "📊 Dataset Manager", "📝 Grammar Editor", 
-                 "🧪 Experiment Manager", "📈 Analysis", "⚖️ Comparison"],
+                ["🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
+                 "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"],
                 key="main_navigation",
                 label_visibility="collapsed"
             )
@@ -202,16 +202,16 @@ class UGEApp:
             # Quick stats
             st.markdown("### 📊 Quick Stats")
             try:
-                experiments = self.storage_service.list_experiments()
+                setups = self.storage_service.list_setups()
                 datasets = self.dataset_service.list_datasets()
                 
                 # Count total runs
                 total_runs = 0
-                for exp in experiments:
-                    runs = self.storage_service.list_experiment_runs(exp.name)
+                for exp in setups:
+                    runs = self.storage_service.list_setup_runs(exp.name)
                     total_runs += len(runs)
                 
-                st.metric("🧪 Experiments", len(experiments))
+                st.metric("🧪 Setups", len(setups))
                 st.metric("📊 Datasets", len(datasets))
                 st.metric("📝 Grammars", len(self._get_available_grammars()))
                 st.metric("🏃 Total Runs", total_runs)
@@ -224,7 +224,7 @@ class UGEApp:
             # Additional info
             st.markdown("### ℹ️ About")
             st.markdown("**UGE Platform** - Grammatical Evolution for Machine Learning")
-            st.markdown("Create, run, and analyze GE experiments with ease.")
+            st.markdown("Create, run, and analyze GE setups with ease.")
             
             st.markdown("---")
             st.caption("v1.0.0 | Built with Streamlit")
@@ -243,12 +243,12 @@ class UGEApp:
     
     def render_page(self, page):
         """Render the selected page."""
-        if page == "🏃 Run Experiment":
-            # Get required data for experiment view
+        if page == "🏃 Run Setup":
+            # Get required data for setup view
             from uge.utils.constants import HELP
             datasets = self.dataset_service.list_datasets()
             grammars = self._get_available_grammars()
-            self.experiment_view.render(
+            self.setup_view.render(
                 help_texts=HELP,
                 datasets=datasets,
                 grammars=grammars
@@ -258,43 +258,43 @@ class UGEApp:
             self.dataset_view.render(datasets=datasets)
         elif page == "📝 Grammar Editor":
             self._render_grammar_editor()
-        elif page == "🧪 Experiment Manager":
-            self._render_experiment_manager()
+        elif page == "🧪 Setup Manager":
+            self._render_setup_manager()
         elif page == "📈 Analysis":
-            # Get available experiments for analysis
+            # Get available setups for analysis
             try:
-                experiment_paths = self.storage_service.list_experiments()
-                # Convert paths to experiment info with better names
-                experiments = []
-                for exp_path in experiment_paths:
+                setup_paths = self.storage_service.list_setups()
+                # Convert paths to setup info with better names
+                setups = []
+                for exp_path in setup_paths:
                     exp_id = exp_path.name
                     try:
-                        # Load config to get experiment name
-                        config = self.storage_service.load_experiment_config(exp_id)
+                        # Load config to get setup name
+                        config = self.storage_service.load_setup_config(exp_id)
                         if config:
-                            experiments.append({
+                            setups.append({
                                 'id': exp_id,
-                                'name': config.experiment_name,
+                                'name': config.setup_name,
                                 'path': str(exp_path)
                             })
                         else:
                             # Fallback to exp_id if config can't be loaded
-                            experiments.append({
+                            setups.append({
                                 'id': exp_id,
                                 'name': exp_id,
                                 'path': str(exp_path)
                             })
                     except Exception:
                         # Fallback to exp_id if there's any error
-                        experiments.append({
+                        setups.append({
                             'id': exp_id,
                             'name': exp_id,
                             'path': str(exp_path)
                         })
                 
-                self.analysis_view.render(experiments)
+                self.analysis_view.render(setups)
             except Exception as e:
-                st.error(f"Error loading experiments: {str(e)}")
+                st.error(f"Error loading setups: {str(e)}")
                 self.analysis_view.render([])
         elif page == "⚖️ Comparison":
             self._render_comparison()
@@ -352,129 +352,129 @@ class UGEApp:
         else:
             st.info("No grammar files found in the grammars directory.")
     
-    def _render_experiment_manager(self):
-        """Render the experiment manager page."""
-        st.header("🧪 Experiment Manager")
-        st.markdown("Manage and monitor your experiments")
+    def _render_setup_manager(self):
+        """Render the setup manager page."""
+        st.header("🧪 Setup Manager")
+        st.markdown("Manage and monitor your setups")
         
         try:
-            experiments = self.storage_service.list_experiments()
+            setups = self.storage_service.list_setups()
             
-            if experiments:
-                # Experiment selection
-                exp_names = [exp.name for exp in experiments]
-                selected_exp = st.selectbox("Select Experiment", exp_names)
+            if setups:
+                # Setup selection
+                exp_names = [exp.name for exp in setups]
+                selected_exp = st.selectbox("Select Setup", exp_names)
                 
                 if selected_exp:
-                    # Load experiment details
-                    experiment = self.experiment_controller.get_experiment(selected_exp)
+                    # Load setup details
+                    setup = self.setup_controller.get_setup(selected_exp)
                     
-                    if experiment:
-                        # Display experiment info
+                    if setup:
+                        # Display setup info
                         col1, col2 = st.columns(2)
                         
                         with col1:
-                            st.subheader("📋 Experiment Details")
-                            st.write(f"**Name:** {experiment.config.experiment_name}")
-                            st.write(f"**Status:** {experiment.status}")
-                            st.write(f"**Created:** {experiment.created_at}")
-                            st.write(f"**Total Runs:** {experiment.config.n_runs}")
-                            st.write(f"**Completed Runs:** {len(experiment.results)}")
+                            st.subheader("📋 Setup Details")
+                            st.write(f"**Name:** {setup.config.setup_name}")
+                            st.write(f"**Status:** {setup.status}")
+                            st.write(f"**Created:** {setup.created_at}")
+                            st.write(f"**Total Runs:** {setup.config.n_runs}")
+                            st.write(f"**Completed Runs:** {len(setup.results)}")
                         
                         with col2:
                             st.subheader("⚙️ Configuration")
-                            st.write(f"**Dataset:** {experiment.config.dataset}")
-                            st.write(f"**Grammar:** {experiment.config.grammar}")
-                            st.write(f"**Population:** {experiment.config.population}")
-                            st.write(f"**Generations:** {experiment.config.generations}")
-                            st.write(f"**Fitness Metric:** {experiment.config.fitness_metric}")
+                            st.write(f"**Dataset:** {setup.config.dataset}")
+                            st.write(f"**Grammar:** {setup.config.grammar}")
+                            st.write(f"**Population:** {setup.config.population}")
+                            st.write(f"**Generations:** {setup.config.generations}")
+                            st.write(f"**Fitness Metric:** {setup.config.fitness_metric}")
                         
                         # Progress bar
-                        if experiment.config.n_runs > 0:
-                            progress = len(experiment.results) / experiment.config.n_runs
+                        if setup.config.n_runs > 0:
+                            progress = len(setup.results) / setup.config.n_runs
                             st.progress(progress)
-                            st.write(f"Progress: {len(experiment.results)}/{experiment.config.n_runs} runs completed")
+                            st.write(f"Progress: {len(setup.results)}/{setup.config.n_runs} runs completed")
                         
                         # Action buttons
                         col1, col2, col3 = st.columns(3)
                         
                         with col1:
                             if st.button("📊 View Results"):
-                                st.session_state['selected_experiment'] = selected_exp
+                                st.session_state['selected_setup'] = selected_exp
                                 st.rerun()
                         
                         with col2:
                             if st.button("📥 Export Data"):
-                                export_data = self.analysis_controller.export_experiment_data(
+                                export_data = self.analysis_controller.export_setup_data(
                                     selected_exp, 'all'
                                 )
                                 if export_data:
                                     st.download_button(
-                                        label="📥 Download Experiment Data",
+                                        label="📥 Download Setup Data",
                                         data=export_data,
                                         file_name=f"{selected_exp}_data.json",
                                         mime="application/json"
                                     )
                         
                         with col3:
-                            if st.button("🗑️ Delete Experiment", type="secondary"):
-                                if self.experiment_controller.delete_experiment(selected_exp):
-                                    st.success(f"Experiment '{selected_exp}' deleted successfully!")
+                            if st.button("🗑️ Delete Setup", type="secondary"):
+                                if self.setup_controller.delete_setup(selected_exp):
+                                    st.success(f"Setup '{selected_exp}' deleted successfully!")
                                     st.rerun()
                                 else:
-                                    st.error("Failed to delete experiment")
+                                    st.error("Failed to delete setup")
             else:
-                st.info("No experiments found. Create your first experiment using the 'Run Experiment' page!")
+                st.info("No setups found. Create your first setup using the 'Run Setup' page!")
                 
         except Exception as e:
-            st.error(f"Error loading experiments: {str(e)}")
+            st.error(f"Error loading setups: {str(e)}")
     
     def _render_comparison(self):
         """Render the comparison page."""
-        st.header("⚖️ Experiment Comparison")
-        st.markdown("Compare multiple experiments")
+        st.header("⚖️ Setup Comparison")
+        st.markdown("Compare multiple setups")
         
         try:
-            experiment_paths = self.storage_service.list_experiments()
+            setup_paths = self.storage_service.list_setups()
             
-            if len(experiment_paths) >= 2:
-                # Load experiment objects and create options
+            if len(setup_paths) >= 2:
+                # Load setup objects and create options
                 exp_options = {}
-                for exp_path in experiment_paths:
+                for exp_path in setup_paths:
                     exp_id = exp_path.name
                     try:
-                        experiment = self.storage_service.load_experiment(exp_id)
-                        if experiment and experiment.config:
-                            exp_name = experiment.config.experiment_name
+                        setup = self.storage_service.load_setup(exp_id)
+                        if setup and setup.config:
+                            exp_name = setup.config.setup_name
                         else:
                             exp_name = exp_id
                     except:
                         exp_name = exp_id
                     exp_options[exp_name] = exp_id
                 
-                selected_experiment_names = st.multiselect(
-                    "Select Experiments to Compare",
+                selected_setup_names = st.multiselect(
+                    "Select Setups to Compare",
                     list(exp_options.keys()),
                     default=list(exp_options.keys())[:2] if len(exp_options) >= 2 else list(exp_options.keys())
                 )
                 
                 # Convert selected names back to IDs for processing
-                selected_experiments = [exp_options[name] for name in selected_experiment_names]
+                selected_setups = [exp_options[name] for name in selected_setup_names]
                 
-                if len(selected_experiments) >= 2:
-                    if st.button("🔍 Compare Experiments"):
-                        comparison_results = self.analysis_controller.compare_experiments(selected_experiments)
+                if len(selected_setups) >= 2:
+                    if st.button("🔍 Compare Setups"):
+                        comparison_results = self.analysis_controller.compare_setups(selected_setups)
                         
                         if comparison_results:
                             # Store results in session state
                             st.session_state.comparison_results = comparison_results
-                            st.session_state.selected_experiments = selected_experiments
-                            st.session_state.selected_experiment_names = selected_experiment_names
+                            st.session_state.selected_setups = selected_setups
+                            st.session_state.selected_setup_names = selected_setup_names
                     
                     # Check if we have stored comparison results
                     if 'comparison_results' in st.session_state and st.session_state.comparison_results:
                         comparison_results = st.session_state.comparison_results
-                        selected_experiments = st.session_state.selected_experiments
+                        selected_setups = st.session_state.selected_setups
                         
                         if comparison_results:
                             st.subheader("📊 Comparison Results")
@@ -483,10 +483,10 @@ class UGEApp:
                             if st.button("🗑️ Clear Comparison Results"):
                                 if 'comparison_results' in st.session_state:
                                     del st.session_state.comparison_results
-                                if 'selected_experiments' in st.session_state:
-                                    del st.session_state.selected_experiments
-                                if 'selected_experiment_names' in st.session_state:
-                                    del st.session_state.selected_experiment_names
+                                if 'selected_setups' in st.session_state:
+                                    del st.session_state.selected_setups
+                                if 'selected_setup_names' in st.session_state:
+                                    del st.session_state.selected_setup_names
                                 st.rerun()
                             
                             # Display comparison metrics
@@ -501,30 +501,30 @@ class UGEApp:
                                              if metrics.get('best_overall_fitness') else "N/A")
                                 
                                 with col2:
-                                    # Get experiment name for best experiment
-                                    best_exp_id = metrics.get('best_experiment', 'N/A')
+                                    # Get setup name for best setup
+                                    best_exp_id = metrics.get('best_setup', 'N/A')
                                     if best_exp_id != 'N/A':
-                                        exp_configs = comparison_results.get('experiment_configs', {})
+                                        exp_configs = comparison_results.get('setup_configs', {})
                                         best_exp_config = exp_configs.get(best_exp_id, {})
-                                        best_exp_name = best_exp_config.get('experiment_name', best_exp_id)
+                                        best_exp_name = best_exp_config.get('setup_name', best_exp_id)
                                     else:
                                         best_exp_name = 'N/A'
                                     
-                                    st.metric("Best Experiment", best_exp_name)
+                                    st.metric("Best Setup", best_exp_name)
                                 
                                 with col3:
-                                    st.metric("Experiments Compared", 
-                                             len(selected_experiments))
+                                    st.metric("Setups Compared", 
+                                             len(selected_setups))
                             
                             # Display rankings
                             if 'rankings' in comparison_results:
                                 st.subheader("🏆 Rankings")
                                 
-                                # Create mapping from experiment IDs to names
-                                exp_configs = comparison_results.get('experiment_configs', {})
+                                # Create mapping from setup IDs to names
+                                exp_configs = comparison_results.get('setup_configs', {})
                                 id_to_name = {}
                                 for exp_id, config in exp_configs.items():
-                                    id_to_name[exp_id] = config.get('experiment_name', exp_id)
+                                    id_to_name[exp_id] = config.get('setup_name', exp_id)
                                 
                                 col1, col2 = st.columns(2)
                                 
@@ -563,7 +563,7 @@ class UGEApp:
                                 st.download_button(
                                     label="📥 Download JSON",
                                     data=comparison_json,
-                                    file_name="experiment_comparison.json",
+                                    file_name="setup_comparison.json",
                                     mime="application/json"
                                 )
                             
@@ -572,29 +572,29 @@ class UGEApp:
                                 st.download_button(
                                     label="📥 Download CSV",
                                     data=csv_data,
-                                    file_name="experiment_comparison.csv",
+                                    file_name="setup_comparison.csv",
                                     mime="text/csv"
                                 )
                         else:
-                            st.error("Failed to compare experiments")
+                            st.error("Failed to compare setups")
                 else:
-                    st.warning("Please select at least 2 experiments to compare")
+                    st.warning("Please select at least 2 setups to compare")
             else:
-                st.info("You need at least 2 experiments to perform a comparison. Create more experiments first!")
+                st.info("You need at least 2 setups to perform a comparison. Create more setups first!")
                 
         except Exception as e:
-            st.error(f"Error comparing experiments: {str(e)}")
+            st.error(f"Error comparing setups: {str(e)}")
     
     def _render_comparison_chart(self, comparison_results: Dict[str, Any], chart_type: str):
         """
-        Render interactive comparison chart based on aggregate experiment data.
+        Render interactive comparison chart based on aggregate setup data.
         
-        This method creates Plotly charts that compare multiple experiments across
+        This method creates Plotly charts that compare multiple setups across
         different fitness metrics. It handles different chart types and includes
         error bars to show variance across runs.
         
         Args:
-            comparison_results (Dict[str, Any]): Results from experiment comparison
+            comparison_results (Dict[str, Any]): Results from setup comparison
             chart_type (str): Type of chart to render ('Best Fitness', 'Average Fitness', etc.)
         """
         try:
@@ -602,7 +602,7 @@ class UGEApp:
             import plotly.express as px
             
             # Extract aggregate data from comparison results
-            # This contains average and standard deviation data for each experiment
+            # This contains average and standard deviation data for each setup
             aggregate_data = comparison_results.get('aggregate_data', {})
             if not aggregate_data:
                 st.warning("No aggregate data available for charting")
@@ -615,14 +615,14 @@ class UGEApp:
             
             for i, (exp_id, data) in enumerate(aggregate_data.items()):
                 if not data or 'generations' not in data:
-                    st.warning(f"No data available for experiment {exp_id}")
+                    st.warning(f"No data available for setup {exp_id}")
                     continue
                 
                 color = colors[i % len(colors)]
-                # Get experiment name from configs if available
-                exp_configs = comparison_results.get('experiment_configs', {})
+                # Get setup name from configs if available
+                exp_configs = comparison_results.get('setup_configs', {})
                 exp_config = exp_configs.get(exp_id, {})
-                exp_name = exp_config.get('experiment_name', exp_id)
+                exp_name = exp_config.get('setup_name', exp_id)
                 
                 # Handle different chart types based on user selection
                 if chart_type == "Best Fitness (Max)":
@@ -748,7 +748,7 @@ class UGEApp:
                 return
             
             fig.update_layout(
-                title=f"Experiment Comparison - {chart_type}",
+                title=f"Setup Comparison - {chart_type}",
                 xaxis_title="Generation",
                 yaxis_title="Fitness",
                 hovermode='x unified',
@@ -773,7 +773,7 @@ class UGEApp:
         analysis and reporting.
         
         Args:
-            comparison_results (Dict[str, Any]): Results from experiment comparison
+            comparison_results (Dict[str, Any]): Results from setup comparison
             
         Returns:
             str: CSV data as string, or empty string if error occurs
@@ -785,18 +785,18 @@ class UGEApp:
             # Create summary data for CSV export
             summary_data = []
             
-            # Create mapping from experiment IDs to human-readable names
-            exp_configs = comparison_results.get('experiment_configs', {})
+            # Create mapping from setup IDs to human-readable names
+            exp_configs = comparison_results.get('setup_configs', {})
             id_to_name = {}
             for exp_id, config in exp_configs.items():
-                id_to_name[exp_id] = config.get('experiment_name', exp_id)
+                id_to_name[exp_id] = config.get('setup_name', exp_id)
             
-            for exp_data in comparison_results.get('experiments', []):
-                exp_id = exp_data.get('experiment_id', '')
+            for exp_data in comparison_results.get('setups', []):
+                exp_id = exp_data.get('setup_id', '')
                 exp_name = id_to_name.get(exp_id, exp_id)
                 
                 summary_data.append({
-                    'Experiment Name': exp_name,
+                    'Setup Name': exp_name,
                     'Best Fitness': exp_data.get('best_fitness', 0),
                     'Average Fitness': exp_data.get('average_fitness', 0),
                     'Total Runs': exp_data.get('total_runs', 0),

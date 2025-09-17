@@ -2,7 +2,7 @@
   "performance_insights": {
     "success_rate": {
       "0_percent": "Success Rate: (Runs achieving target / Total runs) × 100. 0% means no runs met the target fitness. Try increasing generations, adjusting parameters, or different initialization.",
-      "low_percent": "Success Rate: (Runs achieving target / Total runs) × 100. <50% indicates algorithm needs improvement. Consider parameter tuning or running more experiments.",
+      "low_percent": "Success Rate: (Runs achieving target / Total runs) × 100. <50% indicates algorithm needs improvement. Consider parameter tuning or running more setups.",
       "good_percent": "Success Rate: (Runs achieving target / Total runs) × 100. ≥50% indicates good performance. Higher percentages mean more reliable algorithm."
     },
     "consistency": {
@@ -26,7 +26,7 @@
       "minimize": "Lowest fitness achieved. Lower values are better."
     },
     "average_fitness": "Mean performance across all runs. Shows typical algorithm performance.",
-    "status": "Experiment completion status. All runs must finish for complete analysis.",
+    "status": "Setup completion status. All runs must finish for complete analysis.",
     "std_dev": "Standard deviation of fitness values. Lower = more consistent results.",
     "range": "Difference between best and worst fitness. Smaller range = more stable algorithm.",
     "avg_depth": "Average tree depth of best individuals. Indicates solution complexity.",
@@ -49,17 +49,17 @@
   },
   "charts": {
     "individual_run": "Shows fitness evolution for each individual run with min/max/avg bars per generation",
-    "experiment_wide": "Shows average fitness across all runs with min/max/avg bars per generation",
+    "setup_wide": "Shows average fitness across all runs with min/max/avg bars per generation",
     "best_fitness": "Best fitness achieved in each generation across all runs",
     "average_fitness": "Average fitness across all runs for each generation",
     "test_fitness": "Test fitness performance across all runs for each generation"
   },
   "export": {
-    "json": "Export experiment data in JSON format for further analysis",
-    "csv": "Export experiment data in CSV format for spreadsheet analysis",
-    "config": "Export experiment configuration in JSON format"
+    "json": "Export setup data in JSON format for further analysis",
+    "csv": "Export setup data in CSV format for spreadsheet analysis",
+    "config": "Export setup configuration in JSON format"
   },
-  "experiment_parameters": {
+  "setup_parameters": {
     "dataset": "Path or name of the dataset to load. Use 'processed.cleveland.data' for a ready-to-use example. CSVs require setting 'label_column'. Tips: ensure headers match feature names used in grammar/expressions; handle missing values before training or use operators robust to NaN; large datasets increase evaluation time linearly with population × generations.",
     "grammar": "BNF grammar file that defines the legal programs/expressions (nonterminals, terminals, and production rules). Required for Grammatical Evolution and grammar-guided GP. Terminals (feature names) should match your dataset columns. Keep recursion under control via max_tree_depth. Smaller, well-curated grammars search faster; overly broad grammars explore more but slow convergence.",
     "population": "Number of individuals evaluated per generation. Bigger population = more diversity and better exploration but higher compute cost (runtime roughly scales with population × eval_cost). Typical ranges: 50–500; for quick tests, 50–100; for thorough runs, 200–500.",

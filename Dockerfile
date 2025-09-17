@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p results/experiments datasets grammars
+RUN mkdir -p results/setups datasets grammars
 
 # Set permissions
 RUN chmod +x app.py

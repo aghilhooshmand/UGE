@@ -3,7 +3,7 @@ GE Service for UGE Application
 
 This module provides the core Grammatical Evolution service that wraps
 the third-party libraries (grape, algorithms, functions) and provides
-a clean interface for running GE experiments.
+a clean interface for running GE setups.
 
 Classes:
 - GEService: Main service for Grammatical Evolution operations
@@ -22,7 +22,7 @@ from grape import grape, algorithms, functions
 from deap import creator, base, tools
 
 # Import our models and utilities
-from uge.models.experiment import ExperimentConfig, ExperimentResult
+from uge.models.setup import SetupConfig, SetupResult
 from uge.models.dataset import Dataset
 from uge.models.grammar import Grammar
 from uge.utils.helpers import fitness_eval
@@ -34,7 +34,7 @@ class GEService:
     Service for Grammatical Evolution operations.
     
     This service wraps the third-party GE libraries and provides a clean
-    interface for running GE experiments. It handles all the complex
+    interface for running GE setups. It handles all the complex
     setup and execution of GE algorithms.
     
     Attributes:
@@ -88,12 +88,12 @@ class GEService:
             creator.create('Individual', grape.Individual, fitness=fitness_class)
         return creator.Individual
     
-    def _setup_toolbox(self, config: ExperimentConfig, fitness_class) -> base.Toolbox:
+    def _setup_toolbox(self, config: SetupConfig, fitness_class) -> base.Toolbox:
         """
         Setup DEAP toolbox with all required operators.
         
         Args:
-            config (ExperimentConfig): Experiment configuration
+            config (SetupConfig): Setup configuration
             fitness_class: DEAP fitness class
             
         Returns:
@@ -119,14 +119,14 @@ class GEService:
         
         return toolbox
     
-    def _create_population(self, toolbox: base.Toolbox, config: ExperimentConfig, 
+    def _create_population(self, toolbox: base.Toolbox, config: SetupConfig, 
                           bnf_grammar, live_placeholder=None) -> List:
         """
         Create initial population.
         
         Args:
             toolbox (base.Toolbox): DEAP toolbox
-            config (ExperimentConfig): Experiment configuration
+            config (SetupConfig): Setup configuration
             bnf_grammar: grape.Grammar object
             live_placeholder: Optional placeholder for debug output
             
@@ -171,13 +171,13 @@ class GEService:
         stats.register("max", np.nanmax)
         return stats
     
-    def run_experiment(self, config: ExperimentConfig, dataset: Dataset, 
+    def run_setup(self, config: SetupConfig, dataset: Dataset, 
                       grammar: Grammar, report_items: List[str],
-                      live_placeholder=None) -> ExperimentResult:
+                      live_placeholder=None) -> SetupResult:
         """
-        Run a complete GE experiment.
+        Run a complete GE setup.
         
-        This method orchestrates the entire GE experiment process:
+        This method orchestrates the entire GE setup process:
         1. Setup random seeds for reproducibility
         2. Prepare data and grammar
         3. Configure DEAP toolbox and operators
@@ -186,18 +186,18 @@ class GEService:
         6. Collect and return results
         
         Args:
-            config (ExperimentConfig): Experiment configuration
+            config (SetupConfig): Setup configuration
             dataset (Dataset): Dataset to use
             grammar (Grammar): BNF grammar to use
             report_items (List[str]): Items to include in reports
             live_placeholder: Optional Streamlit placeholder for live output
             
         Returns:
-            ExperimentResult: Complete experiment results
+            SetupResult: Complete setup results
             
         Raises:
             ValueError: If dataset or grammar cannot be loaded
-            RuntimeError: If experiment execution fails
+            RuntimeError: If setup execution fails
         """
         try:
             # Setup random seeds for reproducibility
@@ -262,31 +262,31 @@ class GEService:
             result = self._process_results(config, logbook, hof, report_items)
             
             if self.logger:
-                self.logger(f"Experiment completed successfully. Best fitness: {result.best_training_fitness}")
+                self.logger(f"Setup completed successfully. Best fitness: {result.best_training_fitness}")
             
             return result
             
         except Exception as e:
-            error_msg = f"Experiment failed: {str(e)}"
+            error_msg = f"Setup failed: {str(e)}"
             if live_placeholder:
                 live_placeholder.code(f"ERROR: {error_msg}")
             if self.logger:
                 self.logger(error_msg)
             raise RuntimeError(error_msg) from e
     
-    def _process_results(self, config: ExperimentConfig, logbook, hof, 
-                        report_items: List[str]) -> ExperimentResult:
+    def _process_results(self, config: SetupConfig, logbook, hof, 
+                        report_items: List[str]) -> SetupResult:
         """
-        Process experiment results into ExperimentResult object.
+        Process setup results into SetupResult object.
         
         Args:
-            config (ExperimentConfig): Experiment configuration
+            config (SetupConfig): Setup configuration
             logbook: DEAP logbook with statistics
             hof: DEAP hall of fame
             report_items (List[str]): Report items
             
         Returns:
-            ExperimentResult: Processed results
+            SetupResult: Processed results
         """
         # Extract series from logbook
         available = set(logbook.header)
@@ -313,7 +313,7 @@ class GEService:
             best_used_codons = float(best_individual.used_codons) / len(best_individual.genome)
         
         # Create result object
-        result = ExperimentResult(
+        result = SetupResult(
             config=config,
             report_items=report_items,
             max=list(map(float, series.get('max', []))) if series.get('max') else [],
@@ -339,12 +339,12 @@ class GEService:
         
         return result
     
-    def validate_config(self, config: ExperimentConfig) -> List[str]:
+    def validate_config(self, config: SetupConfig) -> List[str]:
         """
-        Validate experiment configuration.
+        Validate setup configuration.
         
         Args:
-            config (ExperimentConfig): Configuration to validate
+            config (SetupConfig): Configuration to validate
             
         Returns:
             List[str]: List of validation warnings/errors

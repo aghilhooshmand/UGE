@@ -14,7 +14,7 @@ graph TB
     end
     
     subgraph "🎮 Application Layer"
-        EC[Experiment Controller]
+        EC[Setup Controller]
         DC[Dataset Controller]
         AC[Analysis Controller]
     end
@@ -81,8 +81,8 @@ classDiagram
     }
     
     %% View Classes
-    class ExperimentView {
-        -experiment_controller: ExperimentController
+    class SetupView {
+        -experiment_controller: SetupController
         -on_experiment_submit: Callable
         -on_experiment_cancel: Callable
         +render()
@@ -99,7 +99,7 @@ classDiagram
     }
     
     class AnalysisView {
-        -experiment_controller: ExperimentController
+        -experiment_controller: SetupController
         +render()
         +_render_experiment_selection()
         +_render_analysis_charts()
@@ -107,13 +107,13 @@ classDiagram
     }
     
     %% Controller Classes
-    class ExperimentController {
+    class SetupController {
         -dataset_service: DatasetService
         -ge_service: GEService
         -storage_service: StorageService
-        +run_experiment(config: ExperimentConfig) Experiment
-        +get_experiment(experiment_id: str) Experiment
-        +list_experiments() List[Experiment]
+        +run_experiment(config: SetupConfig) Setup
+        +get_experiment(experiment_id: str) Setup
+        +list_experiments() List[Setup]
         +cancel_experiment(experiment_id: str)
     }
     
@@ -126,8 +126,8 @@ classDiagram
     
     %% Service Classes
     class GEService {
-        +run_experiment(config: ExperimentConfig) ExperimentResult
-        -_run_single_experiment(config: ExperimentConfig) ExperimentResult
+        +run_experiment(config: SetupConfig) SetupResult
+        -_run_single_experiment(config: SetupConfig) SetupResult
         -_setup_grape_algorithm()
         -_evaluate_fitness()
     }
@@ -143,8 +143,8 @@ classDiagram
     
     class StorageService {
         -results_dir: Path
-        +save_experiment(experiment: Experiment)
-        +load_experiment(experiment_id: str) Experiment
+        +save_experiment(experiment: Setup)
+        +load_experiment(experiment_id: str) Setup
         +list_experiments() List[str]
     }
     
@@ -173,7 +173,7 @@ classDiagram
         +preprocess_csv_data() Tuple
     }
     
-    class ExperimentConfig {
+    class SetupConfig {
         +experiment_name: str
         +dataset: str
         +grammar: str
@@ -204,8 +204,8 @@ classDiagram
         +to_dict() Dict
     }
     
-    class ExperimentResult {
-        +config: ExperimentConfig
+    class SetupResult {
+        +config: SetupConfig
         +report_items: List[str]
         +max: List[float]
         +avg: List[float]
@@ -221,45 +221,45 @@ classDiagram
         +to_dict() Dict
     }
     
-    class Experiment {
+    class Setup {
         +id: str
-        +config: ExperimentConfig
-        +results: Dict[str, ExperimentResult]
+        +config: SetupConfig
+        +results: Dict[str, SetupResult]
         +status: str
         +created_at: str
         +completed_at: Optional[str]
-        +add_result(run_id: str, result: ExperimentResult)
-        +get_best_result() ExperimentResult
+        +add_result(run_id: str, result: SetupResult)
+        +get_best_result() SetupResult
         +get_average_fitness() float
         +to_dict() Dict
     }
     
     %% Inheritance Relationships
-    BaseView <|-- ExperimentView
+    BaseView <|-- SetupView
     BaseView <|-- DatasetView
     BaseView <|-- AnalysisView
-    BaseController <|-- ExperimentController
+    BaseController <|-- SetupController
     BaseController <|-- DatasetController
     
     %% Composition Relationships
     Dataset *-- DatasetInfo : contains
-    Experiment *-- ExperimentConfig : contains
-    Experiment *-- ExperimentResult : contains multiple
-    ExperimentResult *-- ExperimentConfig : references
+    Setup *-- SetupConfig : contains
+    Setup *-- SetupResult : contains multiple
+    SetupResult *-- SetupConfig : references
     
     %% Dependency Relationships
-    ExperimentView --> ExperimentController
+    SetupView --> SetupController
     DatasetView --> DatasetController
-    AnalysisView --> ExperimentController
-    ExperimentController --> GEService
-    ExperimentController --> DatasetService
-    ExperimentController --> StorageService
+    AnalysisView --> SetupController
+    SetupController --> GEService
+    SetupController --> DatasetService
+    SetupController --> StorageService
     DatasetController --> DatasetService
-    GEService --> ExperimentConfig
-    GEService --> ExperimentResult
+    GEService --> SetupConfig
+    GEService --> SetupResult
     DatasetService --> Dataset
     DatasetService --> DatasetInfo
-    StorageService --> Experiment
+    StorageService --> Setup
 ```
 
 ## 🔄 3. Data Flow Sequence Diagram
@@ -267,8 +267,8 @@ classDiagram
 ```mermaid
 sequenceDiagram
     participant User
-    participant ExperimentView
-    participant ExperimentController
+    participant SetupView
+    participant SetupController
     participant DatasetService
     participant GEService
     participant DEAP
@@ -276,16 +276,16 @@ sequenceDiagram
     participant StorageService
     participant AnalysisView
     
-    User->>ExperimentView: 1. Fill experiment form
-    ExperimentView->>ExperimentView: 2. Validate form data
-    ExperimentView->>ExperimentView: 3. Create ExperimentConfig
-    ExperimentView->>ExperimentController: 4. run_experiment(config)
+    User->>SetupView: 1. Fill experiment form
+    SetupView->>SetupView: 2. Validate form data
+    SetupView->>SetupView: 3. Create SetupConfig
+    SetupView->>SetupController: 4. run_experiment(config)
     
-    ExperimentController->>DatasetService: 5. load_dataset(dataset_name)
+    SetupController->>DatasetService: 5. load_dataset(dataset_name)
     DatasetService->>DatasetService: 6. preprocess_data()
-    DatasetService-->>ExperimentController: 7. X_train, Y_train, X_test, Y_test
+    DatasetService-->>SetupController: 7. X_train, Y_train, X_test, Y_test
     
-    ExperimentController->>GEService: 8. run_experiment(config, ui_elements)
+    SetupController->>GEService: 8. run_experiment(config, ui_elements)
     
     loop For each run (n_runs)
         GEService->>GEService: 9. Initialize experiment run
@@ -297,21 +297,21 @@ sequenceDiagram
             DEAP->>DEAP: 13. Selection, crossover, mutation
             DEAP-->>GRAPE: 14. Updated population
             GRAPE-->>GEService: 15. Generation results
-            GEService->>ExperimentView: 16. Update progress UI
+            GEService->>SetupView: 16. Update progress UI
         end
         
         GEService->>GEService: 17. Collect run results
-        GEService-->>ExperimentController: 18. ExperimentResult
+        GEService-->>SetupController: 18. SetupResult
     end
     
-    ExperimentController->>ExperimentController: 19. Create Experiment object
-    ExperimentController->>StorageService: 20. save_experiment(experiment)
-    ExperimentController-->>ExperimentView: 21. Experiment object
-    ExperimentView->>User: 22. Show success message and results
+    SetupController->>SetupController: 19. Create Setup object
+    SetupController->>StorageService: 20. save_experiment(experiment)
+    SetupController-->>SetupView: 21. Setup object
+    SetupView->>User: 22. Show success message and results
     
     User->>AnalysisView: 23. Navigate to Analysis page
     AnalysisView->>StorageService: 24. load_experiment(experiment_id)
-    StorageService-->>AnalysisView: 25. Experiment data
+    StorageService-->>AnalysisView: 25. Setup data
     AnalysisView->>AnalysisView: 26. Create charts and visualizations
     AnalysisView->>User: 27. Display interactive analysis
 ```
@@ -327,14 +327,14 @@ graph TD
     end
     
     subgraph "📱 View Layer"
-        EV[ExperimentView]
+        EV[SetupView]
         DV[DatasetView]
         AV[AnalysisView]
         BV[BaseView]
     end
     
     subgraph "🎮 Controller Layer"
-        EC[ExperimentController]
+        EC[SetupController]
         DC[DatasetController]
         BC[BaseController]
     end
@@ -346,9 +346,9 @@ graph TD
     end
     
     subgraph "📊 Model Layer"
-        E[Experiment]
-        ECONF[ExperimentConfig]
-        ER[ExperimentResult]
+        E[Setup]
+        ECONF[SetupConfig]
+        ER[SetupResult]
         D[Dataset]
         DI[DatasetInfo]
     end
@@ -409,7 +409,7 @@ graph TD
     Forms --> PLOTLY
 ```
 
-## 📊 5. Experiment Lifecycle
+## 📊 5. Setup Lifecycle
 
 ```mermaid
 stateDiagram-v2
@@ -434,7 +434,7 @@ stateDiagram-v2
     Analyzing --> [*]
     
     note right of Created
-        ExperimentConfig created
+        SetupConfig created
         Form validation
         Parameter checking
     end note
@@ -447,7 +447,7 @@ stateDiagram-v2
     
     note right of Completed
         All results collected
-        Experiment saved
+        Setup saved
         Analysis available
     end note
 ```
@@ -457,7 +457,7 @@ stateDiagram-v2
 ```mermaid
 graph LR
     subgraph "🎮 Controllers"
-        EC[Experiment<br/>Controller]
+        EC[Setup<br/>Controller]
         DC[Dataset<br/>Controller]
     end
     
@@ -502,9 +502,9 @@ journey
     section Initial Setup
       Open Application: 5: User
       Select Dataset: 4: User
-      Configure Experiment: 3: User
-    section Experiment Execution
-      Submit Experiment: 5: User
+      Configure Setup: 3: User
+    section Setup Execution
+      Submit Setup: 5: User
       Monitor Progress: 4: User
       Wait for Completion: 2: User
     section Results Analysis
@@ -519,7 +519,7 @@ journey
 ```mermaid
 graph TB
     subgraph "📊 Metrics Collection"
-        EM[Experiment Metrics]
+        EM[Setup Metrics]
         PM[Performance Metrics]
         SM[System Metrics]
     end
@@ -553,7 +553,7 @@ These diagrams provide a comprehensive view of the UGE application's object-orie
 2. **Class Hierarchy**: Inheritance and composition relationships
 3. **Data Flow**: How data moves through the system
 4. **Component Dependencies**: What depends on what
-5. **Experiment Lifecycle**: States and transitions
+5. **Setup Lifecycle**: States and transitions
 6. **Service Architecture**: Service organization and responsibilities
 7. **User Journey**: User interaction flow
 8. **Performance Monitoring**: Metrics and analysis structure

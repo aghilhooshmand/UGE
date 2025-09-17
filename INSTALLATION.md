@@ -108,27 +108,27 @@ UGE/
 │   ├── services/           # Business logic
 │   ├── utils/              # Utilities & configuration
 │   └── views/              # UI components
-└── results/                 # Experiment results (auto-created)
+└── results/                 # Setup results (auto-created)
 ```
 
 ### 🎯 Usage Guide
 
-#### 1. **Run Experiment**
-- Go to "Run Experiment" page
+#### 1. **Run Setup**
+- Go to "Run Setup" page
 - Select a dataset (or upload your own)
 - Choose a grammar file
-- Configure experiment parameters
-- Click "Start Experiment"
+- Configure setup parameters
+- Click "Start Setup"
 
 #### 2. **Analyze Results**
 - Go to "Analysis" page
-- Select an experiment to analyze
+- Select an setup to analyze
 - View detailed statistics and charts
 - Export results in JSON/CSV format
 
-#### 3. **Compare Experiments**
-- Go to "Experiment Comparison" page
-- Select multiple experiments
+#### 3. **Compare Setups**
+- Go to "Setup Comparison" page
+- Select multiple setups
 - Compare performance metrics
 - Generate comparison charts
 
@@ -139,7 +139,7 @@ Edit `uge/utils/tooltip_config.json` to customize all help text and tooltips:
 
 ```json
 {
-  "experiment_parameters": {
+  "setup_parameters": {
     "population": "Your custom explanation here...",
     "generations": "Your custom explanation here..."
   }
@@ -149,12 +149,12 @@ Edit `uge/utils/tooltip_config.json` to customize all help text and tooltips:
 #### Adding Custom Datasets
 1. Place your CSV files in the `datasets/` directory
 2. Ensure your dataset has proper headers
-3. Select your dataset in the "Run Experiment" page
+3. Select your dataset in the "Run Setup" page
 
 #### Adding Custom Grammars
 1. Create BNF grammar files in the `grammars/` directory
 2. Follow the existing grammar format
-3. Select your grammar in the "Run Experiment" page
+3. Select your grammar in the "Run Setup" page
 
 ### 🔧 Advanced Configuration
 
@@ -209,7 +209,7 @@ docker-compose up -d
 ### 📊 Performance Tips
 
 1. **For Large Datasets**: Increase Docker memory allocation
-2. **For Long Experiments**: Use `docker-compose up -d` to run in background
+2. **For Long Setups**: Use `docker-compose up -d` to run in background
 3. **For Multiple Users**: Consider using nginx profile for load balancing
 
 ### 🔒 Security Considerations

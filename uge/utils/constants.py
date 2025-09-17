@@ -6,7 +6,7 @@ and file paths used throughout the UGE application.
 
 Constants:
 - FILE_PATHS: Common file and directory paths
-- DEFAULT_CONFIG: Default experiment configuration values
+- DEFAULT_CONFIG: Default setup configuration values
 - UI_CONSTANTS: User interface related constants
 
 Author: UGE Team
@@ -24,8 +24,8 @@ help_path = PROJECT_ROOT / "uge" / "utils" / "tooltip_config.json"
 if help_path.exists():
     try:
         config = json.loads(help_path.read_text())
-        # Extract experiment parameters for backward compatibility
-        HELP = config.get('experiment_parameters', {})
+        # Extract setup parameters for backward compatibility
+        HELP = config.get('setup_parameters', {})
     except Exception:
         HELP = {}
 
@@ -33,13 +33,13 @@ if help_path.exists():
 FILE_PATHS = {
     'project_root': PROJECT_ROOT,
     'results_dir': PROJECT_ROOT / "results",
-    'experiments_dir': PROJECT_ROOT / "results" / "experiments",
+    'setups_dir': PROJECT_ROOT / "results" / "setups",
     'datasets_dir': PROJECT_ROOT / "datasets",
     'grammars_dir': PROJECT_ROOT / "grammars",
     'tooltip_config': PROJECT_ROOT / "uge" / "utils" / "tooltip_config.json",
 }
 
-# Default Experiment Configuration
+# Default Setup Configuration
 DEFAULT_CONFIG = {
     # GA Parameters
     'population': 50,
@@ -86,10 +86,10 @@ UI_CONSTANTS = {
     
     # Navigation Options
     'navigation_pages': [
-        "🏃 Run Experiment",
+        "🏃 Run Setup",
         "📊 Dataset Manager", 
         "📝 Grammar Editor",
-        "🧪 Experiment Manager",
+        "🧪 Setup Manager",
         "📈 Analysis",
         "⚖️ Comparison"
     ],

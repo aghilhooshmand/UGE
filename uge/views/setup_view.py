@@ -1,11 +1,11 @@
 """
-Experiment View for UGE Application
+Setup View for UGE Application
 
-This module provides the experiment view for running and managing
-Grammatical Evolution experiments.
+This module provides the setup view for running and managing
+Grammatical Evolution setups.
 
 Classes:
-- ExperimentView: Main view for experiment operations
+- SetupView: Main view for setup operations
 
 Author: UGE Team
 """
@@ -15,44 +15,44 @@ from typing import Dict, List, Optional, Any, Callable
 from uge.views.components.base_view import BaseView
 from uge.views.components.forms import Forms
 from uge.views.components.charts import Charts
-from uge.models.experiment import ExperimentConfig, ExperimentResult
+from uge.models.setup import SetupConfig, SetupResult
 
 
-class ExperimentView(BaseView):
+class SetupView(BaseView):
     """
-    View for experiment operations.
+    View for setup operations.
     
     This view handles the user interface for running and managing
-    Grammatical Evolution experiments.
+    Grammatical Evolution setups.
     
     Attributes:
-        on_experiment_submit (Optional[Callable]): Callback for experiment submission
-        on_experiment_cancel (Optional[Callable]): Callback for experiment cancellation
+        on_setup_submit (Optional[Callable]): Callback for setup submission
+        on_setup_cancel (Optional[Callable]): Callback for setup cancellation
     """
     
-    def __init__(self, experiment_controller, on_experiment_submit: Optional[Callable] = None,
-                 on_experiment_cancel: Optional[Callable] = None):
+    def __init__(self, setup_controller, on_setup_submit: Optional[Callable] = None,
+                 on_setup_cancel: Optional[Callable] = None):
         """
-        Initialize experiment view.
+        Initialize setup view.
         
         Args:
-            experiment_controller: Controller for experiment operations
-            on_experiment_submit (Optional[Callable]): Callback for experiment submission
-            on_experiment_cancel (Optional[Callable]): Callback for experiment cancellation
+            setup_controller: Controller for setup operations
+            on_setup_submit (Optional[Callable]): Callback for setup submission
+            on_setup_cancel (Optional[Callable]): Callback for setup cancellation
         """
         super().__init__(
-            title="🚀 Run Experiment",
-            description="Create and execute new Grammatical Evolution experiments"
+            title="🚀 Run Setup",
+            description="Create and execute new Grammatical Evolution setups"
         )
-        self.experiment_controller = experiment_controller
-        self.on_experiment_submit = on_experiment_submit
-        self.on_experiment_cancel = on_experiment_cancel
+        self.setup_controller = setup_controller
+        self.on_setup_submit = on_setup_submit
+        self.on_setup_cancel = on_setup_cancel
     
     def render(self, help_texts: Dict[str, str] = None, 
                datasets: List[str] = None, 
                grammars: List[str] = None):
         """
-        Render the experiment view.
+        Render the setup view.
         
         Args:
             help_texts (Dict[str, str]): Help texts for form fields
@@ -61,27 +61,27 @@ class ExperimentView(BaseView):
         """
         self.render_header()
         
-        # Create experiment form
-        form_submitted, form_data = Forms.create_experiment_form(
+        # Create setup form
+        form_submitted, form_data = Forms.create_setup_form(
             help_texts=help_texts,
             datasets=datasets,
             grammars=grammars
         )
         
         if form_submitted:
-            self._handle_experiment_submission(form_data)
+            self._handle_setup_submission(form_data)
     
-    def _handle_experiment_submission(self, form_data: Dict[str, Any]):
+    def _handle_setup_submission(self, form_data: Dict[str, Any]):
         """
-        Handle experiment form submission.
+        Handle setup form submission.
         
         Args:
             form_data (Dict[str, Any]): Form data
         """
         try:
-            # Create experiment configuration
-            config = ExperimentConfig(
-                experiment_name=form_data['experiment_name'],
+            # Create setup configuration
+            config = SetupConfig(
+                setup_name=form_data['setup_name'],
                 dataset=form_data['dataset'],
                 grammar=form_data['grammar'],
                 fitness_metric=form_data['fitness_metric'],
@@ -111,7 +111,7 @@ class ExperimentView(BaseView):
             # Validate that label column exists in dataset
             if config.dataset != "none":
                 try:
-                    dataset_service = self.experiment_controller.dataset_service
+                    dataset_service = self.setup_controller.dataset_service
                     dataset_info = dataset_service.get_dataset_info(config.dataset)
                     if dataset_info and dataset_info.columns:
                         if config.label_column not in dataset_info.columns:
@@ -120,8 +120,8 @@ class ExperimentView(BaseView):
                 except Exception as e:
                     st.warning(f"⚠️ Could not validate label column: {e}")
             
-            # Run the experiment using the controller
-            st.info(f"🚀 Starting experiment '{config.experiment_name}'...")
+            # Run the setup using the controller
+            st.info(f"🚀 Starting setup '{config.setup_name}'...")
             
             # Create expandable section for running details
             with st.expander("🔍 Show Running Details", expanded=True):
@@ -134,48 +134,48 @@ class ExperimentView(BaseView):
                 # Dedicated live log placeholder
                 live_placeholder = st.empty()
                 
-                # Run the experiment
-                experiment = self.experiment_controller.run_experiment(
+                # Run the setup
+                setup = self.setup_controller.run_setup(
                     config, live_placeholder=live_placeholder,
                     progress_bar=progress_bar, status_text=status_text, all_runs_container=all_runs_container
                 )
             
-            if experiment:
-                st.success(f"✅ Experiment '{config.experiment_name}' completed successfully!")
+            if setup:
+                st.success(f"✅ Setup '{config.setup_name}' completed successfully!")
                 
                 # Show results
-                self._show_experiment_results(experiment)
+                self._show_setup_results(setup)
             else:
-                st.error(f"❌ Experiment '{config.experiment_name}' failed!")
+                st.error(f"❌ Setup '{config.setup_name}' failed!")
                 
         except Exception as e:
-            self.handle_error(e, "creating experiment configuration")
+            self.handle_error(e, "creating setup configuration")
     
-    def _show_experiment_results(self, experiment):
+    def _show_setup_results(self, setup):
         """
-        Show experiment results.
+        Show setup results.
         
         Args:
-            experiment: Completed experiment object
+            setup: Completed setup object
         """
-        st.subheader("📊 Experiment Results")
+        st.subheader("📊 Setup Results")
         
-        # Show basic experiment info
+        # Show basic setup info
         col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("Experiment Name", experiment.config.experiment_name)
-            st.metric("Total Runs", experiment.config.n_runs)
-            st.metric("Completed Runs", len(experiment.results))
+            st.metric("Setup Name", setup.config.setup_name)
+            st.metric("Total Runs", setup.config.n_runs)
+            st.metric("Completed Runs", len(setup.results))
         
         with col2:
-            st.metric("Dataset", experiment.config.dataset)
-            st.metric("Grammar", experiment.config.grammar)
-            st.metric("Population", experiment.config.population)
+            st.metric("Dataset", setup.config.dataset)
+            st.metric("Grammar", setup.config.grammar)
+            st.metric("Population", setup.config.population)
         
         # Show best results
-        if experiment.results:
-            best_result = experiment.get_best_result()
+        if setup.results:
+            best_result = setup.get_best_result()
             if best_result:
                 st.subheader("🏆 Best Result")
                 col1, col2, col3 = st.columns(3)
@@ -187,30 +187,30 @@ class ExperimentView(BaseView):
                 with col3:
                     st.metric("Generations", len(best_result.max))
         
-        st.success("🎉 Experiment completed successfully!")
+        st.success("🎉 Setup completed successfully!")
     
-    def render_experiment_progress(self, experiment_name: str, current_run: int, 
+    def render_setup_progress(self, setup_name: str, current_run: int, 
                                  total_runs: int, progress: float):
         """
-        Render experiment progress.
+        Render setup progress.
         
         Args:
-            experiment_name (str): Name of the experiment
+            setup_name (str): Name of the setup
             current_run (int): Current run number
             total_runs (int): Total number of runs
             progress (float): Progress (0.0 to 1.0)
         """
-        st.subheader(f"🏃 Running: {experiment_name}")
+        st.subheader(f"🏃 Running: {setup_name}")
         st.progress(progress)
         st.write(f"Run {current_run} of {total_runs}")
     
-    def render_run_details(self, run_number: int, result: ExperimentResult):
+    def render_run_details(self, run_number: int, result: SetupResult):
         """
         Render run details.
         
         Args:
             run_number (int): Run number
-            result (ExperimentResult): Run result
+            result (SetupResult): Run result
         """
         with st.expander(f"🔍 Run {run_number} Details", expanded=False):
             col1, col2 = st.columns(2)
@@ -229,17 +229,17 @@ class ExperimentView(BaseView):
                 st.write("**Best Phenotype:**")
                 st.code(result.best_phenotype, language='python')
     
-    def render_experiment_completion(self, experiment_name: str, 
-                                   total_runs: int, results: List[ExperimentResult]):
+    def render_setup_completion(self, setup_name: str, 
+                                   total_runs: int, results: List[SetupResult]):
         """
-        Render experiment completion message.
+        Render setup completion message.
         
         Args:
-            experiment_name (str): Name of the experiment
+            setup_name (str): Name of the setup
             total_runs (int): Total number of runs
-            results (List[ExperimentResult]): All run results
+            results (List[SetupResult]): All run results
         """
-        self.show_success(f"✅ Experiment '{experiment_name}' completed successfully!")
+        self.show_success(f"✅ Setup '{setup_name}' completed successfully!")
         st.info("📊 Go to the 'Analysis' page to view detailed results, charts, and export data.")
         
         # Show summary statistics
@@ -257,7 +257,7 @@ class ExperimentView(BaseView):
     
     def render_live_output(self, placeholder, output: str):
         """
-        Render live output during experiment execution.
+        Render live output during setup execution.
         
         Args:
             placeholder: Streamlit placeholder for output
@@ -265,7 +265,7 @@ class ExperimentView(BaseView):
         """
         placeholder.code(output)
     
-    def render_experiment_form_validation(self, errors: List[str]):
+    def render_setup_form_validation(self, errors: List[str]):
         """
         Render form validation errors.
         
@@ -275,19 +275,19 @@ class ExperimentView(BaseView):
         for error in errors:
             self.show_error(error)
     
-    def render_experiment_configuration_summary(self, config: ExperimentConfig):
+    def render_setup_configuration_summary(self, config: SetupConfig):
         """
-        Render experiment configuration summary.
+        Render setup configuration summary.
         
         Args:
-            config (ExperimentConfig): Experiment configuration
+            config (SetupConfig): Setup configuration
         """
-        with st.expander("📋 Experiment Configuration", expanded=False):
+        with st.expander("📋 Setup Configuration", expanded=False):
             col1, col2 = st.columns(2)
             
             with col1:
                 st.write("**Basic Info:**")
-                st.write(f"- Name: {config.experiment_name}")
+                st.write(f"- Name: {config.setup_name}")
                 st.write(f"- Dataset: {config.dataset}")
                 st.write(f"- Grammar: {config.grammar}")
                 st.write(f"- Fitness Metric: {config.fitness_metric}")

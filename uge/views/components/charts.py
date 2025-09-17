@@ -2,7 +2,7 @@
 Charts Component for UGE Application
 
 This module provides chart and visualization components for displaying
-experiment results and analysis data.
+setup results and analysis data.
 
 Classes:
 - Charts: Chart and visualization utilities
@@ -34,7 +34,7 @@ class Charts:
         Plot fitness evolution over generations.
         
         Args:
-            result (Dict[str, Any]): Experiment result data
+            result (Dict[str, Any]): Setup result data
             title (str): Chart title
             fitness_metric (str): Fitness metric used ('mae' or 'accuracy')
         """
@@ -105,12 +105,12 @@ class Charts:
     
     @staticmethod
     def plot_comparison_chart(results: List[Dict[str, Any]], 
-                             title: str = "Experiment Comparison") -> None:
+                             title: str = "Setup Comparison") -> None:
         """
-        Plot comparison chart for multiple experiments.
+        Plot comparison chart for multiple setups.
         
         Args:
-            results (List[Dict[str, Any]]): List of experiment results
+            results (List[Dict[str, Any]]): List of setup results
             title (str): Chart title
         """
         if not results:
@@ -129,7 +129,7 @@ class Charts:
                 fig.add_trace(go.Scatter(
                     x=gens, y=result['max'],
                     mode='lines',
-                    name=f"Experiment {i+1}",
+                    name=f"Setup {i+1}",
                     line=dict(color=color, width=2)
                 ))
         
@@ -146,24 +146,24 @@ class Charts:
         st.plotly_chart(fig, use_container_width=True)
     
     @staticmethod
-    def plot_statistics_chart(experiments: List[Dict[str, Any]], 
-                             title: str = "Experiment Statistics") -> None:
+    def plot_statistics_chart(setups: List[Dict[str, Any]], 
+                             title: str = "Setup Statistics") -> None:
         """
         Plot statistics comparison chart.
         
         Args:
-            experiments (List[Dict[str, Any]]): List of experiment data
+            setups (List[Dict[str, Any]]): List of setup data
             title (str): Chart title
         """
-        if not experiments:
-            st.warning("No experiments to display")
+        if not setups:
+            st.warning("No setups to display")
             return
         
         # Extract statistics
-        exp_names = [exp.get('name', f'Experiment {i+1}') for i, exp in enumerate(experiments)]
-        best_fitness = [exp.get('best_fitness', 0) for exp in experiments]
-        avg_fitness = [exp.get('avg_fitness', 0) for exp in experiments]
-        total_runs = [exp.get('total_runs', 0) for exp in experiments]
+        exp_names = [exp.get('name', f'Setup {i+1}') for i, exp in enumerate(setups)]
+        best_fitness = [exp.get('best_fitness', 0) for exp in setups]
+        avg_fitness = [exp.get('avg_fitness', 0) for exp in setups]
+        total_runs = [exp.get('total_runs', 0) for exp in setups]
         
         # Create subplots
         fig = make_subplots(
@@ -192,7 +192,7 @@ class Charts:
         )
         
         # Success rate (placeholder - would need actual data)
-        success_rates = [100] * len(experiments)  # Placeholder
+        success_rates = [100] * len(setups)  # Placeholder
         fig.add_trace(
             go.Bar(x=exp_names, y=success_rates, name='Success Rate'),
             row=2, col=2
@@ -209,28 +209,28 @@ class Charts:
     
     
     @staticmethod
-    def create_metrics_dashboard(experiments: List[Dict[str, Any]]) -> None:
+    def create_metrics_dashboard(setups: List[Dict[str, Any]]) -> None:
         """
         Create a metrics dashboard.
         
         Args:
-            experiments (List[Dict[str, Any]]): List of experiment data
+            setups (List[Dict[str, Any]]): List of setup data
         """
-        if not experiments:
-            st.warning("No experiments to display")
+        if not setups:
+            st.warning("No setups to display")
             return
         
         # Calculate overall metrics
-        total_experiments = len(experiments)
-        total_runs = sum(exp.get('total_runs', 0) for exp in experiments)
-        avg_fitness = np.mean([exp.get('best_fitness', 0) for exp in experiments])
-        best_fitness = max([exp.get('best_fitness', 0) for exp in experiments])
+        total_setups = len(setups)
+        total_runs = sum(exp.get('total_runs', 0) for exp in setups)
+        avg_fitness = np.mean([exp.get('best_fitness', 0) for exp in setups])
+        best_fitness = max([exp.get('best_fitness', 0) for exp in setups])
         
         # Display metrics
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("Total Experiments", total_experiments)
+            st.metric("Total Setups", total_setups)
         
         with col2:
             st.metric("Total Runs", total_runs)
@@ -250,7 +250,7 @@ class Charts:
         Plot individual run chart with min/max/avg bars per generation.
         
         Args:
-            result: ExperimentResult object or dict with result data
+            result: SetupResult object or dict with result data
             title (str): Chart title
             fitness_metric (str): Fitness metric used ('mae' or 'accuracy')
             fitness_direction (int): Fitness direction (1 for maximize, -1 for minimize)
@@ -261,9 +261,9 @@ class Charts:
                 'train_avg': True, 'train_min': True, 'train_max': True,
                 'test_avg': False, 'test_min': False, 'test_max': False
             }
-        # Handle both ExperimentResult objects and dictionaries
+        # Handle both SetupResult objects and dictionaries
         if hasattr(result, 'max'):
-            # ExperimentResult object
+            # SetupResult object
             max_values = result.max
             avg_values = result.avg
             min_values = result.min
@@ -366,7 +366,7 @@ class Charts:
               measurement_options.get('test_min', False) or 
               measurement_options.get('test_max', False)):
             # Show a message if test data is requested but not available
-            st.info("ℹ️ Test data is not available for this experiment. Test fitness values are only shown when the experiment includes test set evaluation.")
+            st.info("ℹ️ Test data is not available for this setup. Test fitness values are only shown when the setup includes test set evaluation.")
         
         fig.update_layout(
             title=title,
@@ -381,15 +381,15 @@ class Charts:
         st.plotly_chart(fig, use_container_width=True)
     
     @staticmethod
-    def plot_experiment_wide_with_bars(results, title: str = "Experiment-wide Analysis", 
+    def plot_setup_wide_with_bars(results, title: str = "Setup-wide Analysis", 
                                       fitness_metric: str = 'mae',
                                       fitness_direction: int = -1,
                                       measurement_options: Dict[str, bool] = None) -> None:
         """
-        Plot experiment-wide chart with min/max/avg across all runs.
+        Plot setup-wide chart with min/max/avg across all runs.
         
         Args:
-            results: Dictionary of ExperimentResult objects by run_id
+            results: Dictionary of SetupResult objects by run_id
             title (str): Chart title
             fitness_metric (str): Fitness metric used ('mae' or 'accuracy')
             fitness_direction (int): Fitness direction (1 for maximize, -1 for minimize)
@@ -421,7 +421,7 @@ class Charts:
         gens = list(range(max_gens))
         
         # Calculate min/max/avg across all runs for each generation
-        # For experiment-wide analysis, we aggregate min/max/avg data across all runs
+        # For setup-wide analysis, we aggregate min/max/avg data across all runs
         min_values = []  # Minimum fitness across all runs for each generation
         max_values = []  # Maximum fitness across all runs for each generation  
         avg_values = []  # Average fitness across all runs for each generation
@@ -433,7 +433,7 @@ class Charts:
             gen_avg_values = []
             
             for result in results.values():
-                # Handle both ExperimentResult objects and dictionaries
+                # Handle both SetupResult objects and dictionaries
                 if hasattr(result, 'min'):
                     min_vals = result.min
                     max_vals = result.max
@@ -471,7 +471,7 @@ class Charts:
             for gen in range(max_gens):
                 gen_values = []
                 for result in results.values():
-                    # Handle both ExperimentResult objects and dictionaries
+                    # Handle both SetupResult objects and dictionaries
                     if hasattr(result, 'max'):
                         max_vals = result.max
                     else:
@@ -522,7 +522,7 @@ class Charts:
                 line=dict(color='orange', width=2, dash='dot')
             ))
         
-        # Add test data traces for experiment-wide analysis
+        # Add test data traces for setup-wide analysis
         if (measurement_options.get('test_avg', False) or 
             measurement_options.get('test_min', False) or 
             measurement_options.get('test_max', False)):
@@ -535,7 +535,7 @@ class Charts:
             for gen in range(max_gens):
                 test_gen_values = []
                 for result in results.values():
-                    # Handle both ExperimentResult objects and dictionaries
+                    # Handle both SetupResult objects and dictionaries
                     if hasattr(result, 'fitness_test'):
                         test_vals = result.fitness_test
                     else:
@@ -593,7 +593,7 @@ class Charts:
                         line=dict(color='brown', width=2, dash='dot')
                     ))
             else:
-                st.info("ℹ️ Test data is not available for this experiment. Test fitness values are only shown when the experiment includes test set evaluation.")
+                st.info("ℹ️ Test data is not available for this setup. Test fitness values are only shown when the setup includes test set evaluation.")
         
         fig.update_layout(
             title=title,
@@ -613,7 +613,7 @@ class Charts:
         Plot the evolution of invalid individuals count over generations for a single run.
         
         Args:
-            result: ExperimentResult object containing invalid individuals data
+            result: SetupResult object containing invalid individuals data
             measurement_options (Dict[str, bool]): Which measurements to show (invalid_min, invalid_avg, invalid_max)
             title (str): Chart title
         """
@@ -675,9 +675,9 @@ class Charts:
         st.plotly_chart(fig, use_container_width=True)
     
     @staticmethod
-    def plot_experiment_wide_invalid_count(results: Dict[str, Any], measurement_options: Dict[str, bool], title: str = "Experiment-wide Number of Invalid Individuals Analysis") -> None:
+    def plot_setup_wide_invalid_count(results: Dict[str, Any], measurement_options: Dict[str, bool], title: str = "Setup-wide Number of Invalid Individuals Analysis") -> None:
         """
-        Plot experiment-wide analysis of invalid individuals count across all runs.
+        Plot setup-wide analysis of invalid individuals count across all runs.
         
         Args:
             results (Dict[str, Any]): Dictionary of run results
@@ -685,7 +685,7 @@ class Charts:
             title (str): Chart title
         """
         if not results:
-            st.warning("⚠️ No results available for experiment-wide analysis.")
+            st.warning("⚠️ No results available for setup-wide analysis.")
             return
         
         # Collect invalid count data from all runs
@@ -735,7 +735,7 @@ class Charts:
             ))
         
         if measurement_options.get("invalid_avg", True):
-            # Calculate STD for experiment-wide (standard deviation of averages across runs)
+            # Calculate STD for setup-wide (standard deviation of averages across runs)
             aggregated_std = []
             for gen in range(max_generations):
                 gen_avg_values = [run_data[gen] for run_data in all_avg_data if gen < len(run_data)]
@@ -790,7 +790,7 @@ class Charts:
         Plot the evolution of nodes length (terminal symbols) over generations for a single run.
         
         Args:
-            result: ExperimentResult object containing nodes length data
+            result: SetupResult object containing nodes length data
             measurement_options (Dict[str, bool]): Which measurements to show (nodes_length_min, nodes_length_avg, nodes_length_max)
             title (str): Chart title
         """
@@ -852,9 +852,9 @@ class Charts:
         st.plotly_chart(fig, use_container_width=True)
     
     @staticmethod
-    def plot_experiment_wide_nodes_length(results: Dict[str, Any], measurement_options: Dict[str, bool], title: str = "Experiment-wide Nodes Length Analysis") -> None:
+    def plot_setup_wide_nodes_length(results: Dict[str, Any], measurement_options: Dict[str, bool], title: str = "Setup-wide Nodes Length Analysis") -> None:
         """
-        Plot experiment-wide analysis of nodes length across all runs.
+        Plot setup-wide analysis of nodes length across all runs.
         
         Args:
             results (Dict[str, Any]): Dictionary of run results
@@ -862,7 +862,7 @@ class Charts:
             title (str): Chart title
         """
         if not results:
-            st.warning("⚠️ No results available for experiment-wide analysis.")
+            st.warning("⚠️ No results available for setup-wide analysis.")
             return
         
         # Collect nodes length data from all runs
@@ -912,7 +912,7 @@ class Charts:
             ))
         
         if measurement_options.get("nodes_length_avg", True):
-            # Calculate STD for experiment-wide (standard deviation of averages across runs)
+            # Calculate STD for setup-wide (standard deviation of averages across runs)
             aggregated_std = []
             for gen in range(max_generations):
                 gen_avg_values = [run_data[gen] for run_data in all_avg_data if gen < len(run_data)]

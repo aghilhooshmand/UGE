@@ -15,9 +15,9 @@ Utils are responsible for:
 - Supporting other components with shared functionality
 """
 
-from .helpers import create_experiment_id, create_run_id, mae, accuracy, fitness_eval
+from .helpers import create_setup_id, create_run_id, mae, accuracy, fitness_eval
 from .constants import DEFAULT_CONFIG, FILE_PATHS, UI_CONSTANTS
 from .logger import StreamlitLogger
 
-__all__ = ['create_experiment_id', 'create_run_id', 'mae', 'accuracy', 'fitness_eval',
+__all__ = ['create_setup_id', 'create_run_id', 'mae', 'accuracy', 'fitness_eval',
            'DEFAULT_CONFIG', 'FILE_PATHS', 'UI_CONSTANTS', 'StreamlitLogger']

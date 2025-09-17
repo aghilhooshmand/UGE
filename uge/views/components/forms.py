@@ -12,7 +12,7 @@ Author: UGE Team
 import streamlit as st
 import datetime as dt
 from typing import Dict, List, Optional, Any, Tuple
-from uge.models.experiment import ExperimentConfig
+from uge.models.setup import SetupConfig
 from uge.utils.constants import DEFAULT_CONFIG, UI_CONSTANTS
 
 
@@ -25,11 +25,11 @@ class Forms:
     """
     
     @staticmethod
-    def create_experiment_form(help_texts: Dict[str, str] = None, 
+    def create_setup_form(help_texts: Dict[str, str] = None, 
                               datasets: List[str] = None, 
                               grammars: List[str] = None) -> Tuple[bool, Dict[str, Any]]:
         """
-        Create experiment configuration form.
+        Create setup configuration form.
         
         Args:
             help_texts (Dict[str, str]): Help texts for form fields
@@ -46,15 +46,15 @@ class Forms:
         if grammars is None:
             grammars = []
         
-        with st.form("experiment_form"):
+        with st.form("setup_form"):
             col1, col2 = st.columns(2)
             
             with col1:
-                st.subheader("Experiment Info")
-                experiment_name = st.text_input(
-                    "Experiment Name", 
-                    value=f"Experiment_{dt.datetime.now().strftime('%Y%m%d_%H%M')}", 
-                    help=help_texts.get('experiment_name', "Unique name for this experiment")
+                st.subheader("Setup Info")
+                setup_name = st.text_input(
+                    "Setup Name", 
+                    value=f"Setup_{dt.datetime.now().strftime('%Y%m%d_%H%M')}", 
+                    help=help_texts.get('setup_name', "Unique name for this setup")
                 )
                 
                 st.subheader("Dataset & Grammar")
@@ -62,13 +62,13 @@ class Forms:
                     "Dataset", 
                     options=datasets, 
                     index=datasets.index(UI_CONSTANTS['default_dataset']) if UI_CONSTANTS['default_dataset'] in datasets else (0 if datasets else None), 
-                    help=help_texts.get('dataset', "Select dataset for the experiment")
+                    help=help_texts.get('dataset', "Select dataset for the setup")
                 )
                 grammar = st.selectbox(
                     "Grammar", 
                     options=grammars, 
                     index=grammars.index(UI_CONSTANTS['default_grammar']) if UI_CONSTANTS['default_grammar'] in grammars else (0 if grammars else None), 
-                    help=help_texts.get('grammar', "Select BNF grammar for the experiment")
+                    help=help_texts.get('grammar', "Select BNF grammar for the setup")
                 )
                 
                 st.subheader("GA Parameters")
@@ -90,7 +90,7 @@ class Forms:
                     "Number of Runs", 
                     min_value=1, max_value=100, 
                     value=DEFAULT_CONFIG['n_runs'], 
-                    help=help_texts.get('n_runs', "Number of independent runs for this experiment")
+                    help=help_texts.get('n_runs', "Number of independent runs for this setup")
                 )
                 p_crossover = st.slider(
                     "Crossover Probability", 
@@ -193,7 +193,7 @@ class Forms:
                     "Select report items", 
                     options=DEFAULT_CONFIG['default_report_items'], 
                     default=DEFAULT_CONFIG['default_report_items'], 
-                    help=help_texts.get('report_items', "Items to include in experiment reports")
+                    help=help_texts.get('report_items', "Items to include in setup reports")
                 )
             
             with col4:
@@ -242,11 +242,11 @@ class Forms:
                 st.info(f"**Fitness Direction:** {direction_text}")
                 st.session_state['fitness_direction'] = fitness_direction
             
-            run_experiment = st.form_submit_button("🚀 Run Experiment", type="primary")
+            run_setup = st.form_submit_button("🚀 Run Setup", type="primary")
             
-            if run_experiment:
+            if run_setup:
                 form_data = {
-                    'experiment_name': experiment_name,
+                    'setup_name': setup_name,
                     'dataset': dataset,
                     'grammar': grammar,
                     'fitness_metric': fitness_metric,
@@ -395,31 +395,31 @@ class Forms:
         return "none", "", ""
     
     @staticmethod
-    def create_experiment_selection_form(experiments: List[Dict[str, str]]) -> Optional[str]:
+    def create_setup_selection_form(setups: List[Dict[str, str]]) -> Optional[str]:
         """
-        Create experiment selection form.
+        Create setup selection form.
         
         Args:
-            experiments (List[Dict[str, str]]): Available experiments with id, name, path
+            setups (List[Dict[str, str]]): Available setups with id, name, path
             
         Returns:
-            Optional[str]: Selected experiment ID
+            Optional[str]: Selected setup ID
         """
-        if not experiments:
-            st.info("No experiments available")
+        if not setups:
+            st.info("No setups available")
             return None
         
         # Create options for selectbox (show name, return id)
-        experiment_options = {exp['name']: exp['id'] for exp in experiments}
+        setup_options = {exp['name']: exp['id'] for exp in setups}
         
-        selected_experiment_name = st.selectbox(
-            "Select Experiment",
-            list(experiment_options.keys()),
-            help="Choose an experiment to analyze"
+        selected_setup_name = st.selectbox(
+            "Select Setup",
+            list(setup_options.keys()),
+            help="Choose an setup to analyze"
         )
         
-        if selected_experiment_name:
-            return experiment_options[selected_experiment_name]
+        if selected_setup_name:
+            return setup_options[selected_setup_name]
         
         return None
     

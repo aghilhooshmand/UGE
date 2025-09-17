@@ -11,11 +11,11 @@
 
 ## 🎯 Overview
 
-The UGE (Unified Grammatical Evolution) application is a Streamlit-based web application for running and analyzing Grammatical Evolution experiments. It follows the Model-View-Controller (MVC) architectural pattern and provides a comprehensive interface for:
+The UGE (Unified Grammatical Evolution) application is a Streamlit-based web application for running and analyzing Grammatical Evolution setups. It follows the Model-View-Controller (MVC) architectural pattern and provides a comprehensive interface for:
 
 - **Dataset Management**: Loading and preprocessing datasets
-- **Experiment Configuration**: Setting up GE parameters
-- **Experiment Execution**: Running multiple independent runs
+- **Setup Configuration**: Setting up GE parameters
+- **Setup Execution**: Running multiple independent runs
 - **Results Analysis**: Visualizing and comparing results
 
 ## 🏗️ Architecture Pattern
@@ -51,7 +51,7 @@ The application follows the **Model-View-Controller (MVC)** pattern:
 uge/
 ├── models/           # Data Models (M in MVC)
 │   ├── dataset.py    # Dataset and DatasetInfo classes
-│   ├── experiment.py # Experiment, ExperimentConfig, ExperimentResult
+│   ├── setup.py # Setup, SetupConfig, SetupResult
 │   └── grammar.py    # Grammar model (if exists)
 ├── views/            # User Interface (V in MVC)
 │   ├── components/   # Reusable UI components
@@ -59,12 +59,12 @@ uge/
 │   │   ├── forms.py        # Form components
 │   │   └── charts.py       # Chart components
 │   ├── dataset_view.py     # Dataset management view
-│   ├── experiment_view.py  # Experiment configuration view
+│   ├── setup_view.py  # Setup configuration view
 │   └── analysis_view.py    # Results analysis view
 ├── controllers/      # Business Logic Orchestration (C in MVC)
 │   ├── base_controller.py     # Base controller class
 │   ├── dataset_controller.py  # Dataset operations
-│   └── experiment_controller.py # Experiment execution
+│   └── setup_controller.py # Setup execution
 ├── services/         # Business Logic Services
 │   ├── dataset_service.py  # Dataset loading and preprocessing
 │   ├── ge_service.py       # Grammatical Evolution execution
@@ -109,12 +109,12 @@ class Dataset:
 - Preprocess data for machine learning
 - Handle different dataset types (Cleveland heart disease, generic CSV)
 
-#### Experiment Models (`uge/models/experiment.py`)
+#### Setup Models (`uge/models/setup.py`)
 ```python
 @dataclass
-class ExperimentConfig:
-    """Configuration for GE experiments"""
-    experiment_name: str
+class SetupConfig:
+    """Configuration for GE setups"""
+    setup_name: str
     dataset: str
     grammar: str
     fitness_metric: str
@@ -125,9 +125,9 @@ class ExperimentConfig:
     # ... many more parameters
 
 @dataclass
-class ExperimentResult:
-    """Results from a single experiment run"""
-    config: ExperimentConfig
+class SetupResult:
+    """Results from a single setup run"""
+    config: SetupConfig
     max: List[float]  # Best fitness per generation
     avg: List[float]  # Average fitness per generation
     min: List[float]  # Worst fitness per generation
@@ -135,21 +135,21 @@ class ExperimentResult:
     best_phenotype: Optional[str]  # Best solution found
 
 @dataclass
-class Experiment:
-    """Complete experiment with multiple runs"""
+class Setup:
+    """Complete setup with multiple runs"""
     id: str
-    config: ExperimentConfig
-    results: Dict[str, ExperimentResult]
+    config: SetupConfig
+    results: Dict[str, SetupResult]
     status: str  # 'created', 'running', 'completed', 'failed'
     created_at: str
     completed_at: Optional[str]
 ```
 
 **Responsibilities:**
-- Define experiment configuration structure
+- Define setup configuration structure
 - Store individual run results
 - Aggregate multiple run results
-- Track experiment lifecycle
+- Track setup lifecycle
 
 ### 2. Views Layer
 
@@ -178,13 +178,13 @@ class BaseView(ABC):
 class Forms:
     """Form components and input utilities"""
     @staticmethod
-    def create_experiment_form(help_texts: Dict[str, str] = None, 
+    def create_setup_form(help_texts: Dict[str, str] = None, 
                               datasets: List[str] = None, 
                               grammars: List[str] = None) -> Tuple[bool, Dict[str, Any]]
 ```
 
 **Responsibilities:**
-- Create experiment configuration forms
+- Create setup configuration forms
 - Validate user input
 - Provide help texts and tooltips
 - Return form data in structured format
@@ -198,32 +198,32 @@ class Charts:
     @staticmethod
     def plot_individual_run_with_bars(result, title: str = "Individual Run Analysis")
     @staticmethod
-    def plot_experiment_wide_with_bars(results: Dict[str, Any], title: str = "Experiment-wide Analysis")
+    def plot_setup_wide_with_bars(results: Dict[str, Any], title: str = "Setup-wide Analysis")
 ```
 
 **Responsibilities:**
 - Create interactive Plotly charts
 - Visualize fitness evolution
-- Compare multiple experiments
+- Compare multiple setups
 - Provide detailed run analysis
 
 ### 3. Controllers Layer
 
-#### Experiment Controller (`uge/controllers/experiment_controller.py`)
+#### Setup Controller (`uge/controllers/setup_controller.py`)
 ```python
-class ExperimentController:
-    """Controller for experiment operations"""
+class SetupController:
+    """Controller for setup operations"""
     def __init__(self, dataset_service: DatasetService, ge_service: GEService, storage_service: StorageService)
-    def run_experiment(self, config: ExperimentConfig, **ui_elements) -> Optional[Experiment]
-    def get_experiment(self, experiment_id: str) -> Optional[Experiment]
-    def list_experiments(self) -> List[Experiment]
+    def run_setup(self, config: SetupConfig, **ui_elements) -> Optional[Setup]
+    def get_setup(self, setup_id: str) -> Optional[Setup]
+    def list_setups(self) -> List[Setup]
 ```
 
 **Responsibilities:**
-- Orchestrate experiment execution
+- Orchestrate setup execution
 - Coordinate between services
 - Handle UI updates during execution
-- Manage experiment lifecycle
+- Manage setup lifecycle
 
 ### 4. Services Layer
 
@@ -242,42 +242,42 @@ class DatasetService:
 **Responsibilities:**
 - Manage dataset files
 - Load and validate datasets
-- Preprocess data for experiments
+- Preprocess data for setups
 - Check dataset compatibility
 
 #### GE Service (`uge/services/ge_service.py`)
 ```python
 class GEService:
     """Service for Grammatical Evolution operations"""
-    def run_experiment(self, config: ExperimentConfig, **ui_elements) -> Optional[ExperimentResult]
-    def _run_single_experiment(self, config: ExperimentConfig, run_number: int, **ui_elements) -> Optional[ExperimentResult]
+    def run_setup(self, config: SetupConfig, **ui_elements) -> Optional[SetupResult]
+    def _run_single_setup(self, config: SetupConfig, run_number: int, **ui_elements) -> Optional[SetupResult]
 ```
 
 **Responsibilities:**
 - Execute Grammatical Evolution algorithms
 - Integrate with GRAPE library
 - Handle DEAP evolutionary algorithms
-- Manage experiment execution flow
+- Manage setup execution flow
 
 ## 🔄 Data Flow
 
-### Experiment Execution Flow:
+### Setup Execution Flow:
 ```
-1. User fills form (ExperimentView)
+1. User fills form (SetupView)
    ↓
-2. Form data → ExperimentConfig (ExperimentView)
+2. Form data → SetupConfig (SetupView)
    ↓
-3. ExperimentConfig → ExperimentController
+3. SetupConfig → SetupController
    ↓
-4. ExperimentController → DatasetService (load data)
+4. SetupController → DatasetService (load data)
    ↓
-5. ExperimentController → GEService (run algorithm)
+5. SetupController → GEService (run algorithm)
    ↓
 6. GEService → DEAP/GRAPE (evolutionary computation)
    ↓
-7. Results → ExperimentResult → Experiment
+7. Results → SetupResult → Setup
    ↓
-8. Experiment → AnalysisView (display charts)
+8. Setup → AnalysisView (display charts)
 ```
 
 ### Data Preprocessing Flow:
@@ -296,21 +296,21 @@ class GEService:
 ## 🔗 Class Relationships
 
 ### Inheritance Relationships:
-- `BaseView` ← `ExperimentView`, `DatasetView`, `AnalysisView`
-- `BaseController` ← `ExperimentController`, `DatasetController`
+- `BaseView` ← `SetupView`, `DatasetView`, `AnalysisView`
+- `BaseController` ← `SetupController`, `DatasetController`
 - `DatasetInfo` ← `Dataset` (composition)
-- `ExperimentConfig` ← `ExperimentResult` ← `Experiment` (composition)
+- `SetupConfig` ← `SetupResult` ← `Setup` (composition)
 
 ### Dependency Relationships:
-- `ExperimentView` → `ExperimentController` → `GEService`, `DatasetService`
+- `SetupView` → `SetupController` → `GEService`, `DatasetService`
 - `AnalysisView` → `Charts` → `Plotly`
 - `Forms` → `DEFAULT_CONFIG`, `UI_CONSTANTS`
 - `GEService` → `GRAPE`, `DEAP` (external libraries)
 
 ### Composition Relationships:
-- `Experiment` contains `ExperimentConfig` and multiple `ExperimentResult`
+- `Setup` contains `SetupConfig` and multiple `SetupResult`
 - `Dataset` contains `DatasetInfo`
-- `ExperimentResult` contains `ExperimentConfig`
+- `SetupResult` contains `SetupConfig`
 
 ## 📊 Mermaid Diagrams
 
@@ -370,13 +370,13 @@ classDiagram
         +render()* void
     }
     
-    class ExperimentView {
-        -experiment_controller: ExperimentController
-        -on_experiment_submit: Callable
-        -on_experiment_cancel: Callable
+    class SetupView {
+        -setup_controller: SetupController
+        -on_setup_submit: Callable
+        -on_setup_cancel: Callable
         +render()
-        +_handle_experiment_submission()
-        +_show_experiment_results()
+        +_handle_setup_submission()
+        +_show_setup_results()
     }
     
     class DatasetView {
@@ -387,23 +387,23 @@ classDiagram
     }
     
     class AnalysisView {
-        -experiment_controller: ExperimentController
+        -setup_controller: SetupController
         +render()
-        +_render_experiment_selection()
+        +_render_setup_selection()
         +_render_analysis_charts()
     }
     
-    BaseView <|-- ExperimentView
+    BaseView <|-- SetupView
     BaseView <|-- DatasetView
     BaseView <|-- AnalysisView
     
-    class ExperimentController {
+    class SetupController {
         -dataset_service: DatasetService
         -ge_service: GEService
         -storage_service: StorageService
-        +run_experiment(config: ExperimentConfig) Experiment
-        +get_experiment(experiment_id: str) Experiment
-        +list_experiments() List[Experiment]
+        +run_setup(config: SetupConfig) Setup
+        +get_setup(setup_id: str) Setup
+        +list_setups() List[Setup]
     }
     
     class DatasetService {
@@ -415,16 +415,16 @@ classDiagram
     }
     
     class GEService {
-        +run_experiment(config: ExperimentConfig) ExperimentResult
-        -_run_single_experiment(config: ExperimentConfig) ExperimentResult
+        +run_setup(config: SetupConfig) SetupResult
+        -_run_single_setup(config: SetupConfig) SetupResult
     }
     
-    ExperimentView --> ExperimentController
-    ExperimentController --> DatasetService
-    ExperimentController --> GEService
+    SetupView --> SetupController
+    SetupController --> DatasetService
+    SetupController --> GEService
     
-    class ExperimentConfig {
-        +experiment_name: str
+    class SetupConfig {
+        +setup_name: str
         +dataset: str
         +grammar: str
         +fitness_metric: str
@@ -434,8 +434,8 @@ classDiagram
         +to_dict() Dict
     }
     
-    class ExperimentResult {
-        +config: ExperimentConfig
+    class SetupResult {
+        +config: SetupConfig
         +max: List[float]
         +avg: List[float]
         +min: List[float]
@@ -444,60 +444,60 @@ classDiagram
         +to_dict() Dict
     }
     
-    class Experiment {
+    class Setup {
         +id: str
-        +config: ExperimentConfig
-        +results: Dict[str, ExperimentResult]
+        +config: SetupConfig
+        +results: Dict[str, SetupResult]
         +status: str
         +created_at: str
         +completed_at: Optional[str]
-        +add_result(run_id: str, result: ExperimentResult)
-        +get_best_result() ExperimentResult
+        +add_result(run_id: str, result: SetupResult)
+        +get_best_result() SetupResult
         +get_average_fitness() float
     }
     
-    ExperimentConfig <-- ExperimentResult
-    ExperimentResult <-- Experiment
-    Experiment --> ExperimentConfig
+    SetupConfig <-- SetupResult
+    SetupResult <-- Setup
+    Setup --> SetupConfig
 ```
 
 ### 3. Data Flow Diagram
 ```mermaid
 sequenceDiagram
     participant User
-    participant ExperimentView
-    participant ExperimentController
+    participant SetupView
+    participant SetupController
     participant DatasetService
     participant GEService
     participant DEAP
     participant AnalysisView
     
-    User->>ExperimentView: Fill experiment form
-    ExperimentView->>ExperimentView: Validate form data
-    ExperimentView->>ExperimentView: Create ExperimentConfig
-    ExperimentView->>ExperimentController: run_experiment(config)
+    User->>SetupView: Fill setup form
+    SetupView->>SetupView: Validate form data
+    SetupView->>SetupView: Create SetupConfig
+    SetupView->>SetupController: run_setup(config)
     
-    ExperimentController->>DatasetService: load_dataset(dataset_name)
+    SetupController->>DatasetService: load_dataset(dataset_name)
     DatasetService->>DatasetService: preprocess_data()
-    DatasetService-->>ExperimentController: X_train, Y_train, X_test, Y_test
+    DatasetService-->>SetupController: X_train, Y_train, X_test, Y_test
     
     loop For each run (n_runs)
-        ExperimentController->>GEService: run_single_experiment(config, run_number)
+        SetupController->>GEService: run_single_setup(config, run_number)
         GEService->>DEAP: Initialize population
         loop For each generation
             GEService->>DEAP: Evaluate fitness
             GEService->>DEAP: Selection, crossover, mutation
-            GEService->>ExperimentView: Update progress
+            GEService->>SetupView: Update progress
         end
-        GEService-->>ExperimentController: ExperimentResult
+        GEService-->>SetupController: SetupResult
     end
     
-    ExperimentController->>ExperimentController: Create Experiment object
-    ExperimentController-->>ExperimentView: Experiment
-    ExperimentView->>User: Show success message and results
+    SetupController->>SetupController: Create Setup object
+    SetupController-->>SetupView: Setup
+    SetupView->>User: Show success message and results
     
-    User->>AnalysisView: View experiment results
-    AnalysisView->>AnalysisView: Load experiment data
+    User->>AnalysisView: View setup results
+    AnalysisView->>AnalysisView: Load setup data
     AnalysisView->>AnalysisView: Create charts
     AnalysisView->>User: Display interactive charts
 ```
@@ -506,7 +506,7 @@ sequenceDiagram
 ```mermaid
 graph TD
     subgraph "Controllers"
-        EC[ExperimentController]
+        EC[SetupController]
         DC[DatasetController]
     end
     
@@ -519,9 +519,9 @@ graph TD
     subgraph "Models"
         D[Dataset]
         DI[DatasetInfo]
-        ECONF[ExperimentConfig]
-        ER[ExperimentResult]
-        E[Experiment]
+        ECONF[SetupConfig]
+        ER[SetupResult]
+        E[Setup]
     end
     
     subgraph "External"
@@ -594,25 +594,25 @@ nodes_length_avg = avg_nodes
 
 #### 2. UGE Integration Points
 
-**ExperimentResult Model (`uge/models/experiment.py`):**
+**SetupResult Model (`uge/models/setup.py`):**
 - Added `invalid_count_min: List[int]`, `invalid_count_avg: List[float]`, `invalid_count_max: List[int]`
 - Added `nodes_length_min: List[int]`, `nodes_length_avg: List[float]`, `nodes_length_max: List[int]`
 - Updated serialization/deserialization methods
 
 **GE Service (`uge/services/ge_service.py`):**
 - Extract invalid individuals and nodes length data from GRAPE logbook
-- Convert and store in ExperimentResult objects
+- Convert and store in SetupResult objects
 
 **Charts Component (`uge/views/components/charts.py`):**
 - `plot_invalid_count_evolution()`: Individual run invalid count charts
-- `plot_experiment_wide_invalid_count()`: Experiment-wide invalid count charts
+- `plot_setup_wide_invalid_count()`: Setup-wide invalid count charts
 - `plot_nodes_length_evolution()`: Individual run nodes length charts
-- `plot_experiment_wide_nodes_length()`: Experiment-wide nodes length charts
+- `plot_setup_wide_nodes_length()`: Setup-wide nodes length charts
 
 **Analysis View (`uge/views/analysis_view.py`):**
 - Added "Number of Invalid Individuals" and "Nodes Length Evolution" analysis type selections
 - Individual run charts with run selection for both metrics
-- Experiment-wide aggregated analysis for both metrics
+- Setup-wide aggregated analysis for both metrics
 
 **Constants (`uge/utils/constants.py`):**
 - Added invalid individuals and nodes length fields to `default_report_items`
@@ -620,7 +620,7 @@ nodes_length_avg = avg_nodes
 ### Data Flow for Tracking Features
 ```
 GRAPE Evolution → Invalid Count & Nodes Length Calculation → Logbook Storage → 
-UGE Service Extraction → ExperimentResult Storage → 
+UGE Service Extraction → SetupResult Storage → 
 Analysis View Display → Interactive Charts
 
 Invalid Individuals: Population Quality & Grammar Effectiveness

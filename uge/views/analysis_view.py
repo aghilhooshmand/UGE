@@ -2,7 +2,7 @@
 Analysis View for UGE Application
 
 This module provides the analysis view for analyzing and visualizing
-Grammatical Evolution experiment results.
+Grammatical Evolution setup results.
 
 Classes:
 - AnalysisView: Main view for analysis operations
@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Any, Callable
 from uge.views.components.base_view import BaseView
 from uge.views.components.charts import Charts
 from uge.views.components.forms import Forms
-from uge.models.experiment import Experiment, ExperimentResult
+from uge.models.setup import Setup, SetupResult
 from uge.utils.tooltip_manager import tooltip_manager
 
 
@@ -25,81 +25,81 @@ class AnalysisView(BaseView):
     View for analysis operations.
     
     This view handles the user interface for analyzing and visualizing
-    GE experiment results.
+    GE setup results.
     
     Attributes:
-        on_experiment_select (Optional[Callable]): Callback for experiment selection
+        on_setup_select (Optional[Callable]): Callback for setup selection
         on_analysis_options_change (Optional[Callable]): Callback for analysis options change
         on_export_data (Optional[Callable]): Callback for data export
     """
     
-    def __init__(self, on_experiment_select: Optional[Callable] = None,
+    def __init__(self, on_setup_select: Optional[Callable] = None,
                  on_analysis_options_change: Optional[Callable] = None,
                  on_export_data: Optional[Callable] = None):
         """
         Initialize analysis view.
         
         Args:
-            on_experiment_select (Optional[Callable]): Callback for experiment selection
+            on_setup_select (Optional[Callable]): Callback for setup selection
             on_analysis_options_change (Optional[Callable]): Callback for analysis options change
             on_export_data (Optional[Callable]): Callback for data export
         """
         super().__init__(
             title="📈 Analysis",
-            description="Analyze and visualize experiment results"
+            description="Analyze and visualize setup results"
         )
-        self.on_experiment_select = on_experiment_select
+        self.on_setup_select = on_setup_select
         self.on_analysis_options_change = on_analysis_options_change
         self.on_export_data = on_export_data
     
-    def render(self, experiments: List[Dict[str, str]] = None):
+    def render(self, setups: List[Dict[str, str]] = None):
         """
         Render the analysis view.
         
         Args:
-            experiments (List[Dict[str, str]]): Available experiments with id, name, path
+            setups (List[Dict[str, str]]): Available setups with id, name, path
         """
-        if experiments is None:
-            experiments = []
+        if setups is None:
+            setups = []
         
         self.render_header()
         
-        # Always require experiment selection
-        if not experiments:
-            self.render_no_experiments()
+        # Always require setup selection
+        if not setups:
+            self.render_no_setups()
             return
             
-        # Experiment selection
-        selected_experiment = Forms.create_experiment_selection_form(experiments)
+        # Setup selection
+        selected_setup = Forms.create_setup_selection_form(setups)
         
-        if selected_experiment:
-            self._handle_experiment_selection(selected_experiment)
+        if selected_setup:
+            self._handle_setup_selection(selected_setup)
     
-    def _handle_experiment_selection(self, experiment_id: str):
+    def _handle_setup_selection(self, setup_id: str):
         """
-        Handle experiment selection.
+        Handle setup selection.
         
         Args:
-            experiment_id (str): Selected experiment ID
+            setup_id (str): Selected setup ID
         """
         try:
-            if self.on_experiment_select:
-                experiment = self.on_experiment_select(experiment_id)
-                if experiment:
-                    self._render_experiment_analysis(experiment)
+            if self.on_setup_select:
+                setup = self.on_setup_select(setup_id)
+                if setup:
+                    self._render_setup_analysis(setup)
             else:
-                st.info(f"Selected experiment: {experiment_id}")
+                st.info(f"Selected setup: {setup_id}")
         except Exception as e:
-            self.handle_error(e, "selecting experiment")
+            self.handle_error(e, "selecting setup")
     
-    def _render_experiment_analysis(self, experiment: Experiment):
+    def _render_setup_analysis(self, setup: Setup):
         """
-        Render experiment analysis.
+        Render setup analysis.
         
         Args:
-            experiment (Experiment): Experiment to analyze
+            setup (Setup): Setup to analyze
         """
-        st.subheader(f"Analysis: {experiment.config.experiment_name}")
+        st.subheader(f"Analysis: {setup.config.setup_name}")
         
         # Analysis options
         analysis_options = Forms.create_analysis_options_form()
@@ -109,23 +109,23 @@ class AnalysisView(BaseView):
         
         # Render analysis based on options
         if analysis_options.get('show_statistics', True):
-            with st.expander("📊 Experiment Statistics", expanded=True):
-                self._render_experiment_statistics(experiment)
+            with st.expander("📊 Setup Statistics", expanded=True):
+                self._render_setup_statistics(setup)
         
         if analysis_options.get('show_charts', True):
-            with st.expander("📈 Experiment Charts", expanded=True):
-                self._render_experiment_charts(experiment)
+            with st.expander("📈 Setup Charts", expanded=True):
+                self._render_setup_charts(setup)
         
         if analysis_options.get('show_best_individual', True):
             with st.expander("🏆 Best Individual", expanded=True):
-                self._render_best_individual(experiment)
+                self._render_best_individual(setup)
         
         if analysis_options.get('export_data', False):
             with st.expander("📤 Export Data", expanded=True):
-                self._render_export_options(experiment)
+                self._render_export_options(setup)
     
-    def _render_experiment_statistics(self, experiment: Experiment):
-        """Render experiment statistics."""
+    def _render_setup_statistics(self, setup: Setup):
+        """Render setup statistics."""
         # Basic Metrics Panel
         with st.expander("📈 Basic Metrics", expanded=True):
             col1, col2, col3, col4 = st.columns(4)
@@ -133,21 +133,21 @@ class AnalysisView(BaseView):
         with col1:
             st.metric(
                 "Total Runs", 
-                len(experiment.results),
+                len(setup.results),
                 help=tooltip_manager.get_metric_tooltip('total_runs')
             )
         
         with col2:
-            best_fitness = experiment.get_best_result()
+            best_fitness = setup.get_best_result()
             best_fitness_val = best_fitness.best_training_fitness if best_fitness else 0
-            if experiment.config.fitness_direction == 1:  # maximize
+            if setup.config.fitness_direction == 1:  # maximize
                 help_text = tooltip_manager.get_metric_tooltip('best_fitness', 'maximize')
             else:  # minimize
                 help_text = tooltip_manager.get_metric_tooltip('best_fitness', 'minimize')
             st.metric("Best Fitness", f"{best_fitness_val:.4f}", help=help_text)
         
         with col3:
-            avg_fitness = experiment.get_average_fitness()
+            avg_fitness = setup.get_average_fitness()
             avg_fitness_val = avg_fitness if avg_fitness else 0
             st.metric(
                 "Average Fitness", 
@@ -156,7 +156,7 @@ class AnalysisView(BaseView):
             )
         
         with col4:
-            status = "✅ Completed" if experiment.is_completed() else "🔄 Running"
+            status = "✅ Completed" if setup.is_completed() else "🔄 Running"
             st.metric(
                 "Status", 
                 status,
@@ -164,14 +164,14 @@ class AnalysisView(BaseView):
             )
         
         # Advanced Statistics Panel
-        if experiment.results:
+        if setup.results:
             with st.expander("📊 Advanced Statistics", expanded=True):
                 # Calculate additional statistics
-                fitnesses = [r.best_training_fitness for r in experiment.results.values() if r.best_training_fitness is not None]
-                depths = [r.best_depth for r in experiment.results.values() if r.best_depth is not None]
-                genome_lengths = [r.best_genome_length for r in experiment.results.values() if r.best_genome_length is not None]
-                used_codons = [r.best_used_codons for r in experiment.results.values() if r.best_used_codons is not None]
-                generations = [len(r.max) for r in experiment.results.values()]
+                fitnesses = [r.best_training_fitness for r in setup.results.values() if r.best_training_fitness is not None]
+                depths = [r.best_depth for r in setup.results.values() if r.best_depth is not None]
+                genome_lengths = [r.best_genome_length for r in setup.results.values() if r.best_genome_length is not None]
+                used_codons = [r.best_used_codons for r in setup.results.values() if r.best_used_codons is not None]
+                generations = [len(r.max) for r in setup.results.values()]
                 
                 col1, col2, col3, col4 = st.columns(4)
                 
@@ -262,7 +262,7 @@ class AnalysisView(BaseView):
             col1, col2 = st.columns(2)
             
             with col1:
-                if experiment.config.fitness_direction == 1:  # maximize
+                if setup.config.fitness_direction == 1:  # maximize
                     default_target = 0.95
                     target_desc = "Success Target (≥)"
                     help_text = "Minimum fitness value to consider a run successful"
@@ -274,7 +274,7 @@ class AnalysisView(BaseView):
                 success_target = st.number_input(
                     target_desc,
                     min_value=0.0,
-                    max_value=1.0 if experiment.config.fitness_direction == 1 else 10.0,
+                    max_value=1.0 if setup.config.fitness_direction == 1 else 10.0,
                     value=default_target,
                     step=0.01,
                     help=help_text
@@ -316,15 +316,15 @@ class AnalysisView(BaseView):
             
             if fitnesses:
                 # Find best and worst runs based on fitness direction
-                if experiment.config.fitness_direction == 1:  # maximize
-                    best_run = max(experiment.results.items(), key=lambda x: x[1].best_training_fitness or 0)
-                    worst_run = min(experiment.results.items(), key=lambda x: x[1].best_training_fitness or float('inf'))
+                if setup.config.fitness_direction == 1:  # maximize
+                    best_run = max(setup.results.items(), key=lambda x: x[1].best_training_fitness or 0)
+                    worst_run = min(setup.results.items(), key=lambda x: x[1].best_training_fitness or float('inf'))
                 else:  # minimize
-                    best_run = min(experiment.results.items(), key=lambda x: x[1].best_training_fitness or float('inf'))
-                    worst_run = max(experiment.results.items(), key=lambda x: x[1].best_training_fitness or 0)
+                    best_run = min(setup.results.items(), key=lambda x: x[1].best_training_fitness or float('inf'))
+                    worst_run = max(setup.results.items(), key=lambda x: x[1].best_training_fitness or 0)
                 
                 # Convert run IDs to simple run numbers (sorted by timestamp descending - newest first)
-                sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
+                sorted_runs = sorted(setup.results.items(), key=lambda x: x[1].timestamp, reverse=True)
                 run_id_to_number = {run_id: idx + 1 for idx, (run_id, _) in enumerate(sorted_runs)}
                 
                 best_run_number = run_id_to_number.get(best_run[0], 1)
@@ -349,7 +349,7 @@ class AnalysisView(BaseView):
                     
                     # Convergence analysis using configurable threshold
                     convergence_gens = []
-                    for result in experiment.results.values():
+                    for result in setup.results.values():
                         if result.max and len(result.max) > 10:
                             # Find where fitness improvement becomes minimal
                             for i in range(len(result.max) - 10, len(result.max)):
@@ -367,7 +367,7 @@ class AnalysisView(BaseView):
                 
                 with col2:
                     # Success rate analysis using configurable threshold
-                    if experiment.config.fitness_direction == 1:  # maximize
+                    if setup.config.fitness_direction == 1:  # maximize
                         successful_runs = sum(1 for f in fitnesses if f >= success_target)
                         target_desc = f"≥ {success_target:.2f} fitness"
                     else:  # minimize
@@ -425,7 +425,7 @@ class AnalysisView(BaseView):
                     insights.append(("🔴 **Low consistency** - high variation, algorithm may be unstable", 
                                    tooltip_manager.get_insight_tooltip('consistency', 'low')))
                 
-                if convergence_gens and avg_convergence < len(experiment.results[list(experiment.results.keys())[0]].max) * 0.5:
+                if convergence_gens and avg_convergence < len(setup.results[list(setup.results.keys())[0]].max) * 0.5:
                     insights.append(("🟢 **Fast convergence** - algorithm finds solutions quickly", 
                                    tooltip_manager.get_insight_tooltip('convergence', 'fast')))
                 elif convergence_gens:
@@ -447,11 +447,11 @@ class AnalysisView(BaseView):
                         st.metric("", "", help=help_text)
         
         # Runs Statistics Panel
-        if experiment.results:
+        if setup.results:
             with st.expander("📋 Runs Statistics", expanded=True):
                 run_data = []
                 # Sort runs by timestamp to get consistent ordering (newest first)
-                sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
+                sorted_runs = sorted(setup.results.items(), key=lambda x: x[1].timestamp, reverse=True)
                 
                 for run_idx, (run_id, result) in enumerate(sorted_runs, 1):
                     # Calculate comprehensive metrics for each run
@@ -500,10 +500,10 @@ class AnalysisView(BaseView):
                 run_df = pd.DataFrame(run_data)
                 st.dataframe(run_df, hide_index=True)
     
-    def _render_experiment_charts(self, experiment: Experiment):
-        """Render experiment charts."""
+    def _render_setup_charts(self, setup: Setup):
+        """Render setup charts."""
         
-        if not experiment.results:
+        if not setup.results:
             st.info("No results available for charting")
             return
         
@@ -517,8 +517,8 @@ class AnalysisView(BaseView):
         # Chart type selection
         chart_type = st.selectbox(
             "Select Chart Type",
-            ["Individual Run Charts", "Experiment-wide Chart"],
-            help="Choose between individual run charts or experiment-wide analysis"
+            ["Individual Run Charts", "Setup-wide Chart"],
+            help="Choose between individual run charts or setup-wide analysis"
         )
         
         # Measurement selection - conditional based on analysis type
@@ -585,24 +585,24 @@ class AnalysisView(BaseView):
         # Render charts based on analysis type and chart type
         if main_chart_type == "Fitness Evolution":
             if chart_type == "Individual Run Charts":
-                self._render_individual_run_charts(experiment, measurement_options)
+                self._render_individual_run_charts(setup, measurement_options)
             else:
-                self._render_experiment_wide_chart(experiment, measurement_options)
+                self._render_setup_wide_chart(setup, measurement_options)
         elif main_chart_type == "Number of Invalid Individuals":
             if chart_type == "Individual Run Charts":
-                self._render_individual_invalid_count_charts(experiment, measurement_options)
+                self._render_individual_invalid_count_charts(setup, measurement_options)
             else:
-                self._render_experiment_wide_invalid_count_chart(experiment, measurement_options)
+                self._render_setup_wide_invalid_count_chart(setup, measurement_options)
         else:  # Nodes Length Evolution
             if chart_type == "Individual Run Charts":
-                self._render_individual_nodes_length_charts(experiment, measurement_options)
+                self._render_individual_nodes_length_charts(setup, measurement_options)
             else:
-                self._render_experiment_wide_nodes_length_chart(experiment, measurement_options)
+                self._render_setup_wide_nodes_length_chart(setup, measurement_options)
     
-    def _render_individual_run_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
+    def _render_individual_run_charts(self, setup: Setup, measurement_options: Dict[str, bool]):
         """Render individual run chart for selected run."""
         # Sort runs by timestamp to get consistent ordering (newest first)
-        sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
+        sorted_runs = sorted(setup.results.items(), key=lambda x: x[1].timestamp, reverse=True)
         
         # Create run selection options
         run_options = []
@@ -625,25 +625,25 @@ class AnalysisView(BaseView):
         Charts.plot_individual_run_with_bars(
             selected_result, 
             title=f"Fitness Evolution - {selected_run}",
-            fitness_metric=experiment.config.fitness_metric,
-            fitness_direction=experiment.config.fitness_direction,
+            fitness_metric=setup.config.fitness_metric,
+            fitness_direction=setup.config.fitness_direction,
             measurement_options=measurement_options
         )
     
-    def _render_experiment_wide_chart(self, experiment: Experiment, measurement_options: Dict[str, bool]):
-        """Render experiment-wide chart with min/max/avg across all runs."""
-        Charts.plot_experiment_wide_with_bars(
-            experiment.results, 
-            title=f"Experiment-wide Analysis - {experiment.config.experiment_name}",
-            fitness_metric=experiment.config.fitness_metric,
-            fitness_direction=experiment.config.fitness_direction,
+    def _render_setup_wide_chart(self, setup: Setup, measurement_options: Dict[str, bool]):
+        """Render setup-wide chart with min/max/avg across all runs."""
+        Charts.plot_setup_wide_with_bars(
+            setup.results, 
+            title=f"Setup-wide Analysis - {setup.config.setup_name}",
+            fitness_metric=setup.config.fitness_metric,
+            fitness_direction=setup.config.fitness_direction,
             measurement_options=measurement_options
         )
     
-    def _render_best_individual(self, experiment: Experiment):
+    def _render_best_individual(self, setup: Setup):
         """Render best individual information."""
         
-        best_result = experiment.get_best_result()
+        best_result = setup.get_best_result()
         if not best_result:
             st.info("No best individual found")
             return
@@ -669,65 +669,65 @@ class AnalysisView(BaseView):
             st.code(best_result.best_phenotype, language='python')
     
     
-    def _render_export_options(self, experiment: Experiment):
+    def _render_export_options(self, setup: Setup):
         """Render export options."""
         
         col1, col2 = st.columns(2)
         
         with col1:
             if st.button("📊 Export Results as CSV"):
-                self._handle_export_results(experiment)
+                self._handle_export_results(setup)
         
         with col2:
             if st.button("📋 Export Configuration as JSON"):
-                self._handle_export_config(experiment)
+                self._handle_export_config(setup)
     
-    def _handle_export_results(self, experiment: Experiment):
+    def _handle_export_results(self, setup: Setup):
         """Handle results export."""
         try:
             if self.on_export_data:
-                export_data = self.on_export_data(experiment, 'results')
+                export_data = self.on_export_data(setup, 'results')
                 if export_data:
                     st.download_button(
                         label="💾 Download Results CSV",
                         data=export_data,
-                        file_name=f"{experiment.config.experiment_name}_results.csv",
+                        file_name=f"{setup.config.setup_name}_results.csv",
                         mime="text/csv"
                     )
         except Exception as e:
             self.handle_error(e, "exporting results")
     
-    def _handle_export_config(self, experiment: Experiment):
+    def _handle_export_config(self, setup: Setup):
         """Handle configuration export."""
         try:
             if self.on_export_data:
-                export_data = self.on_export_data(experiment, 'config')
+                export_data = self.on_export_data(setup, 'config')
                 if export_data:
                     st.download_button(
                         label="💾 Download Configuration JSON",
                         data=export_data,
-                        file_name=f"{experiment.config.experiment_name}_config.json",
+                        file_name=f"{setup.config.setup_name}_config.json",
                         mime="application/json"
                     )
         except Exception as e:
             self.handle_error(e, "exporting configuration")
     
-    def render_experiment_not_found(self, experiment_id: str):
+    def render_setup_not_found(self, setup_id: str):
         """
-        Render experiment not found message.
+        Render setup not found message.
         
         Args:
-            experiment_id (str): Experiment ID that was not found
+            setup_id (str): Setup ID that was not found
         """
-        self.show_error(f"Experiment '{experiment_id}' not found")
+        self.show_error(f"Setup '{setup_id}' not found")
     
-    def render_no_experiments(self):
-        """Render no experiments available message."""
-        st.info("No experiments available for analysis")
+    def render_no_setups(self):
+        """Render no setups available message."""
+        st.info("No setups available for analysis")
         st.markdown("""
-        To analyze experiments:
-        1. Go to the "Run Experiment" page
-        2. Create and run an experiment
+        To analyze setups:
+        1. Go to the "Run Setup" page
+        2. Create and run an setup
         3. Return to this page to analyze the results
         """)
     
@@ -758,10 +758,10 @@ class AnalysisView(BaseView):
         """
         self.show_error(f"❌ Export error: {error}")
     
-    def _render_individual_invalid_count_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
+    def _render_individual_invalid_count_charts(self, setup: Setup, measurement_options: Dict[str, bool]):
         """Render individual run invalid count charts for selected run."""
         # Sort runs by timestamp to get consistent ordering (newest first)
-        sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
+        sorted_runs = sorted(setup.results.items(), key=lambda x: x[1].timestamp, reverse=True)
         
         # Create run selection options
         run_options = []
@@ -788,18 +788,18 @@ class AnalysisView(BaseView):
         from uge.views.components.charts import Charts
         Charts.plot_invalid_count_evolution(result, measurement_options)
     
-    def _render_experiment_wide_invalid_count_chart(self, experiment: Experiment, measurement_options: Dict[str, bool]):
-        """Render experiment-wide invalid count chart."""
-        st.subheader("📊 Experiment-wide Invalid Count Analysis")
+    def _render_setup_wide_invalid_count_chart(self, setup: Setup, measurement_options: Dict[str, bool]):
+        """Render setup-wide invalid count chart."""
+        st.subheader("📊 Setup-wide Invalid Count Analysis")
         
-        # Render the experiment-wide invalid count chart
+        # Render the setup-wide invalid count chart
         from uge.views.components.charts import Charts
-        Charts.plot_experiment_wide_invalid_count(experiment.results, measurement_options)
+        Charts.plot_setup_wide_invalid_count(setup.results, measurement_options)
     
-    def _render_individual_nodes_length_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
+    def _render_individual_nodes_length_charts(self, setup: Setup, measurement_options: Dict[str, bool]):
         """Render individual run nodes length charts for selected run."""
         # Sort runs by timestamp to get consistent ordering (newest first)
-        sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
+        sorted_runs = sorted(setup.results.items(), key=lambda x: x[1].timestamp, reverse=True)
         
         # Create run selection options
         run_options = []
@@ -826,10 +826,10 @@ class AnalysisView(BaseView):
         from uge.views.components.charts import Charts
         Charts.plot_nodes_length_evolution(result, measurement_options)
     
-    def _render_experiment_wide_nodes_length_chart(self, experiment: Experiment, measurement_options: Dict[str, bool]):
-        """Render experiment-wide nodes length chart."""
-        st.subheader("📊 Experiment-wide Nodes Length Analysis")
+    def _render_setup_wide_nodes_length_chart(self, setup: Setup, measurement_options: Dict[str, bool]):
+        """Render setup-wide nodes length chart."""
+        st.subheader("📊 Setup-wide Nodes Length Analysis")
         
-        # Render the experiment-wide nodes length chart
+        # Render the setup-wide nodes length chart
         from uge.views.components.charts import Charts
-        Charts.plot_experiment_wide_nodes_length(experiment.results, measurement_options)
+        Charts.plot_setup_wide_nodes_length(setup.results, measurement_options)

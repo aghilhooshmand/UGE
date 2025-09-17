@@ -2,7 +2,7 @@
 Dataset Service for UGE Application
 
 This module provides dataset management services for the UGE application.
-It handles loading, preprocessing, and managing datasets for GE experiments.
+It handles loading, preprocessing, and managing datasets for GE setups.
 
 Classes:
 - DatasetService: Main service for dataset operations
@@ -25,7 +25,7 @@ class DatasetService:
     
     This service handles all dataset-related operations including
     loading, preprocessing, validation, and management of datasets
-    used in GE experiments.
+    used in GE setups.
     
     Attributes:
         datasets_dir (Path): Directory containing datasets
@@ -99,7 +99,7 @@ class DatasetService:
     def preprocess_dataset(self, dataset_name: str, label_column: Optional[str] = None,
                           test_size: float = 0.3, random_seed: int = 42) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
-        Preprocess dataset for GE experiments.
+        Preprocess dataset for GE setups.
         
         Args:
             dataset_name (str): Name of the dataset
@@ -131,7 +131,7 @@ class DatasetService:
     
     def validate_dataset(self, dataset_name: str) -> List[str]:
         """
-        Validate a dataset for GE experiments.
+        Validate a dataset for GE setups.
         
         Args:
             dataset_name (str): Name of the dataset
@@ -295,7 +295,7 @@ class DatasetService:
     
     def check_dataset_compatibility(self, dataset_name: str, label_column: Optional[str] = None) -> List[str]:
         """
-        Check if a dataset is compatible with GE experiments.
+        Check if a dataset is compatible with GE setups.
         
         Args:
             dataset_name (str): Name of the dataset

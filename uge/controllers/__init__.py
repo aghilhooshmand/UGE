@@ -4,7 +4,7 @@ Controllers Package
 This package contains the control logic and orchestration for the UGE application.
 
 Controllers coordinate between views and services, handling the application flow:
-- ExperimentController: Orchestrates experiment execution and management
+- SetupController: Orchestrates setup execution and management
 - AnalysisController: Coordinates data analysis and visualization processes
 
 Controllers are responsible for:
@@ -15,7 +15,7 @@ Controllers are responsible for:
 - Returning results to views
 """
 
-from .experiment_controller import ExperimentController
+from .setup_controller import SetupController
 from .analysis_controller import AnalysisController
 
-__all__ = ['ExperimentController', 'AnalysisController']
+__all__ = ['SetupController', 'AnalysisController']

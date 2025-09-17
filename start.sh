@@ -29,7 +29,7 @@ fi
 
 # Create necessary directories
 echo "📁 Creating necessary directories..."
-mkdir -p results/experiments datasets grammars
+mkdir -p results/setups datasets grammars
 
 # Set permissions
 echo "🔐 Setting permissions..."

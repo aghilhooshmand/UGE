@@ -5,7 +5,7 @@ This module contains utility functions used throughout the UGE application.
 These are general-purpose functions that don't belong to any specific domain.
 
 Functions:
-- create_experiment_id(): Generate unique experiment identifiers
+- create_setup_id(): Generate unique experiment identifiers
 - create_run_id(): Generate unique run identifiers  
 - mae(): Calculate Mean Absolute Error for fitness evaluation
 - accuracy(): Calculate accuracy for fitness evaluation
@@ -22,7 +22,7 @@ import numpy as np
 from grape import functions
 
 
-def create_experiment_id():
+def create_setup_id():
     """
     Create a unique experiment ID with timestamp and UUID.
     
@@ -30,7 +30,7 @@ def create_experiment_id():
         str: Unique experiment ID in format 'exp_YYYYMMDD_HHMMSS_XXXXXXXX'
         
     Example:
-        >>> create_experiment_id()
+        >>> create_setup_id()
         'exp_20240101_143022_a1b2c3d4'
     """
     return f"exp_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}_{str(uuid.uuid4())[:8]}"

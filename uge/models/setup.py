@@ -1,13 +1,13 @@
 """
-Experiment Model for UGE Application
+Setup Model for UGE Application
 
-This module defines the Experiment data model, which represents a complete
-Grammatical Evolution experiment with its configuration, results, and metadata.
+This module defines the Setup data model, which represents a complete
+Grammatical Evolution setup with its configuration, results, and metadata.
 
 Classes:
-- Experiment: Main experiment data model
-- ExperimentConfig: Configuration parameters for experiments
-- ExperimentResult: Results and performance metrics
+- Setup: Main setup data model
+- SetupConfig: Configuration parameters for setups
+- SetupResult: Results and performance metrics
 
 Author: UGE Team
 """
@@ -18,20 +18,20 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class ExperimentConfig:
+class SetupConfig:
     """
-    Configuration parameters for a Grammatical Evolution experiment.
+    Configuration parameters for a Grammatical Evolution setup.
     
-    This class encapsulates all the parameters needed to run a GE experiment,
+    This class encapsulates all the parameters needed to run a GE setup,
     including GA parameters, GE parameters, dataset settings, and other options.
     
     The configuration follows the MVC pattern where:
     - Models: Data structures (this class)
     - Views: User interface (forms, charts)
-    - Controllers: Business logic (experiment execution)
+    - Controllers: Business logic (setup execution)
     
     Attributes:
-        experiment_name (str): Human-readable name for the experiment
+        setup_name (str): Human-readable name for the setup
         dataset (str): Name of the dataset to use (e.g., 'clinical_breast_cancer_RFC.csv')
         grammar (str): Name of the BNF grammar file (e.g., 'UGE_Classification.bnf')
         fitness_metric (str): Fitness metric to optimize ('mae' or 'accuracy')
@@ -60,8 +60,8 @@ class ExperimentConfig:
         created_at (str): ISO timestamp of configuration creation
     """
     
-    # Experiment metadata
-    experiment_name: str
+    # Setup metadata
+    setup_name: str
     dataset: str
     grammar: str
     fitness_metric: str = 'mae'
@@ -103,7 +103,7 @@ class ExperimentConfig:
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary format."""
         return {
-            'experiment_name': self.experiment_name,
+            'setup_name': self.setup_name,
             'dataset': self.dataset,
             'grammar': self.grammar,
             'fitness_metric': self.fitness_metric,
@@ -133,21 +133,21 @@ class ExperimentConfig:
         }
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ExperimentConfig':
+    def from_dict(cls, data: Dict[str, Any]) -> 'SetupConfig':
         """Create configuration from dictionary."""
         return cls(**data)
 
 
 @dataclass
-class ExperimentResult:
+class SetupResult:
     """
-    Results from a single GE experiment run.
+    Results from a single GE setup run.
     
     This class encapsulates all the results and performance metrics
-    from a single run of a Grammatical Evolution experiment.
+    from a single run of a Grammatical Evolution setup.
     
     Attributes:
-        config (ExperimentConfig): Configuration used for this run
+        config (SetupConfig): Configuration used for this run
         report_items (List[str]): Items included in the report
         max (List[float]): Maximum fitness values per generation
         avg (List[float]): Average fitness values per generation
@@ -170,7 +170,7 @@ class ExperimentResult:
         timestamp (str): ISO timestamp of result generation
     """
     
-    config: ExperimentConfig
+    config: SetupConfig
     report_items: List[str]
     max: List[float] = field(default_factory=list)
     avg: List[float] = field(default_factory=list)
@@ -219,9 +219,9 @@ class ExperimentResult:
         }
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ExperimentResult':
+    def from_dict(cls, data: Dict[str, Any]) -> 'SetupResult':
         """Create result from dictionary."""
-        config = ExperimentConfig.from_dict(data['config'])
+        config = SetupConfig.from_dict(data['config'])
         return cls(
             config=config,
             report_items=data['report_items'],
@@ -248,34 +248,34 @@ class ExperimentResult:
 
 
 @dataclass
-class Experiment:
+class Setup:
     """
-    Complete experiment data model.
+    Complete setup data model.
     
-    This class represents a complete Grammatical Evolution experiment,
+    This class represents a complete Grammatical Evolution setup,
     including its configuration, all run results, and metadata.
     
     Attributes:
-        id (str): Unique experiment identifier
-        config (ExperimentConfig): Experiment configuration
-        results (Dict[str, ExperimentResult]): Results from each run
-        status (str): Current status of the experiment
+        id (str): Unique setup identifier
+        config (SetupConfig): Setup configuration
+        results (Dict[str, SetupResult]): Results from each run
+        status (str): Current status of the setup
         created_at (str): ISO timestamp of creation
         completed_at (Optional[str]): ISO timestamp of completion
     """
     
     id: str
-    config: ExperimentConfig
-    results: Dict[str, ExperimentResult] = field(default_factory=dict)
+    config: SetupConfig
+    results: Dict[str, SetupResult] = field(default_factory=dict)
     status: str = 'created'  # created, running, completed, failed
     created_at: str = field(default_factory=lambda: dt.datetime.now().isoformat())
     completed_at: Optional[str] = None
     
-    def add_result(self, run_id: str, result: ExperimentResult) -> None:
+    def add_result(self, run_id: str, result: SetupResult) -> None:
         """Add a result from a single run."""
         self.results[run_id] = result
     
-    def get_best_result(self) -> Optional[ExperimentResult]:
+    def get_best_result(self) -> Optional[SetupResult]:
         """Get the best result across all runs."""
         if not self.results:
             return None
@@ -313,11 +313,11 @@ class Experiment:
         return sum(fitnesses) / len(fitnesses)
     
     def is_completed(self) -> bool:
-        """Check if experiment is completed."""
+        """Check if setup is completed."""
         return len(self.results) >= self.config.n_runs
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert experiment to dictionary format."""
+        """Convert setup to dictionary format."""
         return {
             'id': self.id,
             'config': self.config.to_dict(),
@@ -328,10 +328,10 @@ class Experiment:
         }
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Experiment':
-        """Create experiment from dictionary."""
-        config = ExperimentConfig.from_dict(data['config'])
-        results = {run_id: ExperimentResult.from_dict(result_data) 
+    def from_dict(cls, data: Dict[str, Any]) -> 'Setup':
+        """Create setup from dictionary."""
+        config = SetupConfig.from_dict(data['config'])
+        results = {run_id: SetupResult.from_dict(result_data) 
                   for run_id, result_data in data.get('results', {}).items()}
         
         return cls(
