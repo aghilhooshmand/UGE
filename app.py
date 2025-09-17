@@ -25,6 +25,9 @@ from uge.controllers.analysis_controller import AnalysisController
 from uge.views.setup_view import SetupView
 from uge.views.dataset_view import DatasetView
 from uge.views.analysis_view import AnalysisView
+from uge.views.grammar_view import GrammarView
+from uge.views.setup_manager_view import SetupManagerView
+from uge.views.comparison_view import ComparisonView
 from uge.services.storage_service import StorageService
 from uge.services.dataset_service import DatasetService
 from uge.utils.constants import FILE_PATHS, HELP
@@ -69,6 +72,9 @@ class UGEApp:
             on_analysis_options_change=self._on_analysis_options_change,
             on_export_data=self._on_export_data
         )
+        self.grammar_view = GrammarView()
+        self.setup_manager_view = SetupManagerView(self.storage_service)
+        self.comparison_view = ComparisonView(self.storage_service)
     
     def _on_setup_start(self, setup):
         """Callback when setup starts."""
@@ -189,13 +195,24 @@ class UGEApp:
             
             # Main navigation
             st.markdown("### 📋 Navigation")
+            
+            # Get current page from session state for default value
+            current_page = st.session_state.get('current_page', "🏃 Run Setup")
+            
             page = st.selectbox(
                 "Select Page:",
                 ["🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
                  "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"],
+                index=["🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
+                       "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"].index(current_page) if current_page in ["🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"] else 0,
                 key="main_navigation",
                 label_visibility="collapsed"
             )
+            
+            # Check if page has changed and trigger rerun
+            if page != current_page:
+                st.session_state.current_page = page
+                st.rerun()
             
             st.markdown("---")
             
@@ -257,9 +274,10 @@ class UGEApp:
             datasets = self.dataset_service.list_datasets()
             self.dataset_view.render(datasets=datasets)
         elif page == "📝 Grammar Editor":
-            self._render_grammar_editor()
+            grammars = self._get_available_grammars()
+            self.grammar_view.render_grammar_editor(grammars)
         elif page == "🧪 Setup Manager":
-            self._render_setup_manager()
+            self.setup_manager_view.render_setup_manager()
         elif page == "📈 Analysis":
             # Get available setups for analysis
             try:
@@ -297,550 +315,28 @@ class UGEApp:
                 st.error(f"Error loading setups: {str(e)}")
                 self.analysis_view.render([])
         elif page == "⚖️ Comparison":
-            self._render_comparison()
+            self.comparison_view.render_comparison(self.analysis_controller)
         else:
             st.error(f"Unknown page: {page}")
-    
-    def _render_grammar_editor(self):
-        """Render the grammar editor page."""
-        st.header("📝 Grammar Editor")
-        st.markdown("Edit and manage BNF grammar files")
-        
-        # Get available grammars
-        grammars = self._get_available_grammars()
-        
-        if grammars:
-            selected_grammar = st.selectbox("Select Grammar", grammars)
-            
-            if selected_grammar:
-                grammar_path = FILE_PATHS['grammars_dir'] / selected_grammar
-                
-                # Display grammar content
-                st.subheader(f"Grammar: {selected_grammar}")
-                
-                try:
-                    with open(grammar_path, 'r') as f:
-                        grammar_content = f.read()
-                    
-                    # Text area for editing
-                    edited_content = st.text_area(
-                        "Grammar Content",
-                        value=grammar_content,
-                        height=400,
-                        help="Edit the BNF grammar content"
-                    )
-                    
-                    # Save button
-                    if st.button("💾 Save Grammar"):
-                        try:
-                            with open(grammar_path, 'w') as f:
-                                f.write(edited_content)
-                            st.success(f"Grammar '{selected_grammar}' saved successfully!")
-                        except Exception as e:
-                            st.error(f"Error saving grammar: {str(e)}")
-                    
-                    # Download button
-                    st.download_button(
-                        label="📥 Download Grammar",
-                        data=grammar_content,
-                        file_name=selected_grammar,
-                        mime="text/plain"
-                    )
-                    
-                except Exception as e:
-                    st.error(f"Error reading grammar: {str(e)}")
-        else:
-            st.info("No grammar files found in the grammars directory.")
-    
-    def _render_setup_manager(self):
-        """Render the setup manager page."""
-        st.header("🧪 Setup Manager")
-        st.markdown("Manage and monitor your setups")
-        
-        try:
-            setups = self.storage_service.list_setups()
-            
-            if setups:
-                # Setup selection
-                exp_names = [exp.name for exp in setups]
-                selected_exp = st.selectbox("Select Setup", exp_names)
-                
-                if selected_exp:
-                    # Load setup details
-                    setup = self.setup_controller.get_setup(selected_exp)
-                    
-                    if setup:
-                        # Display setup info
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.subheader("📋 Setup Details")
-                            st.write(f"**Name:** {setup.config.setup_name}")
-                            st.write(f"**Status:** {setup.status}")
-                            st.write(f"**Created:** {setup.created_at}")
-                            st.write(f"**Total Runs:** {setup.config.n_runs}")
-                            st.write(f"**Completed Runs:** {len(setup.results)}")
-                        
-                        with col2:
-                            st.subheader("⚙️ Configuration")
-                            st.write(f"**Dataset:** {setup.config.dataset}")
-                            st.write(f"**Grammar:** {setup.config.grammar}")
-                            st.write(f"**Population:** {setup.config.population}")
-                            st.write(f"**Generations:** {setup.config.generations}")
-                            st.write(f"**Fitness Metric:** {setup.config.fitness_metric}")
-                        
-                        # Progress bar
-                        if setup.config.n_runs > 0:
-                            progress = len(setup.results) / setup.config.n_runs
-                            st.progress(progress)
-                            st.write(f"Progress: {len(setup.results)}/{setup.config.n_runs} runs completed")
-                        
-                        # Action buttons
-                        col1, col2, col3 = st.columns(3)
-                        
-                        with col1:
-                            if st.button("📊 View Results"):
-                                st.session_state['selected_setup'] = selected_exp
-                                st.rerun()
-                        
-                        with col2:
-                            if st.button("📥 Export Data"):
-                                export_data = self.analysis_controller.export_setup_data(
-                                    selected_exp, 'all'
-                                )
-                                if export_data:
-                                    st.download_button(
-                                        label="📥 Download Setup Data",
-                                        data=export_data,
-                                        file_name=f"{selected_exp}_data.json",
-                                        mime="application/json"
-                                    )
-                        
-                        with col3:
-                            if st.button("🗑️ Delete Setup", type="secondary"):
-                                if self.setup_controller.delete_setup(selected_exp):
-                                    st.success(f"Setup '{selected_exp}' deleted successfully!")
-                                    st.rerun()
-                                else:
-                                    st.error("Failed to delete setup")
-            else:
-                st.info("No setups found. Create your first setup using the 'Run Setup' page!")
-                
-        except Exception as e:
-            st.error(f"Error loading setups: {str(e)}")
-    
-    def _render_comparison(self):
-        """Render the comparison page."""
-        st.header("⚖️ Setup Comparison")
-        st.markdown("Compare multiple setups")
-        
-        try:
-            setup_paths = self.storage_service.list_setups()
-            
-            if len(setup_paths) >= 2:
-                # Load setup objects and create options
-                exp_options = {}
-                for exp_path in setup_paths:
-                    exp_id = exp_path.name
-                    try:
-                        setup = self.storage_service.load_setup(exp_id)
-                        if setup and setup.config:
-                            exp_name = setup.config.setup_name
-                        else:
-                            exp_name = exp_id
-                    except:
-                        exp_name = exp_id
-                    exp_options[exp_name] = exp_id
-                
-                selected_setup_names = st.multiselect(
-                    "Select Setups to Compare",
-                    list(exp_options.keys()),
-                    default=list(exp_options.keys())[:2] if len(exp_options) >= 2 else list(exp_options.keys())
-                )
-                
-                # Convert selected names back to IDs for processing
-                selected_setups = [exp_options[name] for name in selected_setup_names]
-                
-                if len(selected_setups) >= 2:
-                    if st.button("🔍 Compare Setups"):
-                        comparison_results = self.analysis_controller.compare_setups(selected_setups)
-                        
-                        if comparison_results:
-                            # Store results in session state
-                            st.session_state.comparison_results = comparison_results
-                            st.session_state.selected_setups = selected_setups
-                            st.session_state.selected_setup_names = selected_setup_names
-                    
-                    # Check if we have stored comparison results
-                    if 'comparison_results' in st.session_state and st.session_state.comparison_results:
-                        comparison_results = st.session_state.comparison_results
-                        selected_setups = st.session_state.selected_setups
-                        
-                        if comparison_results:
-                            st.subheader("📊 Comparison Results")
-                            
-                            # Add clear button
-                            if st.button("🗑️ Clear Comparison Results"):
-                                if 'comparison_results' in st.session_state:
-                                    del st.session_state.comparison_results
-                                if 'selected_setups' in st.session_state:
-                                    del st.session_state.selected_setups
-                                if 'selected_setup_names' in st.session_state:
-                                    del st.session_state.selected_setup_names
-                                st.rerun()
-                            
-                            # Display comparison metrics
-                            if 'comparison_metrics' in comparison_results:
-                                metrics = comparison_results['comparison_metrics']
-                                
-                                col1, col2, col3 = st.columns(3)
-                                
-                                with col1:
-                                    st.metric("Best Overall Fitness", 
-                                             f"{metrics.get('best_overall_fitness', 'N/A'):.4f}" 
-                                             if metrics.get('best_overall_fitness') else "N/A")
-                                
-                                with col2:
-                                    # Get setup name for best setup
-                                    best_exp_id = metrics.get('best_setup', 'N/A')
-                                    if best_exp_id != 'N/A':
-                                        exp_configs = comparison_results.get('setup_configs', {})
-                                        best_exp_config = exp_configs.get(best_exp_id, {})
-                                        best_exp_name = best_exp_config.get('setup_name', best_exp_id)
-                                    else:
-                                        best_exp_name = 'N/A'
-                                    
-                                    st.metric("Best Setup", best_exp_name)
-                                
-                                with col3:
-                                    st.metric("Setups Compared", 
-                                             len(selected_setups))
-                            
-                            # Display rankings
-                            if 'rankings' in comparison_results:
-                                st.subheader("🏆 Rankings")
-                                
-                                # Create mapping from setup IDs to names
-                                exp_configs = comparison_results.get('setup_configs', {})
-                                id_to_name = {}
-                                for exp_id, config in exp_configs.items():
-                                    id_to_name[exp_id] = config.get('setup_name', exp_id)
-                                
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    st.write("**By Best Fitness:**")
-                                    for i, exp_id in enumerate(comparison_results['rankings'].get('by_best_fitness', []), 1):
-                                        exp_name = id_to_name.get(exp_id, exp_id)
-                                        st.write(f"{i}. {exp_name}")
-                                
-                                with col2:
-                                    st.write("**By Average Fitness:**")
-                                    for i, exp_id in enumerate(comparison_results['rankings'].get('by_average_fitness', []), 1):
-                                        exp_name = id_to_name.get(exp_id, exp_id)
-                                        st.write(f"{i}. {exp_name}")
-                            
-                            # Display aggregate comparison charts
-                            if 'aggregate_data' in comparison_results and comparison_results['aggregate_data']:
-                                st.subheader("📈 Aggregate Performance Charts")
-                                
-                                # Chart type selection
-                                chart_type = st.selectbox(
-                                    "Select Chart Type:",
-                                    ["Best Fitness (Max)", "Average Fitness", "Test Fitness", "All Metrics"],
-                                    help="Choose which fitness metric to display in the comparison chart"
-                                )
-                                
-                                # Create comparison chart
-                                self._render_comparison_chart(comparison_results, chart_type)
-                            
-                            # Export comparison data
-                            st.subheader("📥 Export Options")
-                            col1, col2 = st.columns(2)
-                            
-                            with col1:
-                                comparison_json = json.dumps(comparison_results, indent=2, default=str)
-                                st.download_button(
-                                    label="📥 Download JSON",
-                                    data=comparison_json,
-                                    file_name="setup_comparison.json",
-                                    mime="application/json"
-                                )
-                            
-                            with col2:
-                                csv_data = self._export_comparison_csv(comparison_results)
-                                st.download_button(
-                                    label="📥 Download CSV",
-                                    data=csv_data,
-                                    file_name="setup_comparison.csv",
-                                    mime="text/csv"
-                                )
-                        else:
-                            st.error("Failed to compare setups")
-                else:
-                    st.warning("Please select at least 2 setups to compare")
-            else:
-                st.info("You need at least 2 setups to perform a comparison. Create more setups first!")
-                
-        except Exception as e:
-            st.error(f"Error comparing setups: {str(e)}")
-    
-    def _render_comparison_chart(self, comparison_results: Dict[str, Any], chart_type: str):
-        """
-        Render interactive comparison chart based on aggregate setup data.
-        
-        This method creates Plotly charts that compare multiple setups across
-        different fitness metrics. It handles different chart types and includes
-        error bars to show variance across runs.
-        
-        Args:
-            comparison_results (Dict[str, Any]): Results from setup comparison
-            chart_type (str): Type of chart to render ('Best Fitness', 'Average Fitness', etc.)
-        """
-        try:
-            import plotly.graph_objects as go
-            import plotly.express as px
-            
-            # Extract aggregate data from comparison results
-            # This contains average and standard deviation data for each setup
-            aggregate_data = comparison_results.get('aggregate_data', {})
-            if not aggregate_data:
-                st.warning("No aggregate data available for charting")
-                return
-            
-            # Initialize Plotly figure and color palette
-            fig = go.Figure()
-            colors = px.colors.qualitative.Set1  # Use consistent color scheme
-            traces_added = 0  # Track if any data was actually plotted
-            
-            for i, (exp_id, data) in enumerate(aggregate_data.items()):
-                if not data or 'generations' not in data:
-                    st.warning(f"No data available for setup {exp_id}")
-                    continue
-                
-                color = colors[i % len(colors)]
-                # Get setup name from configs if available
-                exp_configs = comparison_results.get('setup_configs', {})
-                exp_config = exp_configs.get(exp_id, {})
-                exp_name = exp_config.get('setup_name', exp_id)
-                
-                # Handle different chart types based on user selection
-                if chart_type == "Best Fitness (Max)":
-                    # Plot best fitness evolution with error bars showing standard deviation
-                    if 'avg_max' in data and data['avg_max']:
-                        fig.add_trace(go.Scatter(
-                            x=data['generations'],
-                            y=data['avg_max'],
-                            mode='lines+markers',
-                            name=f'{exp_name} - Best',
-                            line=dict(color=color, width=3),
-                            marker=dict(size=4),
-                            error_y=dict(
-                                type='data',
-                                array=data.get('std_max', []),
-                                visible=True,
-                                color=color,
-                                thickness=1
-                            )
-                        ))
-                        traces_added += 1
-                elif chart_type == "Average Fitness":
-                    # Plot average fitness evolution across all individuals in population
-                    if 'avg_avg' in data and data['avg_avg']:
-                        fig.add_trace(go.Scatter(
-                            x=data['generations'],
-                            y=data['avg_avg'],
-                            mode='lines+markers',
-                            name=f'{exp_name} - Average',
-                            line=dict(color=color, width=3),
-                            marker=dict(size=4),
-                            error_y=dict(
-                                type='data',
-                                array=data.get('std_avg', []),
-                                visible=True,
-                                color=color,
-                                thickness=1
-                            )
-                        ))
-                        traces_added += 1
-                elif chart_type == "Test Fitness":
-                    # Plot test fitness evolution (generalization performance)
-                    if 'avg_test' in data and data['avg_test']:
-                        # Find first generation with valid test data
-                        test_values = data['avg_test']
-                        first_valid_gen = None
-                        for i, val in enumerate(test_values):
-                            if val is not None and val != 0 and not np.isnan(val):
-                                first_valid_gen = i
-                                break
-                        
-                        if first_valid_gen is not None:
-                            # Only plot test data from first valid generation onwards
-                            valid_test_values = test_values[first_valid_gen:]
-                            valid_test_gens = data['generations'][first_valid_gen:]
-                            valid_std_test = data.get('std_test', [])[first_valid_gen:] if data.get('std_test') else []
-                            
-                            fig.add_trace(go.Scatter(
-                                x=valid_test_gens,
-                                y=valid_test_values,
-                                mode='lines+markers',
-                                name=f'{exp_name} - Test',
-                                line=dict(color=color, width=3),
-                                marker=dict(size=4),
-                                error_y=dict(
-                                    type='data',
-                                    array=valid_std_test,
-                                    visible=True,
-                                    color=color,
-                                    thickness=1
-                                )
-                            ))
-                            traces_added += 1
-                elif chart_type == "All Metrics":
-                    # Plot all three fitness metrics (best, average, test) for comprehensive comparison
-                    if 'avg_max' in data and data['avg_max']:
-                        fig.add_trace(go.Scatter(
-                            x=data['generations'],
-                            y=data['avg_max'],
-                            mode='lines+markers',
-                            name=f'{exp_name} - Best',
-                            line=dict(color=color, width=2),
-                            marker=dict(size=3)
-                        ))
-                        traces_added += 1
-                    if 'avg_avg' in data and data['avg_avg']:
-                        fig.add_trace(go.Scatter(
-                            x=data['generations'],
-                            y=data['avg_avg'],
-                            mode='lines+markers',
-                            name=f'{exp_name} - Average',
-                            line=dict(color=color, width=2, dash='dash'),
-                            marker=dict(size=3)
-                        ))
-                        traces_added += 1
-                    if 'avg_test' in data and data['avg_test']:
-                        # Find first generation with valid test data
-                        test_values = data['avg_test']
-                        first_valid_gen = None
-                        for i, val in enumerate(test_values):
-                            if val is not None and val != 0 and not np.isnan(val):
-                                first_valid_gen = i
-                                break
-                        
-                        if first_valid_gen is not None:
-                            # Only plot test data from first valid generation onwards
-                            valid_test_values = test_values[first_valid_gen:]
-                            valid_test_gens = data['generations'][first_valid_gen:]
-                            
-                            fig.add_trace(go.Scatter(
-                                x=valid_test_gens,
-                                y=valid_test_values,
-                                mode='lines+markers',
-                                name=f'{exp_name} - Test',
-                                line=dict(color=color, width=2, dash='dot'),
-                                marker=dict(size=3)
-                            ))
-                            traces_added += 1
-            
-            # Check if any traces were added
-            if traces_added == 0:
-                st.warning(f"No data available for chart type: {chart_type}")
-                return
-            
-            fig.update_layout(
-                title=f"Setup Comparison - {chart_type}",
-                xaxis_title="Generation",
-                yaxis_title="Fitness",
-                hovermode='x unified',
-                width=800,
-                height=500
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-        except Exception as e:
-            st.error(f"Error rendering comparison chart: {str(e)}")
-            import traceback
-            st.write("Full error details:")
-            st.code(traceback.format_exc())
-    
-    def _export_comparison_csv(self, comparison_results: Dict[str, Any]) -> str:
-        """
-        Export comparison results as CSV format for spreadsheet analysis.
-        
-        This method converts the comparison results into a CSV format that can be
-        easily imported into Excel or other spreadsheet applications for further
-        analysis and reporting.
-        
-        Args:
-            comparison_results (Dict[str, Any]): Results from setup comparison
-            
-        Returns:
-            str: CSV data as string, or empty string if error occurs
-        """
-        try:
-            import pandas as pd
-            from io import StringIO
-            
-            # Create summary data for CSV export
-            summary_data = []
-            
-            # Create mapping from setup IDs to human-readable names
-            exp_configs = comparison_results.get('setup_configs', {})
-            id_to_name = {}
-            for exp_id, config in exp_configs.items():
-                id_to_name[exp_id] = config.get('setup_name', exp_id)
-            
-            for exp_data in comparison_results.get('setups', []):
-                exp_id = exp_data.get('setup_id', '')
-                exp_name = id_to_name.get(exp_id, exp_id)
-                
-                summary_data.append({
-                    'Setup Name': exp_name,
-                    'Best Fitness': exp_data.get('best_fitness', 0),
-                    'Average Fitness': exp_data.get('average_fitness', 0),
-                    'Total Runs': exp_data.get('total_runs', 0),
-                    'Completed Runs': exp_data.get('completed_runs', 0),
-                    'Best Depth': exp_data.get('best_depth', 0),
-                    'Best Genome Length': exp_data.get('best_genome_length', 0),
-                    'Used Codons': exp_data.get('used_codons', 0)
-                })
-            
-            df = pd.DataFrame(summary_data)
-            csv_buffer = StringIO()
-            df.to_csv(csv_buffer, index=False)
-            return csv_buffer.getvalue()
-            
-        except Exception as e:
-            st.error(f"Error exporting CSV: {str(e)}")
-            return ""
     
     def run(self):
         """Run the UGE application."""
         # Page configuration
         st.set_page_config(
-            page_title="Grammatical Evolution for Classification", 
+            page_title="UGE - Grammatical Evolution Platform",
+            page_icon="🧬",
             layout="wide",
             initial_sidebar_state="expanded"
         )
         
-        # Main title with version
-        st.title("🧬 Grammatical Evolution for Classification")
-        st.markdown(f"**v{__version__}** - Learning GE for classification tasks with comprehensive analysis and comparison")
+        # Render sidebar (handles navigation internally)
+        self.render_sidebar()
         
-        # Version info in sidebar
-        with st.sidebar:
-            st.markdown("---")
-            st.markdown(f"**UGE v{__version__}**")
-            st.markdown(f"*Released: {BUILD_INFO['release_date']}*")
-            st.markdown("---")
-        
-        # Render sidebar and get selected page
-        page = self.render_sidebar()
+        # Get current page from session state
+        current_page = st.session_state.get('current_page', "🏃 Run Setup")
         
         # Render the selected page
-        self.render_page(page)
-
+        self.render_page(current_page)
 
 def main():
     """Main entry point for the UGE application."""

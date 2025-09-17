@@ -92,6 +92,29 @@ def greater_than_or_equal(a, b):
 def less_than_or_equal(a, b):
     return a <= b
 
+# ===== MODIFICATIONS BY AGHIL FOR UGE UNIVERSAL GRAMMAR =====
+# Added comparison functions for universal grammar support
+def greater_than(a, b):
+    """Added by Aghil for universal grammar comparison operations"""
+    return a > b
+
+def less_than(a, b):
+    """Added by Aghil for universal grammar comparison operations"""
+    return a < b
+
+def equal(a, b):
+    """Added by Aghil for universal grammar comparison operations"""
+    return a == b
+
+def not_equal(a, b):
+    """Added by Aghil for universal grammar comparison operations"""
+    return a != b
+
+def abs_(a):
+    """Added by Aghil for universal grammar absolute value operations"""
+    return np.abs(a)
+# ===== END MODIFICATIONS BY AGHIL =====
+
 def if_(i, o0, o1):
     """If _ than _ else _"""
     return np.where(i, o0, o1)

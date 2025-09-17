@@ -12,6 +12,7 @@ Author: UGE Team
 import streamlit as st
 import datetime as dt
 from typing import Dict, List, Optional, Any, Tuple
+from pathlib import Path
 from uge.models.setup import SetupConfig
 from uge.utils.constants import DEFAULT_CONFIG, UI_CONSTANTS
 
@@ -68,6 +69,7 @@ class Forms:
                     "Grammar", 
                     options=grammars, 
                     index=grammars.index(UI_CONSTANTS['default_grammar']) if UI_CONSTANTS['default_grammar'] in grammars else (0 if grammars else None), 
+                    key="grammar_selectbox",  # Add key for reactivity
                     help=help_texts.get('grammar', "Select BNF grammar for the setup")
                 )
                 
@@ -275,6 +277,32 @@ class Forms:
                 }
                 return True, form_data
         
+        # Grammar Content Display (Outside Form for Reactivity)
+        if 'grammar_selectbox' in st.session_state:
+            selected_grammar = st.session_state['grammar_selectbox']
+            if selected_grammar:
+                st.subheader("📄 Grammar Content")
+                
+                # Show info message based on selected grammar
+                if selected_grammar == "UGE_Classification.bnf":
+                    st.info("🔧 **Dynamic Grammar**: This grammar will be automatically adapted to your dataset's column types.")
+                elif selected_grammar == "heartDisease.bnf":
+                    st.info("❤️ **Heart Disease Grammar**: Specific grammar for heart disease classification.")
+                else:
+                    st.info(f"📄 **Static Grammar**: Content from grammars/{selected_grammar}")
+                
+                # Load grammar content from file (without info message)
+                grammar_content = Forms._load_grammar_content_raw(selected_grammar)
+                
+                # Display grammar in text box
+                st.text_area(
+                    "Grammar Content (BNF Format)",
+                    value=grammar_content,
+                    height=300,
+                    disabled=True,  # Make it read-only
+                    help="This shows the grammar content that will be used for the setup"
+                )
+        
         return False, {}
     
     @staticmethod
@@ -336,63 +364,31 @@ class Forms:
         return "none", selected_dataset
     
     @staticmethod
-    def create_grammar_editor_form(grammars: List[str] = None) -> Tuple[str, str, str]:
+    def _load_grammar_content_raw(grammar_name: str) -> str:
         """
-        Create grammar editor form.
+        Load grammar content from file without showing info messages.
         
         Args:
-            grammars (List[str]): Available grammars
+            grammar_name (str): Name of the grammar file
             
         Returns:
-            Tuple[str, str, str]: (action, grammar_name, grammar_content)
+            str: Grammar content or error message
         """
-        if grammars is None:
-            grammars = []
-        
-        action = st.radio(
-            "Grammar Action:",
-            ["➕ Add Grammar", "✏️ Edit Grammar", "👁️ Preview Grammar"],
-            key="grammar_action"
-        )
-        
-        if action == "➕ Add Grammar":
-            st.subheader("Create New Grammar")
-            new_grammar_name = st.text_input("Grammar Name", placeholder="my_grammar.bnf")
-            new_grammar_content = st.text_area(
-                "Grammar Content (BNF format)", 
-                height=300, 
-                placeholder="<start> ::= <expr>\n<expr> ::= ..."
-            )
+        try:
+            # Get project root directory
+            project_root = Path(__file__).parent.parent.parent.parent
+            grammar_path = project_root / "grammars" / grammar_name
             
-            if st.button("💾 Save Grammar"):
-                return "add", new_grammar_name, new_grammar_content
-        
-        elif action == "✏️ Edit Grammar":
-            st.subheader("Edit Existing Grammar")
-            if grammars:
-                selected_grammar = st.selectbox("Select Grammar", grammars)
-                # This would need to be handled by the controller to load content
-                edited_content = st.text_area("Edit Grammar Content", height=300)
+            if grammar_path.exists():
+                content = grammar_path.read_text(encoding='utf-8')
+                return content
+            else:
+                error_msg = f"# Error: Grammar file not found\n# Path: {grammar_path}\n# Please check if the file exists in the grammars directory."
+                return error_msg
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("💾 Update Grammar"):
-                        return "edit", selected_grammar, edited_content
-                with col2:
-                    if st.button("🗑️ Delete Grammar"):
-                        return "delete", selected_grammar, ""
-            else:
-                st.info("No grammars available")
-        
-        elif action == "👁️ Preview Grammar":
-            st.subheader("Grammar Preview")
-            if grammars:
-                preview_grammar = st.selectbox("Select Grammar to Preview", grammars)
-                return "preview", preview_grammar, ""
-            else:
-                st.info("No grammars available")
-        
-        return "none", "", ""
+        except Exception as e:
+            error_msg = f"# Error loading grammar file\n# Grammar: {grammar_name}\n# Error: {str(e)}"
+            return error_msg
     
     @staticmethod
     def create_setup_selection_form(setups: List[Dict[str, str]]) -> Optional[str]:
