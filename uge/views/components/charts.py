@@ -71,13 +71,25 @@ class Charts:
             ))
         
         if result.get('fitness_test') and any(v is not None for v in result['fitness_test']):
-            test_values = [v if v is not None else np.nan for v in result['fitness_test']]
-            fig.add_trace(go.Scatter(
-                x=gens, y=test_values,
-                mode='lines',
-                name='Test',
-                line=dict(color='magenta', width=2, dash='dash')
-            ))
+            # Find first generation with valid test data
+            test_values = result['fitness_test']
+            first_valid_gen = None
+            for i, val in enumerate(test_values):
+                if val is not None and not np.isnan(val):
+                    first_valid_gen = i
+                    break
+            
+            if first_valid_gen is not None:
+                # Only plot test data from first valid generation onwards
+                valid_test_values = test_values[first_valid_gen:]
+                valid_test_gens = list(range(first_valid_gen, len(test_values)))
+                
+                fig.add_trace(go.Scatter(
+                    x=valid_test_gens, y=valid_test_values,
+                    mode='lines',
+                    name='Test',
+                    line=dict(color='magenta', width=2, dash='dash')
+                ))
         
         fig.update_layout(
             title=title,
@@ -541,11 +553,24 @@ class Charts:
                     test_min_values.append(np.nan)
                     test_max_values.append(np.nan)
             
+            # Find first generation with valid test data across all runs
+            first_valid_gen = None
+            for gen in range(max_gens):
+                if gen < len(test_avg_values) and test_avg_values[gen] is not np.nan:
+                    first_valid_gen = gen
+                    break
+            
             # Add test traces if data is available
-            if any(v is not np.nan for v in test_avg_values):
+            if first_valid_gen is not None and any(v is not np.nan for v in test_avg_values):
+                # Only plot test data from first valid generation onwards
+                valid_test_avg = test_avg_values[first_valid_gen:]
+                valid_test_min = test_min_values[first_valid_gen:]
+                valid_test_max = test_max_values[first_valid_gen:]
+                valid_test_gens = list(range(first_valid_gen, max_gens))
+                
                 if measurement_options.get('test_avg', False):
                     fig.add_trace(go.Scatter(
-                        x=gens, y=test_avg_values,
+                        x=valid_test_gens, y=valid_test_avg,
                         mode='lines+markers',
                         name='Test Average Across Runs',
                         line=dict(color='red', width=3),
@@ -554,7 +579,7 @@ class Charts:
                 
                 if measurement_options.get('test_min', False):
                     fig.add_trace(go.Scatter(
-                        x=gens, y=test_min_values,
+                        x=valid_test_gens, y=valid_test_min,
                         mode='lines',
                         name='Test Minimum Across Runs',
                         line=dict(color='purple', width=2, dash='dash')
@@ -562,7 +587,7 @@ class Charts:
                 
                 if measurement_options.get('test_max', False):
                     fig.add_trace(go.Scatter(
-                        x=gens, y=test_max_values,
+                        x=valid_test_gens, y=valid_test_max,
                         mode='lines',
                         name='Test Maximum Across Runs',
                         line=dict(color='brown', width=2, dash='dot')
