@@ -510,8 +510,8 @@ class AnalysisView(BaseView):
         # Main chart type selection
         main_chart_type = st.selectbox(
             "Select Analysis Type",
-            ["Fitness Evolution", "Number of Invalid Individuals"],
-            help="Choose between fitness evolution or invalid individuals tracking"
+            ["Fitness Evolution", "Number of Invalid Individuals", "Nodes Length Evolution"],
+            help="Choose between fitness evolution, invalid individuals tracking, or nodes length tracking"
         )
         
         # Chart type selection
@@ -547,7 +547,7 @@ class AnalysisView(BaseView):
                 'test_min': show_test_min,
                 'test_max': show_test_max
             }
-        else:  # Number of Invalid Individuals
+        elif main_chart_type == "Number of Invalid Individuals":
             st.subheader("📊 Invalid Individuals Selection")
             col1, col2, col3 = st.columns(3)
             
@@ -564,6 +564,23 @@ class AnalysisView(BaseView):
                 'invalid_avg': show_invalid_avg,
                 'invalid_max': show_invalid_max
             }
+        else:  # Nodes Length Evolution
+            st.subheader("📊 Nodes Length Selection")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                show_nodes_min = st.checkbox("Minimum", value=True, help="Minimum number of terminal symbols per generation")
+            with col2:
+                show_nodes_avg = st.checkbox("Average", value=True, help="Average number of terminal symbols per generation")
+            with col3:
+                show_nodes_max = st.checkbox("Maximum", value=True, help="Maximum number of terminal symbols per generation")
+            
+            # Create measurement options for nodes length
+            measurement_options = {
+                'nodes_length_min': show_nodes_min,
+                'nodes_length_avg': show_nodes_avg,
+                'nodes_length_max': show_nodes_max
+            }
         
         # Render charts based on analysis type and chart type
         if main_chart_type == "Fitness Evolution":
@@ -571,11 +588,16 @@ class AnalysisView(BaseView):
                 self._render_individual_run_charts(experiment, measurement_options)
             else:
                 self._render_experiment_wide_chart(experiment, measurement_options)
-        else:  # Number of Invalid Individuals
+        elif main_chart_type == "Number of Invalid Individuals":
             if chart_type == "Individual Run Charts":
                 self._render_individual_invalid_count_charts(experiment, measurement_options)
             else:
                 self._render_experiment_wide_invalid_count_chart(experiment, measurement_options)
+        else:  # Nodes Length Evolution
+            if chart_type == "Individual Run Charts":
+                self._render_individual_nodes_length_charts(experiment, measurement_options)
+            else:
+                self._render_experiment_wide_nodes_length_chart(experiment, measurement_options)
     
     def _render_individual_run_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
         """Render individual run chart for selected run."""
@@ -773,3 +795,41 @@ class AnalysisView(BaseView):
         # Render the experiment-wide invalid count chart
         from uge.views.components.charts import Charts
         Charts.plot_experiment_wide_invalid_count(experiment.results, measurement_options)
+    
+    def _render_individual_nodes_length_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
+        """Render individual run nodes length charts for selected run."""
+        # Sort runs by timestamp to get consistent ordering (newest first)
+        sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
+        
+        # Create run selection options
+        run_options = []
+        for run_idx, (run_id, result) in enumerate(sorted_runs, 1):
+            run_options.append(f"RUN_{run_idx}")
+        
+        # Add run selection dropdown
+        selected_run_idx = st.selectbox(
+            "Select Run to Display",
+            run_options,
+            help="Choose which run to display in the chart"
+        )
+        
+        # Get the selected run
+        run_idx = int(selected_run_idx.split('_')[1]) - 1
+        run_id, result = sorted_runs[run_idx]
+        
+        # Display run information
+        st.subheader(f"📊 Individual Run Chart - {selected_run_idx}")
+        st.write(f"**Run ID:** {run_id}")
+        st.write(f"**Timestamp:** {result.timestamp}")
+        
+        # Render the nodes length chart
+        from uge.views.components.charts import Charts
+        Charts.plot_nodes_length_evolution(result, measurement_options)
+    
+    def _render_experiment_wide_nodes_length_chart(self, experiment: Experiment, measurement_options: Dict[str, bool]):
+        """Render experiment-wide nodes length chart."""
+        st.subheader("📊 Experiment-wide Nodes Length Analysis")
+        
+        # Render the experiment-wide nodes length chart
+        from uge.views.components.charts import Charts
+        Charts.plot_experiment_wide_nodes_length(experiment.results, measurement_options)

@@ -728,3 +728,151 @@ class Charts:
         )
         
         st.plotly_chart(fig, use_container_width=True)
+
+    @staticmethod
+    def plot_nodes_length_evolution(result, measurement_options: Dict[str, bool], title: str = "Nodes Length Evolution") -> None:
+        """
+        Plot the evolution of nodes length (terminal symbols) over generations for a single run.
+        
+        Args:
+            result: ExperimentResult object containing nodes length data
+            measurement_options (Dict[str, bool]): Which measurements to show (nodes_length_min, nodes_length_avg, nodes_length_max)
+            title (str): Chart title
+        """
+        if not result.nodes_length_min or not result.nodes_length_avg or not result.nodes_length_max:
+            st.warning("⚠️ No nodes length data available for this run.")
+            return
+        
+        generations = list(range(len(result.nodes_length_avg)))
+        
+        fig = go.Figure()
+        
+        # Add traces based on measurement options
+        if measurement_options.get("nodes_length_min", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=result.nodes_length_min,
+                mode="lines+markers",
+                name="Minimum Nodes Length",
+                line=dict(color="green", width=2),
+                marker=dict(size=6)
+            ))
+        
+        if measurement_options.get("nodes_length_avg", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=result.nodes_length_avg,
+                mode="lines+markers",
+                name="Average Nodes Length",
+                line=dict(color="blue", width=2),
+                marker=dict(size=6)
+            ))
+        
+        if measurement_options.get("nodes_length_max", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=result.nodes_length_max,
+                mode="lines+markers",
+                name="Maximum Nodes Length",
+                line=dict(color="red", width=2),
+                marker=dict(size=6)
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title="Generation",
+            yaxis_title="Number of Terminal Symbols (Nodes)",
+            hovermode="x unified",
+            showlegend=True,
+            template="plotly_white",
+            height=500
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    @staticmethod
+    def plot_experiment_wide_nodes_length(results: Dict[str, Any], measurement_options: Dict[str, bool], title: str = "Experiment-wide Nodes Length Analysis") -> None:
+        """
+        Plot experiment-wide analysis of nodes length across all runs.
+        
+        Args:
+            results (Dict[str, Any]): Dictionary of run results
+            measurement_options (Dict[str, bool]): Which measurements to show (nodes_length_min, nodes_length_avg, nodes_length_max)
+            title (str): Chart title
+        """
+        if not results:
+            st.warning("⚠️ No results available for experiment-wide analysis.")
+            return
+        
+        # Collect nodes length data from all runs
+        all_min_data = []
+        all_avg_data = []
+        all_max_data = []
+        max_generations = 0
+        
+        for run_id, result in results.items():
+            if result.nodes_length_min and result.nodes_length_avg and result.nodes_length_max:
+                all_min_data.append(result.nodes_length_min)
+                all_avg_data.append(result.nodes_length_avg)
+                all_max_data.append(result.nodes_length_max)
+                max_generations = max(max_generations, len(result.nodes_length_avg))
+        
+        if not all_min_data:
+            st.warning("⚠️ No nodes length data available across all runs.")
+            return
+        
+        # Calculate aggregated statistics across runs for each generation
+        aggregated_min = []
+        aggregated_avg = []
+        aggregated_max = []
+        
+        for gen in range(max_generations):
+            gen_min_values = [run_data[gen] for run_data in all_min_data if gen < len(run_data)]
+            gen_avg_values = [run_data[gen] for run_data in all_avg_data if gen < len(run_data)]
+            gen_max_values = [run_data[gen] for run_data in all_max_data if gen < len(run_data)]
+            
+            if gen_min_values:
+                aggregated_min.append(min(gen_min_values))
+                aggregated_avg.append(sum(gen_avg_values) / len(gen_avg_values))
+                aggregated_max.append(max(gen_max_values))
+        
+        generations = list(range(len(aggregated_avg)))
+        
+        fig = go.Figure()
+        
+        # Add traces based on measurement options
+        if measurement_options.get("nodes_length_min", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=aggregated_min,
+                mode="lines+markers",
+                name="Minimum Across Runs",
+                line=dict(color="green", width=3),
+                marker=dict(size=8)
+            ))
+        
+        if measurement_options.get("nodes_length_avg", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=aggregated_avg,
+                mode="lines+markers",
+                name="Average Across Runs",
+                line=dict(color="blue", width=3),
+                marker=dict(size=8)
+            ))
+        
+        if measurement_options.get("nodes_length_max", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=aggregated_max,
+                mode="lines+markers",
+                name="Maximum Across Runs",
+                line=dict(color="red", width=3),
+                marker=dict(size=8)
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title="Generation",
+            yaxis_title="Number of Terminal Symbols (Nodes)",
+            hovermode="x unified",
+            showlegend=True,
+            template="plotly_white",
+            height=500
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)

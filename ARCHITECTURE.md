@@ -553,10 +553,17 @@ graph TD
 ## 🚫 Invalid Individuals Tracking Integration
 
 ### Purpose
-The invalid individuals tracking feature monitors the number of invalid individuals (individuals that failed to map to valid phenotypes) across generations during GE evolution. This provides insights into:
+The tracking features monitor key evolutionary metrics across generations during GE evolution:
+
+**Invalid Individuals Tracking:**
 - Population quality over time
 - Grammar effectiveness
 - Evolution progress
+
+**Nodes Length Tracking:**
+- Complexity evolution (number of terminal symbols)
+- Solution sophistication over generations
+- Grammar utilization patterns
 
 ### Changes Made by Aghil
 
@@ -569,43 +576,55 @@ invalid_count_min = invalid
 invalid_count_max = invalid
 invalid_count_avg = float(invalid)
 # ===== END MODIFICATION BY AGHIL =====
+
+# ===== MODIFICATION BY AGHIL FOR UGE NODES LENGTH TRACKING =====
+# Added nodes length statistics calculation for UGE integration
+nodes_length_min = min(nodes) if nodes else 0
+nodes_length_max = max(nodes) if nodes else 0
+nodes_length_avg = avg_nodes
+# ===== END MODIFICATION BY AGHIL =====
 ```
 
 **Changes include:**
 - Header comment documenting all modifications by Aghil
 - Invalid individuals statistics calculation (min, max, avg)
-- Updated logbook headers to include `invalid_count_min`, `invalid_count_avg`, `invalid_count_max`
-- Updated logbook records to include invalid individuals data
+- Nodes length statistics calculation (min, max, avg)
+- Updated logbook headers to include `invalid_count_min`, `invalid_count_avg`, `invalid_count_max`, `nodes_length_min`, `nodes_length_avg`, `nodes_length_max`
+- Updated logbook records to include both invalid individuals and nodes length data
 
 #### 2. UGE Integration Points
 
 **ExperimentResult Model (`uge/models/experiment.py`):**
-- Added `invalid_count_min: List[int]`
-- Added `invalid_count_avg: List[float]`
-- Added `invalid_count_max: List[int]`
+- Added `invalid_count_min: List[int]`, `invalid_count_avg: List[float]`, `invalid_count_max: List[int]`
+- Added `nodes_length_min: List[int]`, `nodes_length_avg: List[float]`, `nodes_length_max: List[int]`
 - Updated serialization/deserialization methods
 
 **GE Service (`uge/services/ge_service.py`):**
-- Extract invalid individuals data from GRAPE logbook
+- Extract invalid individuals and nodes length data from GRAPE logbook
 - Convert and store in ExperimentResult objects
 
 **Charts Component (`uge/views/components/charts.py`):**
-- `plot_invalid_count_evolution()`: Individual run charts
-- `plot_experiment_wide_invalid_count()`: Experiment-wide aggregated charts
+- `plot_invalid_count_evolution()`: Individual run invalid count charts
+- `plot_experiment_wide_invalid_count()`: Experiment-wide invalid count charts
+- `plot_nodes_length_evolution()`: Individual run nodes length charts
+- `plot_experiment_wide_nodes_length()`: Experiment-wide nodes length charts
 
 **Analysis View (`uge/views/analysis_view.py`):**
-- Added "Number of Invalid Individuals" analysis type selection
-- Individual run charts with run selection
-- Experiment-wide aggregated analysis
+- Added "Number of Invalid Individuals" and "Nodes Length Evolution" analysis type selections
+- Individual run charts with run selection for both metrics
+- Experiment-wide aggregated analysis for both metrics
 
 **Constants (`uge/utils/constants.py`):**
-- Added invalid individuals fields to `default_report_items`
+- Added invalid individuals and nodes length fields to `default_report_items`
 
-### Data Flow for Invalid Individuals Tracking
+### Data Flow for Tracking Features
 ```
-GRAPE Evolution → Invalid Count Calculation → Logbook Storage → 
+GRAPE Evolution → Invalid Count & Nodes Length Calculation → Logbook Storage → 
 UGE Service Extraction → ExperimentResult Storage → 
 Analysis View Display → Interactive Charts
+
+Invalid Individuals: Population Quality & Grammar Effectiveness
+Nodes Length: Solution Complexity & Terminal Symbol Evolution
 ```
 
 This comprehensive documentation provides:

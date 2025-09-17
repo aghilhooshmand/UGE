@@ -162,6 +162,9 @@ class ExperimentResult:
         invalid_count_min (List[int]): Minimum number of invalid individuals per generation
         invalid_count_avg (List[float]): Average number of invalid individuals per generation
         invalid_count_max (List[int]): Maximum number of invalid individuals per generation
+        nodes_length_min (List[int]): Minimum number of terminal symbols per generation
+        nodes_length_avg (List[float]): Average number of terminal symbols per generation
+        nodes_length_max (List[int]): Maximum number of terminal symbols per generation
         timestamp (str): ISO timestamp of result generation
     """
     
@@ -180,6 +183,9 @@ class ExperimentResult:
     invalid_count_min: List[int] = field(default_factory=list)
     invalid_count_avg: List[float] = field(default_factory=list)
     invalid_count_max: List[int] = field(default_factory=list)
+    nodes_length_min: List[int] = field(default_factory=list)
+    nodes_length_avg: List[float] = field(default_factory=list)
+    nodes_length_max: List[int] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: dt.datetime.now(dt.timezone.utc).isoformat())
     
     def to_dict(self) -> Dict[str, Any]:
@@ -200,6 +206,9 @@ class ExperimentResult:
             'invalid_count_min': self.invalid_count_min,
             'invalid_count_avg': self.invalid_count_avg,
             'invalid_count_max': self.invalid_count_max,
+            'nodes_length_min': self.nodes_length_min,
+            'nodes_length_avg': self.nodes_length_avg,
+            'nodes_length_max': self.nodes_length_max,
             'timestamp': self.timestamp
         }
     
@@ -223,6 +232,9 @@ class ExperimentResult:
             invalid_count_min=data.get('invalid_count_min', []),
             invalid_count_avg=data.get('invalid_count_avg', []),
             invalid_count_max=data.get('invalid_count_max', []),
+            nodes_length_min=data.get('nodes_length_min', []),
+            nodes_length_avg=data.get('nodes_length_avg', []),
+            nodes_length_max=data.get('nodes_length_max', []),
             timestamp=data.get('timestamp', dt.datetime.now(dt.timezone.utc).isoformat())
         )
 
