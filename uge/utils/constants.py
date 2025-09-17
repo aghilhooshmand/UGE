@@ -72,6 +72,7 @@ DEFAULT_CONFIG = {
         'gen', 'invalid', 'avg', 'std', 'min', 'max', 'fitness_test',
         'best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes',
         'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons',
+        'invalid_count_min', 'invalid_count_avg', 'invalid_count_max',
         'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time'
     ]
 }

@@ -291,7 +291,7 @@ class GEService:
         # Extract series from logbook
         available = set(logbook.header)
         series = {}
-        for key in ['max', 'avg', 'min', 'std', 'fitness_test']:
+        for key in ['max', 'avg', 'min', 'std', 'fitness_test', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max']:
             if key in available:
                 series[key] = logbook.select(key)
             else:
@@ -326,7 +326,10 @@ class GEService:
             best_training_fitness=best_training_fitness,
             best_depth=best_depth,
             best_genome_length=best_genome_length,
-            best_used_codons=best_used_codons
+            best_used_codons=best_used_codons,
+            invalid_count_min=list(map(int, series.get('invalid_count_min', []))) if series.get('invalid_count_min') else [],
+            invalid_count_avg=list(map(float, series.get('invalid_count_avg', []))) if series.get('invalid_count_avg') else [],
+            invalid_count_max=list(map(int, series.get('invalid_count_max', []))) if series.get('invalid_count_max') else []
         )
         
         return result

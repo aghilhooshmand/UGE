@@ -507,6 +507,13 @@ class AnalysisView(BaseView):
             st.info("No results available for charting")
             return
         
+        # Main chart type selection
+        main_chart_type = st.selectbox(
+            "Select Analysis Type",
+            ["Fitness Evolution", "Number of Invalid Individuals"],
+            help="Choose between fitness evolution or invalid individuals tracking"
+        )
+        
         # Chart type selection
         chart_type = st.selectbox(
             "Select Chart Type",
@@ -514,36 +521,61 @@ class AnalysisView(BaseView):
             help="Choose between individual run charts or experiment-wide analysis"
         )
         
-        # Measurement selection
-        st.subheader("📊 Measurement Selection")
-        col1, col2 = st.columns(2)
+        # Measurement selection - conditional based on analysis type
+        if main_chart_type == "Fitness Evolution":
+            st.subheader("📊 Measurement Selection")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Training Data:**")
+                show_train_avg = st.checkbox("Average", value=True)
+                show_train_min = st.checkbox("Minimum", value=True)
+                show_train_max = st.checkbox("Maximum", value=True)
+            
+            with col2:
+                st.write("**Test Data:**")
+                show_test_avg = st.checkbox("Test Average", value=False)
+                show_test_min = st.checkbox("Test Minimum", value=False)
+                show_test_max = st.checkbox("Test Maximum", value=False)
+            
+            # Create measurement options for fitness
+            measurement_options = {
+                'train_avg': show_train_avg,
+                'train_min': show_train_min,
+                'train_max': show_train_max,
+                'test_avg': show_test_avg,
+                'test_min': show_test_min,
+                'test_max': show_test_max
+            }
+        else:  # Number of Invalid Individuals
+            st.subheader("📊 Invalid Individuals Selection")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                show_invalid_min = st.checkbox("Minimum", value=True, help="Minimum number of invalid individuals per generation")
+            with col2:
+                show_invalid_avg = st.checkbox("Average", value=True, help="Average number of invalid individuals per generation")
+            with col3:
+                show_invalid_max = st.checkbox("Maximum", value=True, help="Maximum number of invalid individuals per generation")
+            
+            # Create measurement options for invalid individuals
+            measurement_options = {
+                'invalid_min': show_invalid_min,
+                'invalid_avg': show_invalid_avg,
+                'invalid_max': show_invalid_max
+            }
         
-        with col1:
-            st.write("**Training Data:**")
-            show_train_avg = st.checkbox("Average", value=True)
-            show_train_min = st.checkbox("Minimum", value=True)
-            show_train_max = st.checkbox("Maximum", value=True)
-        
-        with col2:
-            st.write("**Test Data:**")
-            show_test_avg = st.checkbox("Test Average", value=False)
-            show_test_min = st.checkbox("Test Minimum", value=False)
-            show_test_max = st.checkbox("Test Maximum", value=False)
-        
-        # Create measurement options
-        measurement_options = {
-            'train_avg': show_train_avg,
-            'train_min': show_train_min,
-            'train_max': show_train_max,
-            'test_avg': show_test_avg,
-            'test_min': show_test_min,
-            'test_max': show_test_max
-        }
-        
-        if chart_type == "Individual Run Charts":
-            self._render_individual_run_charts(experiment, measurement_options)
-        else:
-            self._render_experiment_wide_chart(experiment, measurement_options)
+        # Render charts based on analysis type and chart type
+        if main_chart_type == "Fitness Evolution":
+            if chart_type == "Individual Run Charts":
+                self._render_individual_run_charts(experiment, measurement_options)
+            else:
+                self._render_experiment_wide_chart(experiment, measurement_options)
+        else:  # Number of Invalid Individuals
+            if chart_type == "Individual Run Charts":
+                self._render_individual_invalid_count_charts(experiment, measurement_options)
+            else:
+                self._render_experiment_wide_invalid_count_chart(experiment, measurement_options)
     
     def _render_individual_run_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
         """Render individual run chart for selected run."""
@@ -703,3 +735,41 @@ class AnalysisView(BaseView):
             error (str): Error message
         """
         self.show_error(f"❌ Export error: {error}")
+    
+    def _render_individual_invalid_count_charts(self, experiment: Experiment, measurement_options: Dict[str, bool]):
+        """Render individual run invalid count charts for selected run."""
+        # Sort runs by timestamp to get consistent ordering (newest first)
+        sorted_runs = sorted(experiment.results.items(), key=lambda x: x[1].timestamp, reverse=True)
+        
+        # Create run selection options
+        run_options = []
+        for run_idx, (run_id, result) in enumerate(sorted_runs, 1):
+            run_options.append(f"RUN_{run_idx}")
+        
+        # Add run selection dropdown
+        selected_run_idx = st.selectbox(
+            "Select Run to Display",
+            run_options,
+            help="Choose which run to display in the chart"
+        )
+        
+        # Get the selected run
+        run_idx = int(selected_run_idx.split('_')[1]) - 1
+        run_id, result = sorted_runs[run_idx]
+        
+        # Display run information
+        st.subheader(f"📊 Individual Run Chart - {selected_run_idx}")
+        st.write(f"**Run ID:** {run_id}")
+        st.write(f"**Timestamp:** {result.timestamp}")
+        
+        # Render the invalid count chart
+        from uge.views.components.charts import Charts
+        Charts.plot_invalid_count_evolution(result, measurement_options)
+    
+    def _render_experiment_wide_invalid_count_chart(self, experiment: Experiment, measurement_options: Dict[str, bool]):
+        """Render experiment-wide invalid count chart."""
+        st.subheader("📊 Experiment-wide Invalid Count Analysis")
+        
+        # Render the experiment-wide invalid count chart
+        from uge.views.components.charts import Charts
+        Charts.plot_experiment_wide_invalid_count(experiment.results, measurement_options)

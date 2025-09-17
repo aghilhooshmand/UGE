@@ -1,3 +1,9 @@
+# ===== MODIFICATIONS BY AGHIL FOR UGE INTEGRATION =====
+# This file contains modifications made by Aghil for UGE (Unified Grammatical Evolution) integration:
+# 1. Invalid individuals tracking (min/max/avg) - tracks number of invalid individuals per generation
+# All modifications are clearly marked with "MODIFICATION BY AGHIL" comments
+# ===== END MODIFICATIONS BY AGHIL =====
+#
 #    This file is part of DEAP.
 #
 #    DEAP is free software: you can redistribute it and/or modify
@@ -101,16 +107,16 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
             raise ValueError("You should add a hof object to use elitism.") 
         else:
             warnings.warn('You will not register results of the best individual while not using a hof object.', hofWarning)
-            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['avg_length', 'avg_nodes', 'avg_depth', 'avg_used_codons', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
+            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['avg_length', 'avg_nodes', 'avg_depth', 'avg_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
     else:
         if halloffame.maxsize < 1:
             raise ValueError("HALLOFFAME_SIZE should be greater or equal to 1")
         if elite_size > halloffame.maxsize:
             raise ValueError("HALLOFFAME_SIZE should be greater or equal to ELITE_SIZE")         
         if points_test:
-            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['fitness_test', 'best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
+            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['fitness_test', 'best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
         else:
-            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
+            logbook.header = ['gen', 'invalid'] + (stats.fields if stats else []) + ['best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes', 'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons', 'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'behavioural_diversity', 'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time']
 
     start_gen = time.time()        
     # Evaluate the individuals with an invalid fitness
@@ -122,7 +128,15 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
     valid = [ind for ind in valid0 if not math.isnan(ind.fitness.values[0])]
     if len(valid0) != len(valid):
         warnings.warn("Warning: There are valid individuals with fitness = NaN in the population. We will avoid them.")
-    invalid = len(population) - len(valid0) #We use the original number of invalids in this case, because we just want to count the completely mapped individuals    
+    invalid = len(population) - len(valid0) #We use the original number of invalids in this case, because we just want to count the completely mapped individuals
+    
+    # ===== MODIFICATION BY AGHIL FOR UGE INVALID INDIVIDUALS TRACKING =====
+    # Added invalid individuals statistics calculation for UGE integration
+    # For initial generation, we only have one invalid count, so min=max=avg=invalid
+    invalid_count_min = invalid
+    invalid_count_max = invalid
+    invalid_count_avg = float(invalid)
+    # ===== END MODIFICATION BY AGHIL =====
     
     list_structures = []
     if 'fitness_diversity' in report_items:
@@ -189,6 +203,11 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
                        avg_depth=avg_depth,
                        avg_used_codons=avg_used_codons,
                        best_ind_used_codons=best_ind_used_codons,
+                       # ===== MODIFICATION BY AGHIL FOR UGE INVALID INDIVIDUALS TRACKING =====
+                       invalid_count_min=invalid_count_min,
+                       invalid_count_avg=invalid_count_avg,
+                       invalid_count_max=invalid_count_max,
+                       # ===== END MODIFICATION BY AGHIL =====
                        behavioural_diversity=behavioural_diversity,
                        structural_diversity=structural_diversity,
                        fitness_diversity=fitness_diversity,
@@ -203,6 +222,11 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
                        avg_depth=avg_depth,
                        avg_used_codons=avg_used_codons,
                        best_ind_used_codons=best_ind_used_codons,
+                       # ===== MODIFICATION BY AGHIL FOR UGE INVALID INDIVIDUALS TRACKING =====
+                       invalid_count_min=invalid_count_min,
+                       invalid_count_avg=invalid_count_avg,
+                       invalid_count_max=invalid_count_max,
+                       # ===== END MODIFICATION BY AGHIL =====
                        behavioural_diversity=behavioural_diversity,
                        structural_diversity=structural_diversity,
                        fitness_diversity=fitness_diversity,
@@ -242,6 +266,14 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
         if len(valid0) != len(valid):
             warnings.warn("Warning: There are valid individuals with fitness = NaN in the population. We will avoid in the statistics.")
         invalid = len(population) - len(valid0) #We use the original number of invalids in this case, because we just want to count the completely mapped individuals
+        
+        # ===== MODIFICATION BY AGHIL FOR UGE INVALID INDIVIDUALS TRACKING =====
+        # Added invalid individuals statistics calculation for UGE integration
+        # For each generation, we only have one invalid count, so min=max=avg=invalid
+        invalid_count_min = invalid
+        invalid_count_max = invalid
+        invalid_count_avg = float(invalid)
+        # ===== END MODIFICATION BY AGHIL =====
         
         list_structures = []
         if 'fitness_diversity' in report_items:
@@ -306,6 +338,11 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
                        avg_depth=avg_depth,
                        avg_used_codons=avg_used_codons,
                        best_ind_used_codons=best_ind_used_codons,
+                       # ===== MODIFICATION BY AGHIL FOR UGE INVALID INDIVIDUALS TRACKING =====
+                       invalid_count_min=invalid_count_min,
+                       invalid_count_avg=invalid_count_avg,
+                       invalid_count_max=invalid_count_max,
+                       # ===== END MODIFICATION BY AGHIL =====
                        behavioural_diversity=behavioural_diversity,
                        structural_diversity=structural_diversity,
                        fitness_diversity=fitness_diversity,
@@ -320,6 +357,11 @@ def ge_eaSimpleWithElitism(population, toolbox, cxpb, mutpb, ngen, elite_size,
                        avg_depth=avg_depth,
                        avg_used_codons=avg_used_codons,
                        best_ind_used_codons=best_ind_used_codons,
+                       # ===== MODIFICATION BY AGHIL FOR UGE INVALID INDIVIDUALS TRACKING =====
+                       invalid_count_min=invalid_count_min,
+                       invalid_count_avg=invalid_count_avg,
+                       invalid_count_max=invalid_count_max,
+                       # ===== END MODIFICATION BY AGHIL =====
                        behavioural_diversity=behavioural_diversity,
                        structural_diversity=structural_diversity,
                        fitness_diversity=fitness_diversity,

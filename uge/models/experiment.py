@@ -159,6 +159,9 @@ class ExperimentResult:
         best_depth (Optional[int]): Depth of best individual
         best_genome_length (Optional[int]): Genome length of best individual
         best_used_codons (Optional[float]): Used codons ratio of best individual
+        invalid_count_min (List[int]): Minimum number of invalid individuals per generation
+        invalid_count_avg (List[float]): Average number of invalid individuals per generation
+        invalid_count_max (List[int]): Maximum number of invalid individuals per generation
         timestamp (str): ISO timestamp of result generation
     """
     
@@ -174,6 +177,9 @@ class ExperimentResult:
     best_depth: Optional[int] = None
     best_genome_length: Optional[int] = None
     best_used_codons: Optional[float] = None
+    invalid_count_min: List[int] = field(default_factory=list)
+    invalid_count_avg: List[float] = field(default_factory=list)
+    invalid_count_max: List[int] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: dt.datetime.now(dt.timezone.utc).isoformat())
     
     def to_dict(self) -> Dict[str, Any]:
@@ -191,6 +197,9 @@ class ExperimentResult:
             'best_depth': self.best_depth,
             'best_genome_length': self.best_genome_length,
             'best_used_codons': self.best_used_codons,
+            'invalid_count_min': self.invalid_count_min,
+            'invalid_count_avg': self.invalid_count_avg,
+            'invalid_count_max': self.invalid_count_max,
             'timestamp': self.timestamp
         }
     
@@ -211,6 +220,9 @@ class ExperimentResult:
             best_depth=data.get('best_depth'),
             best_genome_length=data.get('best_genome_length'),
             best_used_codons=data.get('best_used_codons'),
+            invalid_count_min=data.get('invalid_count_min', []),
+            invalid_count_avg=data.get('invalid_count_avg', []),
+            invalid_count_max=data.get('invalid_count_max', []),
             timestamp=data.get('timestamp', dt.datetime.now(dt.timezone.utc).isoformat())
         )
 

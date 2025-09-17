@@ -550,6 +550,64 @@ graph TD
     SS --> PANDAS
 ```
 
+## 🚫 Invalid Individuals Tracking Integration
+
+### Purpose
+The invalid individuals tracking feature monitors the number of invalid individuals (individuals that failed to map to valid phenotypes) across generations during GE evolution. This provides insights into:
+- Population quality over time
+- Grammar effectiveness
+- Evolution progress
+
+### Changes Made by Aghil
+
+#### 1. GRAPE Library Modifications (`grape/algorithms.py`)
+```python
+# ===== MODIFICATION BY AGHIL FOR UGE INVALID INDIVIDUALS TRACKING =====
+# Added invalid individuals statistics calculation for UGE integration
+# For each generation, we only have one invalid count, so min=max=avg=invalid
+invalid_count_min = invalid
+invalid_count_max = invalid
+invalid_count_avg = float(invalid)
+# ===== END MODIFICATION BY AGHIL =====
+```
+
+**Changes include:**
+- Header comment documenting all modifications by Aghil
+- Invalid individuals statistics calculation (min, max, avg)
+- Updated logbook headers to include `invalid_count_min`, `invalid_count_avg`, `invalid_count_max`
+- Updated logbook records to include invalid individuals data
+
+#### 2. UGE Integration Points
+
+**ExperimentResult Model (`uge/models/experiment.py`):**
+- Added `invalid_count_min: List[int]`
+- Added `invalid_count_avg: List[float]`
+- Added `invalid_count_max: List[int]`
+- Updated serialization/deserialization methods
+
+**GE Service (`uge/services/ge_service.py`):**
+- Extract invalid individuals data from GRAPE logbook
+- Convert and store in ExperimentResult objects
+
+**Charts Component (`uge/views/components/charts.py`):**
+- `plot_invalid_count_evolution()`: Individual run charts
+- `plot_experiment_wide_invalid_count()`: Experiment-wide aggregated charts
+
+**Analysis View (`uge/views/analysis_view.py`):**
+- Added "Number of Invalid Individuals" analysis type selection
+- Individual run charts with run selection
+- Experiment-wide aggregated analysis
+
+**Constants (`uge/utils/constants.py`):**
+- Added invalid individuals fields to `default_report_items`
+
+### Data Flow for Invalid Individuals Tracking
+```
+GRAPE Evolution → Invalid Count Calculation → Logbook Storage → 
+UGE Service Extraction → ExperimentResult Storage → 
+Analysis View Display → Interactive Charts
+```
+
 This comprehensive documentation provides:
 1. ✅ **Self-documenting code** with detailed docstrings
 2. ✅ **Complete architecture overview** with MVC pattern explanation

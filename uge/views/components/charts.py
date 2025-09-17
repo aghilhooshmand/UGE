@@ -581,3 +581,150 @@ class Charts:
         
         st.plotly_chart(fig, use_container_width=True)
     
+    @staticmethod
+    def plot_invalid_count_evolution(result, measurement_options: Dict[str, bool], title: str = "Number of Invalid Individuals Evolution") -> None:
+        """
+        Plot the evolution of invalid individuals count over generations for a single run.
+        
+        Args:
+            result: ExperimentResult object containing invalid individuals data
+            measurement_options (Dict[str, bool]): Which measurements to show (invalid_min, invalid_avg, invalid_max)
+            title (str): Chart title
+        """
+        if not result.invalid_count_min or not result.invalid_count_avg or not result.invalid_count_max:
+            st.warning("⚠️ No invalid individuals data available for this run.")
+            return
+        
+        generations = list(range(len(result.invalid_count_avg)))
+        
+        fig = go.Figure()
+        
+        # Add traces based on measurement options
+        if measurement_options.get("invalid_min", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=result.invalid_count_min,
+                mode="lines+markers",
+                name="Minimum Invalid Count",
+                line=dict(color="green", width=2),
+                marker=dict(size=6)
+            ))
+        
+        if measurement_options.get("invalid_avg", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=result.invalid_count_avg,
+                mode="lines+markers",
+                name="Average Invalid Count",
+                line=dict(color="blue", width=2),
+                marker=dict(size=6)
+            ))
+        
+        if measurement_options.get("invalid_max", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=result.invalid_count_max,
+                mode="lines+markers",
+                name="Maximum Invalid Count",
+                line=dict(color="red", width=2),
+                marker=dict(size=6)
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title="Generation",
+            yaxis_title="Number of Invalid Individuals",
+            hovermode="x unified",
+            showlegend=True,
+            template="plotly_white",
+            height=500
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    @staticmethod
+    def plot_experiment_wide_invalid_count(results: Dict[str, Any], measurement_options: Dict[str, bool], title: str = "Experiment-wide Number of Invalid Individuals Analysis") -> None:
+        """
+        Plot experiment-wide analysis of invalid individuals count across all runs.
+        
+        Args:
+            results (Dict[str, Any]): Dictionary of run results
+            measurement_options (Dict[str, bool]): Which measurements to show (invalid_min, invalid_avg, invalid_max)
+            title (str): Chart title
+        """
+        if not results:
+            st.warning("⚠️ No results available for experiment-wide analysis.")
+            return
+        
+        # Collect invalid count data from all runs
+        all_min_data = []
+        all_avg_data = []
+        all_max_data = []
+        max_generations = 0
+        
+        for run_id, result in results.items():
+            if result.invalid_count_min and result.invalid_count_avg and result.invalid_count_max:
+                all_min_data.append(result.invalid_count_min)
+                all_avg_data.append(result.invalid_count_avg)
+                all_max_data.append(result.invalid_count_max)
+                max_generations = max(max_generations, len(result.invalid_count_avg))
+        
+        if not all_min_data:
+            st.warning("⚠️ No invalid individuals data available across all runs.")
+            return
+        
+        # Calculate aggregated statistics across runs for each generation
+        aggregated_min = []
+        aggregated_avg = []
+        aggregated_max = []
+        
+        for gen in range(max_generations):
+            gen_min_values = [run_data[gen] for run_data in all_min_data if gen < len(run_data)]
+            gen_avg_values = [run_data[gen] for run_data in all_avg_data if gen < len(run_data)]
+            gen_max_values = [run_data[gen] for run_data in all_max_data if gen < len(run_data)]
+            
+            if gen_min_values:
+                aggregated_min.append(min(gen_min_values))
+                aggregated_avg.append(sum(gen_avg_values) / len(gen_avg_values))
+                aggregated_max.append(max(gen_max_values))
+        
+        generations = list(range(len(aggregated_avg)))
+        
+        fig = go.Figure()
+        
+        # Add traces based on measurement options
+        if measurement_options.get("invalid_min", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=aggregated_min,
+                mode="lines+markers",
+                name="Minimum Across Runs",
+                line=dict(color="green", width=3),
+                marker=dict(size=8)
+            ))
+        
+        if measurement_options.get("invalid_avg", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=aggregated_avg,
+                mode="lines+markers",
+                name="Average Across Runs",
+                line=dict(color="blue", width=3),
+                marker=dict(size=8)
+            ))
+        
+        if measurement_options.get("invalid_max", True):
+            fig.add_trace(go.Scatter(
+                x=generations, y=aggregated_max,
+                mode="lines+markers",
+                name="Maximum Across Runs",
+                line=dict(color="red", width=3),
+                marker=dict(size=8)
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title="Generation",
+            yaxis_title="Number of Invalid Individuals",
+            hovermode="x unified",
+            showlegend=True,
+            template="plotly_white",
+            height=500
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)

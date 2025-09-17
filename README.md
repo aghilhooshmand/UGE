@@ -28,6 +28,7 @@ UGE is a sophisticated web application that provides a user-friendly interface f
 - 📁 **Dataset Management**: Support for multiple dataset formats
 - 🔄 **Multiple Runs**: Automated execution of multiple independent runs
 - 📈 **Comprehensive Analysis**: Detailed performance metrics and comparisons
+- 🚫 **Invalid Individuals Tracking**: Monitor and analyze invalid individuals across generations
 - 💾 **Persistent Storage**: Automatic saving and loading of experiments
 
 ### Technologies Used
