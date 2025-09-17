@@ -26,6 +26,10 @@ class HomeView(BaseView):
             description="Welcome to the UGE application"
         )
     
+    def render(self) -> None:
+        """Render the view (required by BaseView)."""
+        self.render_home()
+    
     def render_home(self) -> None:
         """Render the home page."""
         # Hero Section
@@ -159,7 +163,7 @@ class HomeView(BaseView):
         with tech_col3:
             st.markdown("""
             **GE Library**
-            - GRAPE framework
+            - DEAP and GRAPE framework
             - Grammatical Evolution
             - BNF grammar parsing
             """)

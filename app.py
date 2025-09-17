@@ -266,7 +266,7 @@ class UGEApp:
     def render_page(self, page):
         """Render the selected page."""
         if page == "🏠 Home":
-            self.home_view.render_home()
+            self.home_view.render()
         elif page == "🏃 Run Setup":
             # Get required data for setup view
             from uge.utils.constants import HELP
