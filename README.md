@@ -30,7 +30,9 @@ UGE is a sophisticated web application that provides a user-friendly interface f
 - 📈 **Comprehensive Analysis**: Detailed performance metrics and comparisons
 - 🚫 **Invalid Individuals Tracking**: Monitor and analyze invalid individuals across generations
 - 🌳 **Nodes Length Tracking**: Track evolution of terminal symbols (nodes) across generations
+- 📝 **Professional Grammar Editor**: Full CRUD operations for BNF grammar management
 - 💾 **Persistent Storage**: Automatic saving and loading of setups
+- 🏗️ **Clean Architecture**: MVC pattern with proper separation of concerns
 
 ### Technologies Used
 
@@ -88,6 +90,28 @@ streamlit run app.py
 6. **Click "🚀 Run Setup"**
 7. **View results** in the "Analysis" page
 
+### Grammar Editor Features
+
+The **Grammar Editor** provides professional-grade BNF grammar management:
+
+#### 📝 **CRUD Operations**
+- **👁️ View Grammar**: Read-only display of existing grammars
+- **➕ Add New Grammar**: Create new `.bnf` files with validation
+- **✏️ Edit Grammar**: Modify existing grammar content
+- **🗑️ Delete Grammar**: Remove grammars with safety confirmation
+
+#### 🛡️ **Safety Features**
+- **Input Validation**: Ensures `.bnf` extension and non-empty content
+- **Duplicate Prevention**: Prevents overwriting existing grammars
+- **Confirmation Dialogs**: Safety prompts for destructive operations
+- **Backup Options**: Download backup before deletion
+
+#### 🎨 **User Experience**
+- **Visual Action Buttons**: Clear primary/secondary button styling
+- **Real-time Validation**: Immediate feedback on input validity
+- **Template Loading**: Pre-filled BNF templates for quick start
+- **Session State Management**: Remembers user selections
+
 ## 🏗️ Architecture Deep Dive
 
 ### MVC Pattern Implementation
@@ -117,6 +141,9 @@ The UGE application follows the Model-View-Controller (MVC) architectural patter
 - SetupView: Setup configuration and execution interface
 - DatasetView: Dataset management and browsing
 - AnalysisView: Results visualization and analysis
+- GrammarView: Professional BNF grammar editor with CRUD operations
+- SetupManagerView: Setup management and monitoring interface
+- ComparisonView: Setup comparison and analysis interface
 - Forms: Reusable form components
 - Charts: Interactive chart generation
 ```
@@ -387,7 +414,10 @@ UGE/
 │   │   │   └── charts.py
 │   │   ├── dataset_view.py
 │   │   ├── setup_view.py
-│   │   └── analysis_view.py
+│   │   ├── analysis_view.py
+│   │   ├── grammar_view.py
+│   │   ├── setup_manager_view.py
+│   │   └── comparison_view.py
 │   ├── controllers/         # Business logic orchestration
 │   │   ├── base_controller.py
 │   │   ├── dataset_controller.py

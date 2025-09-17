@@ -76,7 +76,61 @@ class SetupManagerView:
                 if setup_data:
                     st.dataframe(setup_data, use_container_width=True)
                     
-                    # Action buttons
+                    st.divider()
+                    
+                    # Individual Setup Actions
+                    st.subheader("Individual Setup Actions")
+                    
+                    # Setup selection dropdown
+                    setup_ids = [setup["ID"] for setup in setup_data]
+                    selected_setup = st.selectbox(
+                        "Select a setup to manage:",
+                        options=setup_ids,
+                        help="Choose a setup to view details or delete"
+                    )
+                    
+                    if selected_setup:
+                        # Display selected setup details
+                        selected_setup_data = next(setup for setup in setup_data if setup["ID"] == selected_setup)
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**Setup Details:**")
+                            st.write(f"**Name:** {selected_setup_data['Name']}")
+                            st.write(f"**Dataset:** {selected_setup_data['Dataset']}")
+                            st.write(f"**Grammar:** {selected_setup_data['Grammar']}")
+                            st.write(f"**Runs:** {selected_setup_data['Runs']}")
+                            st.write(f"**Status:** {selected_setup_data['Status']}")
+                        
+                        with col2:
+                            st.markdown("**Actions:**")
+                            
+                            # Individual delete button
+                            delete_key = f"delete_{selected_setup}"
+                            if st.button(f"🗑️ Delete Setup", key=delete_key, type="secondary"):
+                                if st.session_state.get(f'confirm_delete_{selected_setup}', False):
+                                    try:
+                                        self.storage_service.delete_setup(selected_setup)
+                                        st.success(f"Setup '{selected_setup}' deleted successfully!")
+                                        st.session_state[f'confirm_delete_{selected_setup}'] = False
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error deleting setup: {str(e)}")
+                                else:
+                                    st.session_state[f'confirm_delete_{selected_setup}'] = True
+                                    st.warning(f"Click again to confirm deletion of setup '{selected_setup}'!")
+                            
+                            # Cancel delete button
+                            if st.session_state.get(f'confirm_delete_{selected_setup}', False):
+                                if st.button(f"❌ Cancel Delete", key=f"cancel_{selected_setup}"):
+                                    st.session_state[f'confirm_delete_{selected_setup}'] = False
+                                    st.rerun()
+                    
+                    st.divider()
+                    
+                    # Bulk Actions
+                    st.subheader("Bulk Actions")
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
@@ -85,23 +139,23 @@ class SetupManagerView:
                     
                     with col2:
                         if st.button("🗑️ Delete All"):
-                            if st.session_state.get('confirm_delete', False):
+                            if st.session_state.get('confirm_delete_all', False):
                                 try:
                                     for setup_path in setup_paths:
                                         self.storage_service.delete_setup(setup_path.name)
                                     st.success("All setups deleted successfully!")
-                                    st.session_state.confirm_delete = False
+                                    st.session_state.confirm_delete_all = False
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Error deleting setups: {str(e)}")
                             else:
-                                st.session_state.confirm_delete = True
+                                st.session_state.confirm_delete_all = True
                                 st.warning("Click again to confirm deletion of ALL setups!")
                     
                     with col3:
-                        if st.session_state.get('confirm_delete', False):
+                        if st.session_state.get('confirm_delete_all', False):
                             if st.button("❌ Cancel"):
-                                st.session_state.confirm_delete = False
+                                st.session_state.confirm_delete_all = False
                                 st.rerun()
                 else:
                     st.info("No setup data available to display.")

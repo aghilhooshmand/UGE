@@ -68,13 +68,26 @@ class ComparisonView:
                 
                 if len(selected_setups) >= 2:
                     if st.button("🔍 Compare Setups"):
-                        comparison_results = comparison_controller.compare_setups(selected_setups)
-                        
-                        if comparison_results:
-                            # Store results in session state
-                            st.session_state.comparison_results = comparison_results
-                            st.session_state.selected_setups = selected_setups
-                            st.session_state.selected_setup_names = selected_setup_names
+                        with st.spinner("Comparing setups..."):
+                            comparison_results = comparison_controller.compare_setups(selected_setups)
+                            
+                            if comparison_results:
+                                # Transform the comparison results to match expected format
+                                transformed_results = self._transform_comparison_results(comparison_results, selected_setup_names)
+                                
+                                # Debug information
+                                st.write(f"Debug: Found {len(transformed_results)} setups to compare")
+                                for setup_name, data in transformed_results.items():
+                                    training_gen = len(data['training']['generations']) if data['training']['generations'] else 0
+                                    test_gen = len(data['test']['generations']) if data['test']['generations'] else 0
+                                    st.write(f"Debug: {setup_name} - Training: {training_gen} gens, Test: {test_gen} gens")
+                                
+                                # Store results in session state
+                                st.session_state.comparison_results = transformed_results
+                                st.session_state.selected_setups = selected_setups
+                                st.session_state.selected_setup_names = selected_setup_names
+                            else:
+                                st.error("Failed to generate comparison results. Please check that your setups have completed runs.")
                     
                     # Check if we have stored comparison results
                     if 'comparison_results' in st.session_state and st.session_state.comparison_results:
@@ -92,6 +105,72 @@ class ComparisonView:
         except Exception as e:
             st.error(f"Error loading setups: {str(e)}")
     
+    def _transform_comparison_results(self, comparison_results: Dict[str, Any], selected_setup_names: List[str]) -> Dict[str, Any]:
+        """
+        Transform comparison results from controller format to chart format.
+        
+        Args:
+            comparison_results (Dict[str, Any]): Raw comparison results from controller
+            selected_setup_names (List[str]): List of selected setup names
+            
+        Returns:
+            Dict[str, Any]: Transformed results for charting
+        """
+        transformed = {}
+        
+        # Get aggregate data from comparison results
+        aggregate_data = comparison_results.get('aggregate_data', {})
+        setup_configs = comparison_results.get('setup_configs', {})
+        
+        for i, setup_name in enumerate(selected_setup_names):
+            setup_id = list(aggregate_data.keys())[i] if i < len(aggregate_data) else None
+            
+            if setup_id and setup_id in aggregate_data:
+                setup_aggregate = aggregate_data[setup_id]
+                
+                # Transform training data
+                training_data = {
+                    'generations': setup_aggregate.get('generations', []),
+                    'avg': setup_aggregate.get('avg_avg', []),
+                    'std': setup_aggregate.get('std_avg', []),
+                    'max': setup_aggregate.get('avg_max', []),
+                    'min': setup_aggregate.get('avg_min', [])
+                }
+                
+                # Transform test data
+                test_data = {
+                    'generations': setup_aggregate.get('generations', []),
+                    'avg': setup_aggregate.get('avg_test', []),
+                    'std': setup_aggregate.get('std_test', [])
+                }
+                
+                # Transform invalid count data
+                invalid_count_data = {
+                    'generations': setup_aggregate.get('generations', []),
+                    'avg': setup_aggregate.get('invalid_count_avg', []),
+                    'std': setup_aggregate.get('invalid_count_std', []),
+                    'max': setup_aggregate.get('invalid_count_max', []),
+                    'min': setup_aggregate.get('invalid_count_min', [])
+                }
+                
+                # Transform nodes length data
+                nodes_length_data = {
+                    'generations': setup_aggregate.get('generations', []),
+                    'avg': setup_aggregate.get('nodes_length_avg', []),
+                    'std': setup_aggregate.get('nodes_length_std', []),
+                    'max': setup_aggregate.get('nodes_length_max', []),
+                    'min': setup_aggregate.get('nodes_length_min', [])
+                }
+                
+                transformed[setup_name] = {
+                    'training': training_data,
+                    'test': test_data,
+                    'invalid_count': invalid_count_data,
+                    'nodes_length': nodes_length_data
+                }
+        
+        return transformed
+    
     def _render_comparison_results(self, comparison_results: Dict[str, Any], selected_setups: List[str]) -> None:
         """
         Render comparison results with charts and statistics.
@@ -105,12 +184,29 @@ class ComparisonView:
         # Chart type selection
         chart_type = st.selectbox(
             "Select Chart Type",
-            ["Training Fitness", "Test Fitness", "All Metrics"],
+            ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "All Metrics"],
             key="comparison_chart_type"
         )
         
+        # Metric selection for detailed charts
+        if chart_type in ["Training Fitness", "Test Fitness"]:
+            data_type = "training" if chart_type == "Training Fitness" else "test"
+            metric_type = st.selectbox(
+                f"Select {chart_type} Metric",
+                ["Average", "Maximum", "Minimum", "Average with STD Bars"],
+                key=f"comparison_metric_{data_type}"
+            )
+        elif chart_type in ["Number of Invalid", "Nodes Length Evolution"]:
+            metric_type = st.selectbox(
+                f"Select {chart_type} Metric",
+                ["Average", "Maximum", "Minimum", "Average with STD Bars"],
+                key=f"comparison_metric_{chart_type.lower().replace(' ', '_')}"
+            )
+        else:
+            metric_type = "All"
+        
         # Render the appropriate chart
-        self._render_comparison_chart(comparison_results, chart_type)
+        self._render_comparison_chart(comparison_results, chart_type, metric_type)
         
         # Export options
         col1, col2 = st.columns(2)
@@ -129,41 +225,61 @@ class ComparisonView:
                     mime="text/csv"
                 )
     
-    def _render_comparison_chart(self, comparison_results: Dict[str, Any], chart_type: str) -> None:
+    def _render_comparison_chart(self, comparison_results: Dict[str, Any], chart_type: str, metric_type: str = "All") -> None:
         """
-        Render comparison chart based on chart type.
+        Render comparison chart based on chart type and metric type.
         
         Args:
             comparison_results (Dict[str, Any]): Comparison results data
             chart_type (str): Type of chart to render
+            metric_type (str): Type of metric to display
         """
         if chart_type == "Training Fitness":
-            self._render_fitness_chart(comparison_results, "training")
+            self._render_fitness_chart(comparison_results, "training", metric_type)
         elif chart_type == "Test Fitness":
-            self._render_fitness_chart(comparison_results, "test")
+            self._render_fitness_chart(comparison_results, "test", metric_type)
+        elif chart_type == "Number of Invalid":
+            self._render_invalid_count_chart(comparison_results, metric_type)
+        elif chart_type == "Nodes Length Evolution":
+            self._render_nodes_length_chart(comparison_results, metric_type)
         elif chart_type == "All Metrics":
             self._render_all_metrics_chart(comparison_results)
     
-    def _render_fitness_chart(self, comparison_results: Dict[str, Any], data_type: str) -> None:
+    def _render_fitness_chart(self, comparison_results: Dict[str, Any], data_type: str, metric_type: str = "Average") -> None:
         """
         Render fitness comparison chart.
         
         Args:
             comparison_results (Dict[str, Any]): Comparison results data
             data_type (str): "training" or "test"
+            metric_type (str): "Average", "Maximum", "Minimum", or "Average with STD Bars"
         """
         fig = go.Figure()
+        
+        if not comparison_results:
+            st.warning("No comparison data available.")
+            return
+        
+        traces_added = 0
         
         for setup_name, setup_data in comparison_results.items():
             if data_type in setup_data and setup_data[data_type]:
                 generations = setup_data[data_type]['generations']
                 avg_values = setup_data[data_type]['avg']
                 std_values = setup_data[data_type]['std']
+                max_values = setup_data[data_type].get('max', [])
+                min_values = setup_data[data_type].get('min', [])
+                
+                if not generations:
+                    st.warning(f"No {data_type} data available for {setup_name}")
+                    continue
                 
                 # Find first valid generation (non-NaN)
                 first_valid_gen = 0
                 if data_type == "test":
-                    for i, val in enumerate(avg_values):
+                    # Use avg_values to find first valid generation
+                    check_values = avg_values if avg_values else []
+                    for i, val in enumerate(check_values):
                         if val is not None and not pd.isna(val) and val != 0:
                             first_valid_gen = i
                             break
@@ -171,32 +287,66 @@ class ComparisonView:
                 # Plot from first valid generation
                 if first_valid_gen < len(generations):
                     valid_gens = generations[first_valid_gen:]
-                    valid_avg = avg_values[first_valid_gen:]
-                    valid_std = std_values[first_valid_gen:] if std_values else None
+                    
+                    # Select values based on metric type
+                    if metric_type == "Average":
+                        y_values = avg_values[first_valid_gen:] if avg_values else []
+                        trace_name = f"{setup_name} ({data_type.title()} Avg)"
+                    elif metric_type == "Maximum":
+                        y_values = max_values[first_valid_gen:] if max_values else []
+                        trace_name = f"{setup_name} ({data_type.title()} Max)"
+                    elif metric_type == "Minimum":
+                        y_values = min_values[first_valid_gen:] if min_values else []
+                        trace_name = f"{setup_name} ({data_type.title()} Min)"
+                    elif metric_type == "Average with STD Bars":
+                        y_values = avg_values[first_valid_gen:] if avg_values else []
+                        trace_name = f"{setup_name} ({data_type.title()} Avg)"
+                    else:
+                        y_values = avg_values[first_valid_gen:] if avg_values else []
+                        trace_name = f"{setup_name} ({data_type.title()})"
+                    
+                    if not y_values:
+                        st.warning(f"No {metric_type.lower()} data available for {setup_name}")
+                        continue
                     
                     # Add main line
                     fig.add_trace(go.Scatter(
                         x=valid_gens,
-                        y=valid_avg,
+                        y=y_values,
                         mode='lines+markers',
-                        name=f"{setup_name} ({data_type.title()})",
+                        name=trace_name,
                         line=dict(width=2),
                         marker=dict(size=6)
                     ))
+                    traces_added += 1
                     
-                    # Add error bars if available
-                    if valid_std:
-                        fig.add_trace(go.Scatter(
-                            x=valid_gens,
-                            y=valid_avg,
-                            mode='lines',
-                            name=f"{setup_name} ({data_type.title()}) ±1σ",
-                            line=dict(width=1, dash='dash'),
-                            showlegend=False
-                        ))
+                    # Add STD error bars if requested and available
+                    if metric_type == "Average with STD Bars" and std_values:
+                        valid_std = std_values[first_valid_gen:]
+                        if len(valid_std) == len(y_values):
+                            # Add error bars using error_y
+                            fig.data[-1].update(
+                                error_y=dict(
+                                    type='data',
+                                    symmetric=True,
+                                    array=valid_std,
+                                    visible=True,
+                                    color='lightblue',
+                                    thickness=2
+                                )
+                            )
+        
+        if traces_added == 0:
+            st.warning(f"No valid {data_type} data found for any setup.")
+            return
+        
+        # Update title based on metric type
+        title = f"{data_type.title()} Fitness Comparison"
+        if metric_type != "Average":
+            title += f" - {metric_type}"
         
         fig.update_layout(
-            title=f"{data_type.title()} Fitness Comparison",
+            title=title,
             xaxis_title="Generation",
             yaxis_title="Fitness",
             hovermode='x unified',
@@ -205,47 +355,320 @@ class ComparisonView:
         
         st.plotly_chart(fig, use_container_width=True)
     
+    def _render_invalid_count_chart(self, comparison_results: Dict[str, Any], metric_type: str = "Average") -> None:
+        """
+        Render invalid count comparison chart.
+        
+        Args:
+            comparison_results (Dict[str, Any]): Comparison results data
+            metric_type (str): "Average", "Maximum", "Minimum", or "Average with STD Bars"
+        """
+        fig = go.Figure()
+        
+        if not comparison_results:
+            st.warning("No comparison data available.")
+            return
+        
+        traces_added = 0
+        
+        for setup_name, setup_data in comparison_results.items():
+            # Get invalid count data from aggregate data
+            invalid_data = setup_data.get('invalid_count', {})
+            if invalid_data:
+                generations = invalid_data.get('generations', [])
+                avg_values = invalid_data.get('avg', [])
+                std_values = invalid_data.get('std', [])
+                max_values = invalid_data.get('max', [])
+                min_values = invalid_data.get('min', [])
+                
+                if not generations:
+                    st.warning(f"No invalid count data available for {setup_name}")
+                    continue
+                
+                # Select values based on metric type
+                if metric_type == "Average":
+                    y_values = avg_values if avg_values else []
+                    trace_name = f"{setup_name} (Invalid Avg)"
+                elif metric_type == "Maximum":
+                    y_values = max_values if max_values else []
+                    trace_name = f"{setup_name} (Invalid Max)"
+                elif metric_type == "Minimum":
+                    y_values = min_values if min_values else []
+                    trace_name = f"{setup_name} (Invalid Min)"
+                elif metric_type == "Average with STD Bars":
+                    y_values = avg_values if avg_values else []
+                    trace_name = f"{setup_name} (Invalid Avg)"
+                else:
+                    y_values = avg_values if avg_values else []
+                    trace_name = f"{setup_name} (Invalid)"
+                
+                if not y_values:
+                    st.warning(f"No {metric_type.lower()} invalid count data available for {setup_name}")
+                    continue
+                
+                # Add main line
+                fig.add_trace(go.Scatter(
+                    x=generations,
+                    y=y_values,
+                    mode='lines+markers',
+                    name=trace_name,
+                    line=dict(width=2),
+                    marker=dict(size=6)
+                ))
+                traces_added += 1
+                
+                # Add STD error bars if requested and available
+                if metric_type == "Average with STD Bars" and std_values and len(std_values) == len(y_values):
+                    fig.data[-1].update(
+                        error_y=dict(
+                            type='data',
+                            symmetric=True,
+                            array=std_values,
+                            visible=True,
+                            color='lightblue',
+                            thickness=2
+                        )
+                    )
+        
+        if traces_added == 0:
+            st.warning("No valid invalid count data found for any setup.")
+            return
+        
+        # Update title based on metric type
+        title = "Number of Invalid Individuals Comparison"
+        if metric_type != "Average":
+            title += f" - {metric_type}"
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title="Generation",
+            yaxis_title="Number of Invalid Individuals",
+            hovermode='x unified',
+            showlegend=True
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    def _render_nodes_length_chart(self, comparison_results: Dict[str, Any], metric_type: str = "Average") -> None:
+        """
+        Render nodes length comparison chart.
+        
+        Args:
+            comparison_results (Dict[str, Any]): Comparison results data
+            metric_type (str): "Average", "Maximum", "Minimum", or "Average with STD Bars"
+        """
+        fig = go.Figure()
+        
+        if not comparison_results:
+            st.warning("No comparison data available.")
+            return
+        
+        traces_added = 0
+        
+        for setup_name, setup_data in comparison_results.items():
+            # Get nodes length data from aggregate data
+            nodes_data = setup_data.get('nodes_length', {})
+            if nodes_data:
+                generations = nodes_data.get('generations', [])
+                avg_values = nodes_data.get('avg', [])
+                std_values = nodes_data.get('std', [])
+                max_values = nodes_data.get('max', [])
+                min_values = nodes_data.get('min', [])
+                
+                if not generations:
+                    st.warning(f"No nodes length data available for {setup_name}")
+                    continue
+                
+                # Select values based on metric type
+                if metric_type == "Average":
+                    y_values = avg_values if avg_values else []
+                    trace_name = f"{setup_name} (Nodes Avg)"
+                elif metric_type == "Maximum":
+                    y_values = max_values if max_values else []
+                    trace_name = f"{setup_name} (Nodes Max)"
+                elif metric_type == "Minimum":
+                    y_values = min_values if min_values else []
+                    trace_name = f"{setup_name} (Nodes Min)"
+                elif metric_type == "Average with STD Bars":
+                    y_values = avg_values if avg_values else []
+                    trace_name = f"{setup_name} (Nodes Avg)"
+                else:
+                    y_values = avg_values if avg_values else []
+                    trace_name = f"{setup_name} (Nodes)"
+                
+                if not y_values:
+                    st.warning(f"No {metric_type.lower()} nodes length data available for {setup_name}")
+                    continue
+                
+                # Add main line
+                fig.add_trace(go.Scatter(
+                    x=generations,
+                    y=y_values,
+                    mode='lines+markers',
+                    name=trace_name,
+                    line=dict(width=2),
+                    marker=dict(size=6)
+                ))
+                traces_added += 1
+                
+                # Add STD error bars if requested and available
+                if metric_type == "Average with STD Bars" and std_values and len(std_values) == len(y_values):
+                    fig.data[-1].update(
+                        error_y=dict(
+                            type='data',
+                            symmetric=True,
+                            array=std_values,
+                            visible=True,
+                            color='lightblue',
+                            thickness=2
+                        )
+                    )
+        
+        if traces_added == 0:
+            st.warning("No valid nodes length data found for any setup.")
+            return
+        
+        # Update title based on metric type
+        title = "Nodes Length Evolution Comparison"
+        if metric_type != "Average":
+            title += f" - {metric_type}"
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title="Generation",
+            yaxis_title="Nodes Length",
+            hovermode='x unified',
+            showlegend=True
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
     def _render_all_metrics_chart(self, comparison_results: Dict[str, Any]) -> None:
         """
-        Render all metrics comparison chart.
+        Render all metrics comparison chart with min, max, avg, and std.
         
         Args:
             comparison_results (Dict[str, Any]): Comparison results data
         """
-        # Create subplots
+        # Create subplots for training and test data
         fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=("Training Fitness", "Test Fitness", "Training Accuracy", "Test Accuracy"),
-            specs=[[{"secondary_y": False}, {"secondary_y": False}],
-                   [{"secondary_y": False}, {"secondary_y": False}]]
+            rows=1, cols=2,
+            subplot_titles=("Training Fitness (Min/Max/Avg)", "Test Fitness (Min/Max/Avg)"),
+            specs=[[{"secondary_y": False}, {"secondary_y": False}]]
         )
         
-        for setup_name, setup_data in comparison_results.items():
-            # Training fitness
-            if 'training' in setup_data and setup_data['training']:
-                gens = setup_data['training']['generations']
-                avg = setup_data['training']['avg']
-                fig.add_trace(go.Scatter(x=gens, y=avg, name=f"{setup_name} (Train)", mode='lines+markers'), row=1, col=1)
-            
-            # Test fitness
-            if 'test' in setup_data and setup_data['test']:
-                gens = setup_data['test']['generations']
-                avg = setup_data['test']['avg']
-                # Find first valid generation for test data
-                first_valid_gen = 0
-                for i, val in enumerate(avg):
-                    if val is not None and not pd.isna(val) and val != 0:
-                        first_valid_gen = i
-                        break
-                if first_valid_gen < len(gens):
-                    valid_gens = gens[first_valid_gen:]
-                    valid_avg = avg[first_valid_gen:]
-                    fig.add_trace(go.Scatter(x=valid_gens, y=valid_avg, name=f"{setup_name} (Test)", mode='lines+markers'), row=1, col=2)
-            
-            # Add accuracy plots if available
-            # (This would be implemented based on available accuracy data)
+        if not comparison_results:
+            st.warning("No comparison data available.")
+            return
         
-        fig.update_layout(height=600, showlegend=True, title_text="All Metrics Comparison")
+        for setup_name, setup_data in comparison_results.items():
+            # Training fitness - show min, max, avg
+            if 'training' in setup_data and setup_data['training']:
+                training_data = setup_data['training']
+                gens = training_data['generations']
+                avg = training_data['avg']
+                max_vals = training_data.get('max', [])
+                min_vals = training_data.get('min', [])
+                std_vals = training_data.get('std', [])
+                
+                if gens and avg:
+                    # Average line with STD bars
+                    fig.add_trace(go.Scatter(
+                        x=gens, y=avg, 
+                        name=f"{setup_name} (Train Avg)", 
+                        mode='lines+markers',
+                        line=dict(width=2),
+                        error_y=dict(
+                            type='data',
+                            symmetric=True,
+                            array=std_vals if std_vals and len(std_vals) == len(avg) else [],
+                            visible=bool(std_vals and len(std_vals) == len(avg)),
+                            color='lightblue',
+                            thickness=1
+                        )
+                    ), row=1, col=1)
+                    
+                    # Max line
+                    if max_vals and len(max_vals) == len(avg):
+                        fig.add_trace(go.Scatter(
+                            x=gens, y=max_vals, 
+                            name=f"{setup_name} (Train Max)", 
+                            mode='lines',
+                            line=dict(width=1, dash='dot')
+                        ), row=1, col=1)
+                    
+                    # Min line
+                    if min_vals and len(min_vals) == len(avg):
+                        fig.add_trace(go.Scatter(
+                            x=gens, y=min_vals, 
+                            name=f"{setup_name} (Train Min)", 
+                            mode='lines',
+                            line=dict(width=1, dash='dot')
+                        ), row=1, col=1)
+            
+            # Test fitness - show min, max, avg
+            if 'test' in setup_data and setup_data['test']:
+                test_data = setup_data['test']
+                gens = test_data['generations']
+                avg = test_data['avg']
+                max_vals = test_data.get('max', [])
+                min_vals = test_data.get('min', [])
+                std_vals = test_data.get('std', [])
+                
+                if gens and avg:
+                    # Find first valid generation for test data
+                    first_valid_gen = 0
+                    for i, val in enumerate(avg):
+                        if val is not None and not pd.isna(val) and val != 0:
+                            first_valid_gen = i
+                            break
+                    
+                    if first_valid_gen < len(gens):
+                        valid_gens = gens[first_valid_gen:]
+                        valid_avg = avg[first_valid_gen:]
+                        valid_max = max_vals[first_valid_gen:] if max_vals and len(max_vals) == len(avg) else []
+                        valid_min = min_vals[first_valid_gen:] if min_vals and len(min_vals) == len(avg) else []
+                        valid_std = std_vals[first_valid_gen:] if std_vals and len(std_vals) == len(avg) else []
+                        
+                        # Average line with STD bars
+                        fig.add_trace(go.Scatter(
+                            x=valid_gens, y=valid_avg, 
+                            name=f"{setup_name} (Test Avg)", 
+                            mode='lines+markers',
+                            line=dict(width=2),
+                            error_y=dict(
+                                type='data',
+                                symmetric=True,
+                                array=valid_std,
+                                visible=bool(valid_std),
+                                color='lightblue',
+                                thickness=1
+                            )
+                        ), row=1, col=2)
+                        
+                        # Max line
+                        if valid_max:
+                            fig.add_trace(go.Scatter(
+                                x=valid_gens, y=valid_max, 
+                                name=f"{setup_name} (Test Max)", 
+                                mode='lines',
+                                line=dict(width=1, dash='dot')
+                            ), row=1, col=2)
+                        
+                        # Min line
+                        if valid_min:
+                            fig.add_trace(go.Scatter(
+                                x=valid_gens, y=valid_min, 
+                                name=f"{setup_name} (Test Min)", 
+                                mode='lines',
+                                line=dict(width=1, dash='dot')
+                            ), row=1, col=2)
+        
+        fig.update_layout(
+            height=500, 
+            showlegend=True, 
+            title_text="All Metrics Comparison - Min/Max/Average with STD Bars"
+        )
         fig.update_xaxes(title_text="Generation")
         fig.update_yaxes(title_text="Fitness")
         

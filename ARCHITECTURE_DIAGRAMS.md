@@ -106,6 +106,30 @@ classDiagram
         +_render_individual_run_charts()
     }
     
+    class GrammarView {
+        +render_grammar_editor()
+        +_render_view_grammar()
+        +_render_add_grammar()
+        +_render_edit_grammar()
+        +_render_delete_grammar()
+        +_validate_grammar_input()
+        +_save_new_grammar()
+        +_delete_grammar()
+    }
+    
+    class SetupManagerView {
+        -storage_service: StorageService
+        +render_setup_manager()
+    }
+    
+    class ComparisonView {
+        -storage_service: StorageService
+        +render_comparison()
+        +_render_comparison_results()
+        +_render_comparison_chart()
+        +_export_comparison_csv()
+    }
+    
     %% Controller Classes
     class SetupController {
         -dataset_service: DatasetService
@@ -238,6 +262,9 @@ classDiagram
     BaseView <|-- SetupView
     BaseView <|-- DatasetView
     BaseView <|-- AnalysisView
+    BaseView <|-- GrammarView
+    BaseView <|-- SetupManagerView
+    BaseView <|-- ComparisonView
     BaseController <|-- SetupController
     BaseController <|-- DatasetController
     
@@ -330,6 +357,9 @@ graph TD
         EV[SetupView]
         DV[DatasetView]
         AV[AnalysisView]
+        GV[GrammarView]
+        SMV[SetupManagerView]
+        CV[ComparisonView]
         BV[BaseView]
     end
     
@@ -366,11 +396,17 @@ graph TD
     UI --> EV
     UI --> DV
     UI --> AV
+    UI --> GV
+    UI --> SMV
+    UI --> CV
     
     %% Views inheritance
     BV <|-- EV
     BV <|-- DV
     BV <|-- AV
+    BV <|-- GV
+    BV <|-- SMV
+    BV <|-- CV
     
     %% Views to Controllers
     EV --> EC

@@ -22,6 +22,7 @@ if str(CURRENT_DIR) not in sys.path:
 # Import MVC components
 from uge.controllers.setup_controller import SetupController
 from uge.controllers.analysis_controller import AnalysisController
+from uge.views.home_view import HomeView
 from uge.views.setup_view import SetupView
 from uge.views.dataset_view import DatasetView
 from uge.views.analysis_view import AnalysisView
@@ -62,6 +63,7 @@ class UGEApp:
         self.dataset_service = DatasetService()
         
         # Initialize views
+        self.home_view = HomeView()
         self.setup_view = SetupView(self.setup_controller)
         # Initialize dataset view with preview callback
         self.dataset_view = DatasetView(
@@ -190,21 +192,24 @@ class UGEApp:
     def render_sidebar(self):
         """Render the application sidebar."""
         with st.sidebar:
-            st.title("🧬 GE")
+            # Make GE title clickable to go to Home
+            if st.button("🧬 GE", key="home_button", help="Click to go to Home page"):
+                st.session_state.current_page = "🏠 Home"
+                st.rerun()
             st.markdown("---")
             
             # Main navigation
             st.markdown("### 📋 Navigation")
             
             # Get current page from session state for default value
-            current_page = st.session_state.get('current_page', "🏃 Run Setup")
+            current_page = st.session_state.get('current_page', "🏠 Home")
             
             page = st.selectbox(
                 "Select Page:",
-                ["🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
+                ["🏠 Home", "🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
                  "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"],
-                index=["🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
-                       "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"].index(current_page) if current_page in ["🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"] else 0,
+                index=["🏠 Home", "🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
+                       "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"].index(current_page) if current_page in ["🏠 Home", "🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"] else 0,
                 key="main_navigation",
                 label_visibility="collapsed"
             )
@@ -260,7 +265,9 @@ class UGEApp:
     
     def render_page(self, page):
         """Render the selected page."""
-        if page == "🏃 Run Setup":
+        if page == "🏠 Home":
+            self.home_view.render_home()
+        elif page == "🏃 Run Setup":
             # Get required data for setup view
             from uge.utils.constants import HELP
             datasets = self.dataset_service.list_datasets()

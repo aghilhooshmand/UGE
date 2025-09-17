@@ -47,33 +47,83 @@ class Forms:
         if grammars is None:
             grammars = []
         
+        # Section 1: Grammar and Dataset Selection (Outside Form)
+        st.subheader("📊 1. Grammar and Dataset")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Dataset Selection**")
+            dataset = st.selectbox(
+                "Dataset", 
+                options=datasets, 
+                index=datasets.index(UI_CONSTANTS['default_dataset']) if UI_CONSTANTS['default_dataset'] in datasets else (0 if datasets else None), 
+                help=help_texts.get('dataset', "Select dataset for the setup")
+            )
+        
+        with col2:
+            st.markdown("**Grammar Selection**")
+            grammar = st.selectbox(
+                "Grammar", 
+                options=grammars, 
+                index=grammars.index(UI_CONSTANTS['default_grammar']) if UI_CONSTANTS['default_grammar'] in grammars else (0 if grammars else None), 
+                key="grammar_selectbox",  # Add key for reactivity
+                help=help_texts.get('grammar', "Select BNF grammar for the setup")
+            )
+        
+        # Show grammar content for selected grammar
+        if 'grammar_selectbox' in st.session_state:
+            selected_grammar = st.session_state['grammar_selectbox']
+            if selected_grammar:
+                st.markdown("**📄 Grammar Content**")
+                
+                # Show info message based on selected grammar
+                if selected_grammar == "UGE_Classification.bnf":
+                    st.info("🔧 **Dynamic Grammar**: This grammar will be automatically adapted to your dataset's column types.")
+                elif selected_grammar == "heartDisease.bnf":
+                    st.info("❤️ **Heart Disease Grammar**: Specific grammar for heart disease classification.")
+                else:
+                    st.info(f"📄 **Static Grammar**: Content from grammars/{selected_grammar}")
+
+                # Load grammar content from file (without info message)
+                grammar_content = Forms._load_grammar_content_raw(selected_grammar)
+
+                # Display grammar in text box
+                st.text_area(
+                    "Grammar Content (BNF Format)",
+                    value=grammar_content,
+                    height=200,
+                    disabled=True,  # Make it read-only
+                    key=f"grammar_content_display_{selected_grammar}",  # Add key for reactivity
+                    help="This shows the grammar content that will be used for the setup"
+                )
+
+                # Add download button for grammar
+                st.download_button(
+                    label="📥 Download Grammar",
+                    data=grammar_content,
+                    file_name=selected_grammar,
+                    mime="text/plain",
+                    help="Download the selected grammar file"
+                )
+        
+        st.divider()
+        
+        # Section 2: Setup Info and Parameters (Inside Form)
         with st.form("setup_form"):
+            st.subheader("⚙️ 2. Setup Info and Parameters")
+            
             col1, col2 = st.columns(2)
             
             with col1:
-                st.subheader("Setup Info")
+                st.markdown("**Setup Configuration**")
                 setup_name = st.text_input(
                     "Setup Name", 
                     value=f"Setup_{dt.datetime.now().strftime('%Y%m%d_%H%M')}", 
                     help=help_texts.get('setup_name', "Unique name for this setup")
                 )
                 
-                st.subheader("Dataset & Grammar")
-                dataset = st.selectbox(
-                    "Dataset", 
-                    options=datasets, 
-                    index=datasets.index(UI_CONSTANTS['default_dataset']) if UI_CONSTANTS['default_dataset'] in datasets else (0 if datasets else None), 
-                    help=help_texts.get('dataset', "Select dataset for the setup")
-                )
-                grammar = st.selectbox(
-                    "Grammar", 
-                    options=grammars, 
-                    index=grammars.index(UI_CONSTANTS['default_grammar']) if UI_CONSTANTS['default_grammar'] in grammars else (0 if grammars else None), 
-                    key="grammar_selectbox",  # Add key for reactivity
-                    help=help_texts.get('grammar', "Select BNF grammar for the setup")
-                )
-                
-                st.subheader("GA Parameters")
+                # GA Parameters
+                st.markdown("**Genetic Algorithm Parameters**")
                 population = st.number_input(
                     "Population Size", 
                     min_value=10, max_value=5000, 
@@ -94,6 +144,9 @@ class Forms:
                     value=DEFAULT_CONFIG['n_runs'], 
                     help=help_texts.get('n_runs', "Number of independent runs for this setup")
                 )
+                
+                # GE Parameters
+                st.markdown("**Grammatical Evolution Parameters**")
                 p_crossover = st.slider(
                     "Crossover Probability", 
                     min_value=0.0, max_value=1.0, 
@@ -108,9 +161,6 @@ class Forms:
                     step=0.01, 
                     help=help_texts.get('p_mutation', "Probability of mutation operation")
                 )
-            
-            with col2:
-                st.subheader("GA Parameters (continued)")
                 elite_size = st.number_input(
                     "Elite Size", 
                     min_value=0, max_value=50, 
@@ -129,8 +179,10 @@ class Forms:
                     value=max(1, int(elite_size)), 
                     help=help_texts.get('halloffame_size', "Size of hall of fame")
                 )
-                
-                st.subheader("GE/GRAPE Parameters")
+            
+            with col2:
+                # Tree Parameters
+                st.markdown("**Tree Parameters**")
                 max_tree_depth = st.number_input(
                     "Max Tree Depth", 
                     min_value=1, max_value=100, 
@@ -149,6 +201,9 @@ class Forms:
                     value=DEFAULT_CONFIG['max_init_tree_depth'], 
                     help=help_texts.get('max_init_tree_depth', "Maximum initial tree depth")
                 )
+                
+                # Genome Parameters
+                st.markdown("**Genome Parameters**")
                 min_init_genome_length = st.number_input(
                     "Min Init Genome Length", 
                     min_value=1, max_value=5000, 
@@ -186,11 +241,11 @@ class Forms:
                     help=help_texts.get('initialisation', "Population initialization strategy")
                 )
             
-            st.subheader("Additional Parameters")
+            # Additional Parameters Row
             col3, col4 = st.columns(2)
             
             with col3:
-                st.subheader("Report Items")
+                st.markdown("**Report Items**")
                 report_items = st.multiselect(
                     "Select report items", 
                     options=DEFAULT_CONFIG['default_report_items'], 
@@ -199,7 +254,7 @@ class Forms:
                 )
             
             with col4:
-                st.subheader("Dataset Options")
+                st.markdown("**Dataset Options**")
                 
                 # Always show label column input (required field)
                 label_column = st.text_input(
@@ -207,8 +262,6 @@ class Forms:
                     value=DEFAULT_CONFIG['label_column'], 
                     help=help_texts.get('label_column', "Name of the label column")
                 )
-                
-                test_size = DEFAULT_CONFIG['test_size']
                 
                 test_size = st.slider(
                     "Test Size", 
@@ -244,64 +297,47 @@ class Forms:
                 st.info(f"**Fitness Direction:** {direction_text}")
                 st.session_state['fitness_direction'] = fitness_direction
             
-            run_setup = st.form_submit_button("🚀 Run Setup", type="primary")
-            
-            if run_setup:
-                form_data = {
-                    'setup_name': setup_name,
-                    'dataset': dataset,
-                    'grammar': grammar,
-                    'fitness_metric': fitness_metric,
-                    'fitness_direction': fitness_direction,
-                    'n_runs': int(n_runs),
-                    'generations': int(generations),
-                    'population': int(population),
-                    'p_crossover': float(p_crossover),
-                    'p_mutation': float(p_mutation),
-                    'elite_size': int(elite_size),
-                    'tournsize': int(tournsize),
-                    'halloffame_size': int(halloffame_size),
-                    'max_tree_depth': int(max_tree_depth),
-                    'min_init_tree_depth': int(min_init_tree_depth),
-                    'max_init_tree_depth': int(max_init_tree_depth),
-                    'min_init_genome_length': int(min_init_genome_length),
-                    'max_init_genome_length': int(max_init_genome_length),
-                    'codon_size': int(codon_size),
-                    'codon_consumption': codon_consumption,
-                    'genome_representation': genome_representation,
-                    'initialisation': initialisation,
-                    'random_seed': int(random_seed),
-                    'label_column': label_column,
-                    'test_size': float(test_size),
-                    'report_items': report_items
-                }
-                return True, form_data
+            # Submit button inside form
+            run_setup = st.form_submit_button("🚀 Run Setup", type="primary", use_container_width=True)
         
-        # Grammar Content Display (Outside Form for Reactivity)
-        if 'grammar_selectbox' in st.session_state:
-            selected_grammar = st.session_state['grammar_selectbox']
-            if selected_grammar:
-                st.subheader("📄 Grammar Content")
-                
-                # Show info message based on selected grammar
-                if selected_grammar == "UGE_Classification.bnf":
-                    st.info("🔧 **Dynamic Grammar**: This grammar will be automatically adapted to your dataset's column types.")
-                elif selected_grammar == "heartDisease.bnf":
-                    st.info("❤️ **Heart Disease Grammar**: Specific grammar for heart disease classification.")
-                else:
-                    st.info(f"📄 **Static Grammar**: Content from grammars/{selected_grammar}")
-                
-                # Load grammar content from file (without info message)
-                grammar_content = Forms._load_grammar_content_raw(selected_grammar)
-                
-                # Display grammar in text box
-                st.text_area(
-                    "Grammar Content (BNF Format)",
-                    value=grammar_content,
-                    height=300,
-                    disabled=True,  # Make it read-only
-                    help="This shows the grammar content that will be used for the setup"
-                )
+        st.divider()
+        
+        # Section 3: Run Setup Status
+        st.subheader("🚀 3. Run Setup")
+        
+        # Handle form submission when button is clicked
+        if run_setup:
+            # Get grammar from session state since it's outside the form
+            selected_grammar = st.session_state.get('grammar_selectbox', UI_CONSTANTS['default_grammar'])
+            form_data = {
+                'setup_name': setup_name,
+                'dataset': dataset,
+                'grammar': selected_grammar,
+                'fitness_metric': fitness_metric,
+                'fitness_direction': fitness_direction,
+                'n_runs': int(n_runs),
+                'generations': int(generations),
+                'population': int(population),
+                'p_crossover': float(p_crossover),
+                'p_mutation': float(p_mutation),
+                'elite_size': int(elite_size),
+                'tournsize': int(tournsize),
+                'halloffame_size': int(halloffame_size),
+                'max_tree_depth': int(max_tree_depth),
+                'min_init_tree_depth': int(min_init_tree_depth),
+                'max_init_tree_depth': int(max_init_tree_depth),
+                'min_init_genome_length': int(min_init_genome_length),
+                'max_init_genome_length': int(max_init_genome_length),
+                'codon_size': int(codon_size),
+                'codon_consumption': codon_consumption,
+                'genome_representation': genome_representation,
+                'initialisation': initialisation,
+                'random_seed': int(random_seed),
+                'label_column': label_column,
+                'test_size': float(test_size),
+                'report_items': report_items
+            }
+            return True, form_data
         
         return False, {}
     

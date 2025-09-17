@@ -395,7 +395,17 @@ class AnalysisController(BaseController):
             'avg_min': [],
             'std_min': [],
             'avg_test': [],
-            'std_test': []
+            'std_test': [],
+            # Invalid count data
+            'invalid_count_avg': [],
+            'invalid_count_std': [],
+            'invalid_count_max': [],
+            'invalid_count_min': [],
+            # Nodes length data
+            'nodes_length_avg': [],
+            'nodes_length_std': [],
+            'nodes_length_max': [],
+            'nodes_length_min': []
         }
         
         # Collect data for each generation
@@ -404,8 +414,17 @@ class AnalysisController(BaseController):
             gen_avg_values = []
             gen_min_values = []
             gen_test_values = []
+            # Invalid count data
+            gen_invalid_avg_values = []
+            gen_invalid_max_values = []
+            gen_invalid_min_values = []
+            # Nodes length data
+            gen_nodes_avg_values = []
+            gen_nodes_max_values = []
+            gen_nodes_min_values = []
             
             for result in setup.results.values():
+                # Fitness data
                 if result.max and gen < len(result.max):
                     gen_max_values.append(result.max[gen])
                 if result.avg and gen < len(result.avg):
@@ -414,6 +433,22 @@ class AnalysisController(BaseController):
                     gen_min_values.append(result.min[gen])
                 if result.fitness_test and gen < len(result.fitness_test) and result.fitness_test[gen] is not None:
                     gen_test_values.append(result.fitness_test[gen])
+                
+                # Invalid count data
+                if hasattr(result, 'invalid_count_avg') and result.invalid_count_avg and gen < len(result.invalid_count_avg):
+                    gen_invalid_avg_values.append(result.invalid_count_avg[gen])
+                if hasattr(result, 'invalid_count_max') and result.invalid_count_max and gen < len(result.invalid_count_max):
+                    gen_invalid_max_values.append(result.invalid_count_max[gen])
+                if hasattr(result, 'invalid_count_min') and result.invalid_count_min and gen < len(result.invalid_count_min):
+                    gen_invalid_min_values.append(result.invalid_count_min[gen])
+                
+                # Nodes length data
+                if hasattr(result, 'nodes_length_avg') and result.nodes_length_avg and gen < len(result.nodes_length_avg):
+                    gen_nodes_avg_values.append(result.nodes_length_avg[gen])
+                if hasattr(result, 'nodes_length_max') and result.nodes_length_max and gen < len(result.nodes_length_max):
+                    gen_nodes_max_values.append(result.nodes_length_max[gen])
+                if hasattr(result, 'nodes_length_min') and result.nodes_length_min and gen < len(result.nodes_length_min):
+                    gen_nodes_min_values.append(result.nodes_length_min[gen])
             
             # Calculate statistics for this generation
             aggregate_data['avg_max'].append(sum(gen_max_values) / len(gen_max_values) if gen_max_values else 0)
@@ -424,6 +459,18 @@ class AnalysisController(BaseController):
             aggregate_data['std_min'].append(self._calculate_std(gen_min_values) if gen_min_values else 0)
             aggregate_data['avg_test'].append(sum(gen_test_values) / len(gen_test_values) if gen_test_values else None)
             aggregate_data['std_test'].append(self._calculate_std(gen_test_values) if gen_test_values else None)
+            
+            # Invalid count statistics
+            aggregate_data['invalid_count_avg'].append(sum(gen_invalid_avg_values) / len(gen_invalid_avg_values) if gen_invalid_avg_values else 0)
+            aggregate_data['invalid_count_std'].append(self._calculate_std(gen_invalid_avg_values) if gen_invalid_avg_values else 0)
+            aggregate_data['invalid_count_max'].append(max(gen_invalid_max_values) if gen_invalid_max_values else 0)
+            aggregate_data['invalid_count_min'].append(min(gen_invalid_min_values) if gen_invalid_min_values else 0)
+            
+            # Nodes length statistics
+            aggregate_data['nodes_length_avg'].append(sum(gen_nodes_avg_values) / len(gen_nodes_avg_values) if gen_nodes_avg_values else 0)
+            aggregate_data['nodes_length_std'].append(self._calculate_std(gen_nodes_avg_values) if gen_nodes_avg_values else 0)
+            aggregate_data['nodes_length_max'].append(max(gen_nodes_max_values) if gen_nodes_max_values else 0)
+            aggregate_data['nodes_length_min'].append(min(gen_nodes_min_values) if gen_nodes_min_values else 0)
         
         return aggregate_data
     

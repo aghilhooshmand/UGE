@@ -19,6 +19,7 @@ Views are responsible for:
 - Managing UI state and interactions
 """
 
+from .home_view import HomeView
 from .setup_view import SetupView
 from .analysis_view import AnalysisView
 from .dataset_view import DatasetView
@@ -26,4 +27,4 @@ from .grammar_view import GrammarView
 from .setup_manager_view import SetupManagerView
 from .comparison_view import ComparisonView
 
-__all__ = ['SetupView', 'AnalysisView', 'DatasetView', 'GrammarView', 'SetupManagerView', 'ComparisonView']
+__all__ = ['HomeView', 'SetupView', 'AnalysisView', 'DatasetView', 'GrammarView', 'SetupManagerView', 'ComparisonView']

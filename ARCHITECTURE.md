@@ -59,8 +59,11 @@ uge/
 │   │   ├── forms.py        # Form components
 │   │   └── charts.py       # Chart components
 │   ├── dataset_view.py     # Dataset management view
-│   ├── setup_view.py  # Setup configuration view
-│   └── analysis_view.py    # Results analysis view
+│   ├── setup_view.py       # Setup configuration view
+│   ├── analysis_view.py    # Results analysis view
+│   ├── grammar_view.py     # BNF grammar editor with CRUD operations
+│   ├── setup_manager_view.py # Setup management and monitoring view
+│   └── comparison_view.py  # Setup comparison and analysis view
 ├── controllers/      # Business Logic Orchestration (C in MVC)
 │   ├── base_controller.py     # Base controller class
 │   ├── dataset_controller.py  # Dataset operations
@@ -206,6 +209,36 @@ class Charts:
 - Visualize fitness evolution
 - Compare multiple setups
 - Provide detailed run analysis
+
+#### Grammar View (`uge/views/grammar_view.py`)
+```python
+class GrammarView:
+    """
+    Professional BNF grammar editor with full CRUD operations.
+    
+    Features:
+    - View existing grammars (read-only)
+    - Add new grammar files with validation
+    - Edit existing grammar content
+    - Delete grammars with safety confirmation
+    - Template loading and form management
+    """
+    def render_grammar_editor(self, grammars: List[str]) -> None
+    def _render_view_grammar(self, grammars: List[str]) -> None
+    def _render_add_grammar(self) -> None
+    def _render_edit_grammar(self, grammars: List[str]) -> None
+    def _render_delete_grammar(self, grammars: List[str]) -> None
+    def _validate_grammar_input(self, name: str, content: str) -> bool
+    def _save_new_grammar(self, name: str, content: str) -> bool
+    def _delete_grammar(self, name: str) -> bool
+```
+
+**Responsibilities:**
+- Provide professional-grade grammar editing interface
+- Implement full CRUD operations for BNF files
+- Validate grammar input and file operations
+- Manage session state for grammar editing
+- Provide safety features and confirmation dialogs
 
 ### 3. Controllers Layer
 
