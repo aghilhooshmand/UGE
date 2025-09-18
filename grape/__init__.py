@@ -9,6 +9,5 @@ Author: UGE Team
 
 from .grape import *
 from .algorithms import *
-from .functions import *
 
-__all__ = ['grape', 'algorithms', 'functions']
+__all__ = ['grape', 'algorithms']

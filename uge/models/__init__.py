@@ -14,5 +14,6 @@ Each model encapsulates data and the operations that can be performed on that da
 from .setup import Setup
 from .dataset import Dataset
 from .grammar import Grammar
+from .operator import CustomOperator, OperatorRegistry
 
-__all__ = ['Setup', 'Dataset', 'Grammar']
+__all__ = ['Setup', 'Dataset', 'Grammar', 'CustomOperator', 'OperatorRegistry']

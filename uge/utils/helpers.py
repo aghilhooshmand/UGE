@@ -18,8 +18,27 @@ import uuid
 import datetime as dt
 import numpy as np
 
-# Import functions needed for phenotype evaluation
-from grape import functions
+# Import operator service for dynamic function mapping
+from uge.services.operator_service import OperatorService
+from uge.services.storage_service import StorageService
+
+
+# Global operator service instance for dynamic function mapping
+_operator_service = None
+
+
+def get_operator_service():
+    """
+    Get the global operator service instance.
+    
+    Returns:
+        OperatorService: The global operator service instance
+    """
+    global _operator_service
+    if _operator_service is None:
+        storage_service = StorageService()
+        _operator_service = OperatorService(storage_service)
+    return _operator_service
 
 
 def create_setup_id():
@@ -129,34 +148,21 @@ def fitness_eval(individual, points, metric='mae'):
         return np.nan,
     
     try:
-        # Create evaluation context with all necessary functions
+        # Get operator service and create dynamic function mapping
+        operator_service = get_operator_service()
+        
+        # Get all available operators for dynamic mapping
+        all_operators = operator_service.get_all_operators()
+        function_mapping = operator_service.create_operator_function_mapping(list(all_operators.keys()))
+        
+        # Create evaluation context with dynamic function mapping
         eval_context = {
             'x': x,  # Make the data available as 'x'
-            'and_': functions.and_,
-            'or_': functions.or_,
-            'not_': functions.not_,
-            'nand_': functions.nand_,
-            'nor_': functions.nor_,
-            'add': functions.add,
-            'sub': functions.sub,
-            'mul': functions.mul,
-            'pdiv': functions.pdiv,
-            'greater_than_or_equal': functions.greater_than_or_equal,
-            'less_than_or_equal': functions.less_than_or_equal,
-            'if_': functions.if_,
-            'sigmoid': functions.sigmoid,
-            'minimum': functions.minimum,
-            'maximum': functions.maximum,
-            'psin': functions.psin,
-            'pcos': functions.pcos,
-            'psqrt': functions.psqrt,
-            'max_': functions.max_,
-            'min_': functions.min_,
-            'plog': functions.plog,
-            'exp': functions.exp,
-            'neg': functions.neg,
             'np': np,  # Make numpy available
         }
+        
+        # Add all dynamically mapped functions to evaluation context
+        eval_context.update(function_mapping)
         
         # Evaluate the generated phenotype (Python code)
         pred = eval(individual.phenotype, eval_context)

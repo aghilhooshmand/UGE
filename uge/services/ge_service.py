@@ -18,7 +18,7 @@ from typing import Dict, List, Optional, Any, Tuple, Callable
 from pathlib import Path
 
 # Import third-party libraries
-from grape import grape, algorithms, functions
+from grape import grape, algorithms
 from deap import creator, base, tools
 
 # Import our models and utilities

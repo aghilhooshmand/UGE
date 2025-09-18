@@ -29,8 +29,10 @@ from uge.views.analysis_view import AnalysisView
 from uge.views.grammar_view import GrammarView
 from uge.views.setup_manager_view import SetupManagerView
 from uge.views.comparison_view import ComparisonView
+from uge.views.operator_view import OperatorView
 from uge.services.storage_service import StorageService
 from uge.services.dataset_service import DatasetService
+from uge.services.operator_service import OperatorService
 from uge.utils.constants import FILE_PATHS, HELP
 from uge import __version__, BUILD_INFO
 
@@ -61,6 +63,7 @@ class UGEApp:
         
         self.storage_service = StorageService()
         self.dataset_service = DatasetService()
+        self.operator_service = OperatorService(self.storage_service)
         
         # Initialize views
         self.home_view = HomeView()
@@ -77,6 +80,7 @@ class UGEApp:
         self.grammar_view = GrammarView()
         self.setup_manager_view = SetupManagerView(self.storage_service)
         self.comparison_view = ComparisonView(self.storage_service)
+        self.operator_view = OperatorView(self.operator_service)
     
     def _on_setup_start(self, setup):
         """Callback when setup starts."""
@@ -207,9 +211,9 @@ class UGEApp:
             page = st.selectbox(
                 "Select Page:",
                 ["🏠 Home", "🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
-                 "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"],
+                 "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison", "🔧 Operator Manager"],
                 index=["🏠 Home", "🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", 
-                       "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"].index(current_page) if current_page in ["🏠 Home", "🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison"] else 0,
+                       "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison", "🔧 Operator Manager"].index(current_page) if current_page in ["🏠 Home", "🏃 Run Setup", "📊 Dataset Manager", "📝 Grammar Editor", "🧪 Setup Manager", "📈 Analysis", "⚖️ Comparison", "🔧 Operator Manager"] else 0,
                 key="main_navigation",
                 label_visibility="collapsed"
             )
@@ -323,6 +327,8 @@ class UGEApp:
                 self.analysis_view.render([])
         elif page == "⚖️ Comparison":
             self.comparison_view.render_comparison(self.analysis_controller)
+        elif page == "🔧 Operator Manager":
+            self.operator_view.render()
         else:
             st.error(f"Unknown page: {page}")
     

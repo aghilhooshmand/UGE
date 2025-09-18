@@ -312,3 +312,48 @@ class StorageService:
                 continue
         
         return deleted_count
+    
+    def exists(self, file_path: str) -> bool:
+        """
+        Check if a file or directory exists.
+        
+        Args:
+            file_path (str): Path to check
+            
+        Returns:
+            bool: True if file exists, False otherwise
+        """
+        path = Path(file_path)
+        return path.exists()
+    
+    def save_json(self, file_path: str, data: Dict[str, Any]) -> None:
+        """
+        Save data to JSON file.
+        
+        Args:
+            file_path (str): Path to save the JSON file
+            data (Dict[str, Any]): Data to save
+        """
+        path = Path(file_path)
+        # Ensure parent directory exists
+        path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
+    
+    def load_json(self, file_path: str) -> Dict[str, Any]:
+        """
+        Load data from JSON file.
+        
+        Args:
+            file_path (str): Path to load the JSON file from
+            
+        Returns:
+            Dict[str, Any]: Loaded data
+        """
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        with open(path, 'r') as f:
+            return json.load(f)
