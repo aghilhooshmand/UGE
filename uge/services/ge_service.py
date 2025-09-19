@@ -226,81 +226,276 @@ class GEService:
         stats.register("max", np.nanmax)
         return stats
     
-    def _create_generation_config(self, config: SetupConfig, generation: int) -> GenerationConfig:
+    def _generate_dynamic_parameter(self, param_config: dict, generation: int, random_seed: int) -> any:
         """
-        Create a GenerationConfig for a specific generation.
+        Generate a dynamic parameter value based on configuration.
         
-        For fixed evolution: all configurations are the same across generations.
-        For dynamic evolution: configurations can be modified based on generation number.
+        Args:
+            param_config (dict): Parameter configuration with mode, value, low, high, options
+            generation (int): Current generation number
+            random_seed (int): Base random seed
+            
+        Returns:
+            any: Generated parameter value (int, float, or string)
+        """
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            # Use generation-specific seed for reproducible randomness
+            random.seed(random_seed + generation)
+            
+            # Check if this is a categorical parameter
+            if param_config.get('options') is not None:
+                # Categorical parameter - randomly select from options
+                value = random.choice(param_config['options'])
+                param_name = param_config.get('name', 'parameter')
+                print(f"Generation {generation}: Dynamic {param_name} = {value} (options: {param_config['options']})")
+                return value
+            else:
+                # Numerical parameter - generate random value within range
+                if isinstance(param_config['low'], float):
+                    # For float parameters (probabilities)
+                    value = random.uniform(param_config['low'], param_config['high'])
+                else:
+                    # For integer parameters
+                    value = random.randint(param_config['low'], param_config['high'])
+                
+                # Debug logging
+                param_name = param_config.get('name', 'parameter')
+                print(f"Generation {generation}: Dynamic {param_name} = {value} (range: {param_config['low']}-{param_config['high']})")
+                
+                return value
+        else:
+            # Fallback to fixed value
+            return param_config['value']
+
+    def _create_generation_config(self, config: SetupConfig, generation: int, parameter_configs: dict = None) -> GenerationConfig:
+        """
+        Create generation-specific configuration using dynamic parameter system.
         
         Args:
             config (SetupConfig): Base setup configuration
-            generation (int): Generation number (0-based)
+            generation (int): Generation number
+            parameter_configs (dict): Parameter configuration settings for each parameter
             
         Returns:
             GenerationConfig: Configuration for the specified generation
         """
-        if config.evolution_type == 'fixed':
-            # Fixed evolution: use the same configuration for all generations
-            return GenerationConfig(
-                generation=generation,
-                population=config.population,
-                p_crossover=config.p_crossover,
-                p_mutation=config.p_mutation,
-                elite_size=config.elite_size,
-                tournsize=config.tournsize,
-                halloffame_size=config.halloffame_size,
-                max_tree_depth=config.max_tree_depth,
-                codon_size=config.codon_size,
-                codon_consumption=config.codon_consumption,
-                genome_representation=config.genome_representation
-            )
+        # If no parameter configs provided, use fixed values
+        if not parameter_configs:
+            dynamic_configs = {
+                'elite_size': {'mode': 'fixed', 'value': config.elite_size},
+                'p_crossover': {'mode': 'fixed', 'value': config.p_crossover},
+                'p_mutation': {'mode': 'fixed', 'value': config.p_mutation},
+                'tournsize': {'mode': 'fixed', 'value': config.tournsize},
+                'halloffame_size': {'mode': 'fixed', 'value': config.halloffame_size},
+                'max_tree_depth': {'mode': 'fixed', 'value': config.max_tree_depth},
+                'min_init_tree_depth': {'mode': 'fixed', 'value': config.min_init_tree_depth},
+                'max_init_tree_depth': {'mode': 'fixed', 'value': config.max_init_tree_depth},
+                'min_init_genome_length': {'mode': 'fixed', 'value': config.min_init_genome_length},
+                'max_init_genome_length': {'mode': 'fixed', 'value': config.max_init_genome_length},
+                'codon_size': {'mode': 'fixed', 'value': config.codon_size},
+                'codon_consumption': {'mode': 'fixed', 'value': config.codon_consumption},
+                'genome_representation': {'mode': 'fixed', 'value': config.genome_representation},
+                'initialisation': {'mode': 'fixed', 'value': config.initialisation}
+            }
         
-        elif config.evolution_type == 'dynamic':
-            # Dynamic evolution: modify parameters based on generation
-            # This is where you can implement adaptive strategies
-            # For now, we'll use the same config but this can be extended
-            
-            # Example: Gradually increase mutation rate over generations
-            # p_mutation = config.p_mutation * (1 + 0.1 * generation / config.generations)
-            
-            # Example: Adjust population size based on generation
-            # population = int(config.population * (1 + 0.05 * generation / config.generations))
-            
-            # For now, return the same configuration (can be extended later)
-            return GenerationConfig(
-                generation=generation,
-                population=config.population,
-                p_crossover=config.p_crossover,
-                p_mutation=config.p_mutation,
-                elite_size=config.elite_size,
-                tournsize=config.tournsize,
-                halloffame_size=config.halloffame_size,
-                max_tree_depth=config.max_tree_depth,
-                codon_size=config.codon_size,
-                codon_consumption=config.codon_consumption,
-                genome_representation=config.genome_representation
-            )
+        # Generate dynamic parameters
+        elite_size = self._generate_dynamic_parameter(
+            parameter_configs.get('elite_size', {'mode': 'fixed', 'value': config.elite_size}),
+            generation, config.random_seed
+        )
         
-        else:
-            # Fallback to fixed evolution for unknown types
-            return GenerationConfig(
-                generation=generation,
-                population=config.population,
-                p_crossover=config.p_crossover,
-                p_mutation=config.p_mutation,
-                elite_size=config.elite_size,
-                tournsize=config.tournsize,
-                halloffame_size=config.halloffame_size,
-                max_tree_depth=config.max_tree_depth,
-                codon_size=config.codon_size,
-                codon_consumption=config.codon_consumption,
-                genome_representation=config.genome_representation
-            )
+        p_crossover = self._generate_dynamic_parameter(
+            parameter_configs.get('p_crossover', {'mode': 'fixed', 'value': config.p_crossover}),
+            generation, config.random_seed
+        )
+        
+        p_mutation = self._generate_dynamic_parameter(
+            parameter_configs.get('p_mutation', {'mode': 'fixed', 'value': config.p_mutation}),
+            generation, config.random_seed
+        )
+        
+        tournsize = self._generate_dynamic_parameter(
+            parameter_configs.get('tournsize', {'mode': 'fixed', 'value': config.tournsize}),
+            generation, config.random_seed
+        )
+        
+        halloffame_size = self._generate_dynamic_parameter(
+            parameter_configs.get('halloffame_size', {'mode': 'fixed', 'value': config.halloffame_size}),
+            generation, config.random_seed
+        )
+        
+        # Generate dynamic tree parameters
+        max_tree_depth = self._generate_dynamic_parameter(
+            parameter_configs.get('max_tree_depth', {'mode': 'fixed', 'value': config.max_tree_depth}),
+            generation, config.random_seed
+        )
+        
+        min_init_tree_depth = self._generate_dynamic_parameter(
+            parameter_configs.get('min_init_tree_depth', {'mode': 'fixed', 'value': config.min_init_tree_depth}),
+            generation, config.random_seed
+        )
+        
+        max_init_tree_depth = self._generate_dynamic_parameter(
+            parameter_configs.get('max_init_tree_depth', {'mode': 'fixed', 'value': config.max_init_tree_depth}),
+            generation, config.random_seed
+        )
+        
+        # Generate dynamic genome parameters
+        min_init_genome_length = self._generate_dynamic_parameter(
+            parameter_configs.get('min_init_genome_length', {'mode': 'fixed', 'value': config.min_init_genome_length}),
+            generation, config.random_seed
+        )
+        
+        max_init_genome_length = self._generate_dynamic_parameter(
+            parameter_configs.get('max_init_genome_length', {'mode': 'fixed', 'value': config.max_init_genome_length}),
+            generation, config.random_seed
+        )
+        
+        codon_size = self._generate_dynamic_parameter(
+            parameter_configs.get('codon_size', {'mode': 'fixed', 'value': config.codon_size}),
+            generation, config.random_seed
+        )
+        
+        # Generate dynamic categorical parameters
+        codon_consumption = self._generate_dynamic_parameter(
+            parameter_configs.get('codon_consumption', {'mode': 'fixed', 'value': config.codon_consumption}),
+            generation, config.random_seed
+        )
+        
+        genome_representation = self._generate_dynamic_parameter(
+            parameter_configs.get('genome_representation', {'mode': 'fixed', 'value': config.genome_representation}),
+            generation, config.random_seed
+        )
+        
+        initialisation = self._generate_dynamic_parameter(
+            parameter_configs.get('initialisation', {'mode': 'fixed', 'value': config.initialisation}),
+            generation, config.random_seed
+        )
+        
+        return GenerationConfig(
+            generation=generation,
+            population=config.population,
+            p_crossover=p_crossover,
+            p_mutation=p_mutation,
+            elite_size=int(elite_size),  # Ensure integer for elite_size
+            tournsize=int(tournsize),    # Ensure integer for tournsize
+            halloffame_size=int(halloffame_size),  # Ensure integer for halloffame_size
+            max_tree_depth=int(max_tree_depth),  # Ensure integer for max_tree_depth
+            min_init_tree_depth=int(min_init_tree_depth),  # Ensure integer for min_init_tree_depth
+            max_init_tree_depth=int(max_init_tree_depth),  # Ensure integer for max_init_tree_depth
+            min_init_genome_length=int(min_init_genome_length),  # Ensure integer for min_init_genome_length
+            max_init_genome_length=int(max_init_genome_length),  # Ensure integer for max_init_genome_length
+            codon_size=int(codon_size),  # Ensure integer for codon_size
+            codon_consumption=codon_consumption,
+            genome_representation=genome_representation,
+            initialisation=initialisation
+        )
+    
+    def _run_dynamic_evolution(self, population, toolbox, config, bnf_grammar, 
+                              X_train, Y_train, X_test, Y_test, 
+                              report_items, stats, halloffame, verbose, 
+                              generation_configs, parameter_configs):
+        """
+        Run evolution with dynamic parameters that can change per generation.
+        
+        This method implements a custom evolution loop that allows for dynamic
+        parameter changes (like elite_size) during evolution.
+        """
+        from deap import tools
+        
+        # Initialize logbook
+        logbook = tools.Logbook()
+        logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+        
+        # Evaluate the initial population
+        fitnesses = list(map(toolbox.evaluate, population))
+        for ind, fit in zip(population, fitnesses):
+            ind.fitness.values = fit
+        
+        # Record initial statistics
+        if halloffame is not None:
+            halloffame.update(population)
+        
+        record = stats.compile(population) if stats else {}
+        logbook.record(gen=0, nevals=len(population), **record)
+        
+        if verbose:
+            print(logbook.stream)
+        
+        # Evolution loop
+        for gen in range(1, config.generations + 1):
+            # Get generation-specific configuration
+            gen_config = self._create_generation_config(config, gen, dynamic_configs)
+            
+            # Update generation configs list
+            if generation_configs is not None:
+                generation_configs.append(gen_config)
+            
+            # Select parents
+            offspring = toolbox.select(population, len(population))
+            
+            # Clone the selected individuals
+            offspring = list(map(toolbox.clone, offspring))
+            
+            # Apply crossover using dynamic parameters
+            for child1, child2 in zip(offspring[::2], offspring[1::2]):
+                if random.random() < gen_config.p_crossover:
+                    toolbox.mate(child1, child2)
+                    del child1.fitness.values, child2.fitness.values
+            
+            # Apply mutation using dynamic parameters
+            for mutant in offspring:
+                if random.random() < gen_config.p_mutation:
+                    toolbox.mutate(mutant)
+                    del mutant.fitness.values
+            
+            # Evaluate individuals with invalid fitness
+            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+            fitnesses = map(toolbox.evaluate, invalid_ind)
+            for ind, fit in zip(invalid_ind, fitnesses):
+                ind.fitness.values = fit
+            
+            # Update hall of fame with the current population
+            if halloffame is not None:
+                halloffame.update(offspring)
+            
+            # Apply elitism using the dynamic elite size
+            if gen_config.elite_size > 0:
+                # Sort offspring by fitness (descending for maximization, ascending for minimization)
+                if config.fitness_direction == 1:  # Maximization
+                    offspring_sorted = sorted(offspring, key=lambda ind: ind.fitness.values[0], reverse=True)
+                else:  # Minimization
+                    offspring_sorted = sorted(offspring, key=lambda ind: ind.fitness.values[0], reverse=False)
+                
+                # Replace worst individuals with best individuals from hall of fame
+                if halloffame is not None and len(halloffame) > 0:
+                    elite_individuals = halloffame.items[:gen_config.elite_size]
+                    for i, elite in enumerate(elite_individuals):
+                        if i < len(offspring_sorted):
+                            offspring_sorted[-(i+1)] = toolbox.clone(elite)
+                
+                # Replace the current population with the modified offspring
+                population[:] = offspring_sorted
+            else:
+                # Replace the current population with the offspring (no elitism)
+                population[:] = offspring
+            
+            # Record statistics for this generation
+            record = stats.compile(population) if stats else {}
+            logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+            
+            if verbose:
+                print(logbook.stream)
+        
+        return population, logbook
     
     def run_setup(self, config: SetupConfig, dataset: Dataset, 
                       grammar: Grammar, report_items: List[str],
-                      live_placeholder=None) -> SetupResult:
+                      parameter_configs: dict = None, live_placeholder=None) -> SetupResult:
         """
         Run a complete GE setup.
         
@@ -369,30 +564,46 @@ class GEService:
             track_configs = DEFAULT_CONFIG.get('track_generation_configs', True)
             
             with (contextlib.redirect_stdout(logger) if logger else contextlib.nullcontext()):
-                population, logbook = algorithms.ge_eaSimpleWithElitism(
-                    population, toolbox, 
-                    cxpb=config.p_crossover, 
-                    mutpb=config.p_mutation,
-                    ngen=config.generations, 
-                    elite_size=config.elite_size,
-                    bnf_grammar=bnf_grammar,
-                    codon_size=config.codon_size,
-                    max_tree_depth=config.max_tree_depth,
-                    max_genome_length=config.max_init_genome_length,
-                    points_train=[X_train, Y_train],
-                    points_test=[X_test, Y_test],
-                    codon_consumption=config.codon_consumption,
-                    report_items=report_items,
-                    genome_representation=config.genome_representation,
-                    stats=stats, 
-                    halloffame=hof, 
-                    verbose=True
+                # Check if we have any dynamic configurations
+                has_dynamic = parameter_configs and any(
+                    config.get('mode') == 'dynamic' 
+                    for config in parameter_configs.values()
                 )
+                
+                if has_dynamic:
+                    # Use custom evolution loop with dynamic parameters
+                    population, logbook = self._run_dynamic_evolution(
+                        population, toolbox, config, bnf_grammar, 
+                        X_train, Y_train, X_test, Y_test, 
+                        report_items, stats, hof, True, 
+                        generation_configs, parameter_configs
+                    )
+                else:
+                    # Use standard evolution with fixed parameters
+                    population, logbook = algorithms.ge_eaSimpleWithElitism(
+                        population, toolbox, 
+                        cxpb=config.p_crossover, 
+                        mutpb=config.p_mutation,
+                        ngen=config.generations, 
+                        elite_size=config.elite_size,
+                        bnf_grammar=bnf_grammar,
+                        codon_size=config.codon_size,
+                        max_tree_depth=config.max_tree_depth,
+                        max_genome_length=config.max_init_genome_length,
+                        points_train=[X_train, Y_train],
+                        points_test=[X_test, Y_test],
+                        codon_consumption=config.codon_consumption,
+                        report_items=report_items,
+                        genome_representation=config.genome_representation,
+                        stats=stats, 
+                        halloffame=hof, 
+                        verbose=True
+                    )
             
             # Create generation configurations for all generations
             if track_configs:
                 for gen in range(config.generations + 1):  # +1 to include generation 0
-                    generation_configs.append(self._create_generation_config(config, gen))
+                    generation_configs.append(self._create_generation_config(config, gen, parameter_configs))
             
             # Process results
             result = self._process_results(config, logbook, hof, report_items, generation_configs)
@@ -524,5 +735,25 @@ class GEService:
         valid_evolution_types = ['fixed', 'dynamic']
         if config.evolution_type not in valid_evolution_types:
             warnings.append(f"Evolution type must be one of: {valid_evolution_types}")
+        
+        # Check dynamic elite configuration
+        if config.elite_dynamic_config:
+            if not isinstance(config.elite_dynamic_config, dict):
+                warnings.append("Elite dynamic config must be a dictionary")
+            else:
+                if 'low' not in config.elite_dynamic_config or 'high' not in config.elite_dynamic_config:
+                    warnings.append("Elite dynamic config must contain 'low' and 'high' keys")
+                else:
+                    low = config.elite_dynamic_config['low']
+                    high = config.elite_dynamic_config['high']
+                    
+                    if not isinstance(low, int) or not isinstance(high, int):
+                        warnings.append("Elite dynamic config values must be integers")
+                    elif low < 0:
+                        warnings.append("Elite dynamic config 'low' must be >= 0")
+                    elif high > config.population:
+                        warnings.append("Elite dynamic config 'high' cannot be larger than population size")
+                    elif low > high:
+                        warnings.append("Elite dynamic config 'low' must be <= 'high'")
         
         return warnings

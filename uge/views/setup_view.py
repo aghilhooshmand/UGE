@@ -108,6 +108,9 @@ class SetupView(BaseView):
                 report_items=form_data['report_items']
             )
             
+            # Store parameter configurations separately
+            parameter_configs = form_data.get('parameter_configs', {})
+            
             # Validate that label column exists in dataset
             if config.dataset != "none":
                 try:
@@ -136,7 +139,7 @@ class SetupView(BaseView):
                 
                 # Run the setup
                 setup = self.setup_controller.run_setup(
-                    config, live_placeholder=live_placeholder,
+                    config, parameter_configs=parameter_configs, live_placeholder=live_placeholder,
                     progress_bar=progress_bar, status_text=status_text, all_runs_container=all_runs_container
                 )
             

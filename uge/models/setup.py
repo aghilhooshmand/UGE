@@ -86,6 +86,7 @@ class SetupConfig:
     p_crossover: float = 0.8
     p_mutation: float = 0.01
     elite_size: int = 1
+    elite_dynamic_config: Optional[Dict[str, int]] = None
     tournsize: int = 7
     halloffame_size: int = 1
     
@@ -126,6 +127,7 @@ class SetupConfig:
             'p_crossover': self.p_crossover,
             'p_mutation': self.p_mutation,
             'elite_size': self.elite_size,
+            'elite_dynamic_config': self.elite_dynamic_config,
             'tournsize': self.tournsize,
             'halloffame_size': self.halloffame_size,
             'max_tree_depth': self.max_tree_depth,
@@ -185,9 +187,14 @@ class GenerationConfig:
     tournsize: int
     halloffame_size: int
     max_tree_depth: int
+    min_init_tree_depth: int
+    max_init_tree_depth: int
+    min_init_genome_length: int
+    max_init_genome_length: int
     codon_size: int
     codon_consumption: str
     genome_representation: str
+    initialisation: str
     timestamp: str = field(default_factory=lambda: dt.datetime.now(dt.timezone.utc).isoformat())
     
     def to_dict(self) -> Dict[str, Any]:
@@ -201,9 +208,14 @@ class GenerationConfig:
             'tournsize': self.tournsize,
             'halloffame_size': self.halloffame_size,
             'max_tree_depth': self.max_tree_depth,
+            'min_init_tree_depth': self.min_init_tree_depth,
+            'max_init_tree_depth': self.max_init_tree_depth,
+            'min_init_genome_length': self.min_init_genome_length,
+            'max_init_genome_length': self.max_init_genome_length,
             'codon_size': self.codon_size,
             'codon_consumption': self.codon_consumption,
             'genome_representation': self.genome_representation,
+            'initialisation': self.initialisation,
             'timestamp': self.timestamp
         }
     

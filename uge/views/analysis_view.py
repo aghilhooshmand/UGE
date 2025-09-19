@@ -100,7 +100,7 @@ class AnalysisView(BaseView):
         Args:
             setup (Setup): Setup to analyze
         """
-        st.subheader(f"Analysis: {setup.config.setup_name}")
+        st.subheader(f"Analysis: {setup.config.setup_name or 'Unknown Setup'}")
         
         # Analysis options
         analysis_options = Forms.create_analysis_options_form()
@@ -341,14 +341,14 @@ class AnalysisView(BaseView):
                     st.metric(
                         "Best Run", 
                         f"RUN_{best_run_number}", 
-                        f"{best_run[1].best_training_fitness:.4f}",
+                        f"{best_run[1].best_training_fitness or 0:.4f}",
                         help=f"The run that achieved the highest fitness value. Full run ID: {best_run[0]}"
                     )
                     
                     st.metric(
                         "Worst Run", 
                         f"RUN_{worst_run_number}", 
-                        f"{worst_run[1].best_training_fitness:.4f}",
+                        f"{worst_run[1].best_training_fitness or 0:.4f}",
                         help=f"The run with the lowest fitness value. Full run ID: {worst_run[0]}"
                     )
                     
@@ -449,31 +449,27 @@ class AnalysisView(BaseView):
                     with col1:
                         st.info(insight_text)
                     with col2:
-                        st.metric("", "", help=help_text)
+                        st.metric("ℹ️", "", help=help_text, label_visibility="collapsed")
         
-        # Runs Statistics Panel
+        # Comprehensive Runs Statistics Panel with Generation Data
         if setup.results:
-            with st.expander("📋 Runs Statistics", expanded=True):
-                run_data = []
+            with st.expander("📋 Comprehensive Runs Statistics", expanded=True):
                 # Sort runs by timestamp to get consistent ordering (newest first)
                 sorted_runs = sorted(setup.results.items(), key=lambda x: x[1].timestamp, reverse=True)
                 
+                # Create comprehensive data with generation information
+                comprehensive_data = []
+                
                 for run_idx, (run_id, result) in enumerate(sorted_runs, 1):
-                    # Calculate comprehensive metrics for each run
-                    final_fitness = result.max[-1] if result.max else 0
-                    initial_fitness = result.max[0] if result.max else 0
+                    # Calculate fitness metrics
+                    final_fitness = (result.max[-1] or 0) if result.max else 0
+                    initial_fitness = (result.max[0] or 0) if result.max else 0
                     improvement = final_fitness - initial_fitness
-                    
-                    # Calculate average fitness across all generations
                     avg_fitness = sum(result.avg) / len(result.avg) if result.avg else 0
-                    
-                    # Calculate standard deviation
-                    std_fitness = result.std[-1] if result.std else 0
-                    
-                    # Get test fitness if available
+                    std_fitness = (result.std[-1] or 0) if result.std else 0
                     test_fitness = result.fitness_test[-1] if result.fitness_test else None
                     
-                    # Calculate convergence generation (where improvement becomes minimal)
+                    # Calculate convergence generation
                     convergence_gen = 0
                     if result.max and len(result.max) > 5:
                         total_improvement = result.max[-1] - result.max[0]
@@ -484,26 +480,434 @@ class AnalysisView(BaseView):
                                     convergence_gen = i
                                     break
                     
-                    run_data.append({
+                    # Add run summary data
+                    run_summary = {
                         'Run': f"RUN_{run_idx}",
+                        'Generation': 'SUMMARY',  # Special marker for run summary
                         'Best Fitness': f"{result.best_training_fitness or 0:.4f}",
                         'Final Fitness': f"{final_fitness:.4f}",
                         'Initial Fitness': f"{initial_fitness:.4f}",
                         'Average Fitness': f"{avg_fitness:.4f}",
                         'Std Dev': f"{std_fitness:.4f}",
+                        'Min Fitness': f"{(result.min[-1] or 0):.4f}" if result.min else "N/A",
                         'Improvement': f"{improvement:.4f}",
                         'Test Fitness': f"{test_fitness:.4f}" if test_fitness is not None else "N/A",
+                        'Invalid Count': result.invalid_count_avg[-1] if result.invalid_count_avg else "N/A",
+                        'Avg Length': f"{result.nodes_length_avg[-1]:.2f}" if result.nodes_length_avg else "N/A",
+                        'Avg Nodes': f"{result.nodes_length_avg[-1]:.2f}" if result.nodes_length_avg else "N/A",
+                        'Avg Depth': f"{result.best_depth:.2f}" if result.best_depth else "N/A",
+                        'Avg Used Codons': f"{result.best_used_codons:.2%}" if result.best_used_codons else "N/A",
                         'Best Depth': result.best_depth or 0,
                         'Genome Length': result.best_genome_length or 0,
                         'Used Codons': f"{(result.best_used_codons or 0):.2%}",
                         'Generations': len(result.max),
                         'Convergence Gen': convergence_gen,
                         'Best Phenotype': result.best_phenotype or "N/A",
-                        'Timestamp': result.timestamp
+                        'Timestamp': result.timestamp,
+                        # Configuration parameters (using setup config for summary)
+                        'Population': setup.config.population,
+                        'P Crossover': f"{setup.config.p_crossover:.3f}",
+                        'P Mutation': f"{setup.config.p_mutation:.3f}",
+                        'Elite Size': setup.config.elite_size,
+                        'Tournament Size': setup.config.tournsize,
+                        'Hall of Fame Size': setup.config.halloffame_size,
+                        'Max Tree Depth': setup.config.max_tree_depth,
+                        'Codon Size': setup.config.codon_size,
+                        'Codon Consumption': setup.config.codon_consumption,
+                        'Genome Representation': setup.config.genome_representation
+                    }
+                    comprehensive_data.append(run_summary)
+                    
+                    # Add generation data for this run
+                    num_generations = len(result.max) if result.max else 0
+                    for gen in range(num_generations):
+                        # Get generation-specific configuration if available
+                        gen_config = None
+                        if result.generation_configs and gen < len(result.generation_configs):
+                            gen_config = result.generation_configs[gen]
+                        
+                        gen_data = {
+                            'Run': f"RUN_{run_idx}",
+                            'Generation': str(gen),
+                            'Best Fitness': f"{(result.max[gen] or 0):.4f}" if result.max and gen < len(result.max) else "N/A",
+                            'Final Fitness': f"{final_fitness:.4f}",  # Keep final fitness for reference
+                            'Initial Fitness': f"{initial_fitness:.4f}",  # Keep initial fitness for reference
+                            'Average Fitness': f"{(result.avg[gen] or 0):.4f}" if result.avg and gen < len(result.avg) else "N/A",
+                            'Std Dev': f"{(result.std[gen] or 0):.4f}" if result.std and gen < len(result.std) else "N/A",
+                            'Min Fitness': f"{(result.min[gen] or 0):.4f}" if result.min and gen < len(result.min) else "N/A",
+                            'Test Fitness': f"{(result.fitness_test[gen] or 0):.4f}" if result.fitness_test and gen < len(result.fitness_test) else "N/A",
+                            'Invalid Count': result.invalid_count_avg[gen] if result.invalid_count_avg and gen < len(result.invalid_count_avg) else "N/A",
+                            'Avg Length': f"{(result.nodes_length_avg[gen] or 0):.2f}" if result.nodes_length_avg and gen < len(result.nodes_length_avg) else "N/A",
+                            'Avg Nodes': f"{(result.nodes_length_avg[gen] or 0):.2f}" if result.nodes_length_avg and gen < len(result.nodes_length_avg) else "N/A",
+                            'Avg Depth': f"{(result.best_depth or 0):.2f}" if result.best_depth else "N/A",
+                            'Avg Used Codons': f"{(result.best_used_codons or 0):.2%}" if result.best_used_codons else "N/A",
+                            'Improvement': f"{improvement:.4f}",  # Keep improvement for reference
+                            'Best Depth': result.best_depth or 0,
+                            'Genome Length': result.best_genome_length or 0,
+                            'Used Codons': f"{(result.best_used_codons or 0):.2%}",
+                            'Generations': len(result.max),
+                            'Convergence Gen': convergence_gen,
+                            'Best Phenotype': result.best_phenotype or "N/A",
+                            'Timestamp': result.timestamp,
+                            # Configuration parameters
+                            'Population': gen_config.population if gen_config else setup.config.population,
+                            'P Crossover': f"{gen_config.p_crossover:.3f}" if gen_config else f"{setup.config.p_crossover:.3f}",
+                            'P Mutation': f"{gen_config.p_mutation:.3f}" if gen_config else f"{setup.config.p_mutation:.3f}",
+                            'Elite Size': gen_config.elite_size if gen_config else setup.config.elite_size,
+                            'Tournament Size': gen_config.tournsize if gen_config else setup.config.tournsize,
+                            'Hall of Fame Size': gen_config.halloffame_size if gen_config else setup.config.halloffame_size,
+                            'Max Tree Depth': gen_config.max_tree_depth if gen_config else setup.config.max_tree_depth,
+                            'Codon Size': gen_config.codon_size if gen_config else setup.config.codon_size,
+                            'Codon Consumption': gen_config.codon_consumption if gen_config else setup.config.codon_consumption,
+                            'Genome Representation': gen_config.genome_representation if gen_config else setup.config.genome_representation
+                        }
+                        comprehensive_data.append(gen_data)
+                
+                comprehensive_df = pd.DataFrame(comprehensive_data)
+                
+                # Add filtering options
+                st.markdown("**🔍 Filter Options:**")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    # Filter by run
+                    available_runs = ['All'] + [f"RUN_{i}" for i in range(1, len(sorted_runs) + 1)]
+                    selected_run_filter = st.selectbox("Filter by Run:", available_runs, key="run_filter")
+                
+                with col2:
+                    # Filter by data type
+                    data_type_filter = st.selectbox("Show:", ["All Data", "Run Summaries Only", "Generation Data Only"], key="data_type_filter")
+                
+                with col3:
+                    # Filter by generation range
+                    gen_data = comprehensive_df[comprehensive_df['Generation'] != 'SUMMARY']['Generation']
+                    if gen_data.notna().any():
+                        # Convert string generation numbers to int for max calculation
+                        numeric_gens = [int(g) for g in gen_data if g.isdigit()]
+                        if numeric_gens:
+                            max_gen = max(numeric_gens)
+                            gen_range = st.slider("Generation Range:", 0, max_gen, (0, max_gen), key="gen_range")
+                        else:
+                            gen_range = (0, 0)
+                    else:
+                        gen_range = (0, 0)
+                
+                # Apply filters
+                filtered_df = comprehensive_df.copy()
+                
+                # Filter by run
+                if selected_run_filter != 'All':
+                    filtered_df = filtered_df[filtered_df['Run'] == selected_run_filter]
+                
+                # Filter by data type
+                if data_type_filter == "Run Summaries Only":
+                    filtered_df = filtered_df[filtered_df['Generation'] == 'SUMMARY']
+                elif data_type_filter == "Generation Data Only":
+                    filtered_df = filtered_df[filtered_df['Generation'] != 'SUMMARY']
+                
+                # Filter by generation range (only for generation data)
+                if data_type_filter != "Run Summaries Only":
+                    # Handle mixed data types (string 'SUMMARY' vs string generation numbers)
+                    def is_in_range(generation):
+                        if generation == 'SUMMARY':
+                            return True  # Always include SUMMARY rows
+                        elif isinstance(generation, str) and generation.isdigit():
+                            gen_num = int(generation)
+                            return gen_range[0] <= gen_num <= gen_range[1]
+                        else:
+                            return False  # Exclude other non-numeric values
+                    
+                    filtered_df = filtered_df[filtered_df['Generation'].apply(is_in_range)]
+                
+                # Display the filtered table
+                st.markdown(f"**📊 Comprehensive Data ({len(filtered_df)} rows):**")
+                
+                # Make dataframe selectable
+                selected_row = st.dataframe(
+                    filtered_df, 
+                    hide_index=True,
+                    width='stretch',
+                    on_select="rerun",
+                    selection_mode="single-row",
+                    key="comprehensive_table"
+                )
+                
+                # Show detailed information for selected row
+                if selected_row.selection.rows:
+                    selected_row_idx = selected_row.selection.rows[0]
+                    selected_data = filtered_df.iloc[selected_row_idx]
+                    
+                    st.divider()
+                    if selected_data['Generation'] == 'SUMMARY':
+                        st.markdown(f"**🔍 Selected: {selected_data['Run']} - Run Summary**")
+                    else:
+                        st.markdown(f"**🔍 Selected: {selected_data['Run']} - Generation {selected_data['Generation']}**")
+                    
+                    # Display detailed information
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("**📈 Fitness Metrics:**")
+                        st.metric("Best Training Fitness", selected_data['Best Fitness'])
+                        st.metric("Final Fitness", selected_data['Final Fitness'])
+                        st.metric("Average Fitness", selected_data['Average Fitness'])
+                        st.metric("Test Fitness", selected_data['Test Fitness'])
+                    
+                    with col2:
+                        st.markdown("**🧬 Individual Characteristics:**")
+                        st.metric("Best Depth", selected_data['Best Depth'])
+                        st.metric("Genome Length", selected_data['Genome Length'])
+                        st.metric("Used Codons", selected_data['Used Codons'])
+                        st.metric("Total Generations", selected_data['Generations'])
+                    
+                    # Show phenotype if available
+                    if selected_data['Best Phenotype'] != "N/A":
+                        st.markdown("**🎯 Best Phenotype:**")
+                        st.code(selected_data['Best Phenotype'], language="text")
+    
+    def _render_generation_table_for_run(self, run_id: str, result: SetupResult, run_name: str):
+        """Render generation table for a specific run."""
+        
+        st.markdown(f"**Run ID:** `{run_id}`")
+        
+        # Prepare generation data
+        generation_data = []
+        num_generations = len(result.max) if result.max else 0
+        
+        if num_generations == 0:
+            st.info("No generation data available for this run.")
+            return
+        
+        for gen in range(num_generations):
+            gen_data = {
+                'Generation': gen,
+                'Best Fitness': f"{(result.max[gen] or 0):.4f}" if result.max and gen < len(result.max) else "N/A",
+                'Average Fitness': f"{(result.avg[gen] or 0):.4f}" if result.avg and gen < len(result.avg) else "N/A",
+                'Std Dev': f"{(result.std[gen] or 0):.4f}" if result.std and gen < len(result.std) else "N/A",
+                'Min Fitness': f"{(result.min[gen] or 0):.4f}" if result.min and gen < len(result.min) else "N/A",
+                'Test Fitness': f"{(result.fitness_test[gen] or 0):.4f}" if result.fitness_test and gen < len(result.fitness_test) else "N/A",
+                'Invalid Count': result.invalid_count_avg[gen] if result.invalid_count_avg and gen < len(result.invalid_count_avg) else "N/A",
+                'Avg Length': f"{(result.nodes_length_avg[gen] or 0):.2f}" if result.nodes_length_avg and gen < len(result.nodes_length_avg) else "N/A",
+                'Avg Nodes': f"{(result.nodes_length_avg[gen] or 0):.2f}" if result.nodes_length_avg and gen < len(result.nodes_length_avg) else "N/A",
+                'Avg Depth': f"{(result.best_depth or 0):.2f}" if result.best_depth else "N/A",
+                'Avg Used Codons': f"{(result.best_used_codons or 0):.2%}" if result.best_used_codons else "N/A"
+            }
+            generation_data.append(gen_data)
+        
+        if generation_data:
+            gen_df = pd.DataFrame(generation_data)
+            st.dataframe(gen_df, hide_index=True, width='stretch')
+        else:
+            st.info("No generation data available for this run.")
+    
+    def _render_detailed_generation_view(self, run_id: str, result: SetupResult, run_name: str):
+        """Render detailed generation information for a selected run."""
+        
+        st.subheader(f"🔍 Detailed Generation Analysis: {run_name}")
+        st.markdown(f"**Run ID:** `{run_id}`")
+        
+        # Create tabs for different views
+        tab1, tab2, tab3, tab4 = st.tabs(["📊 Generation Statistics", "⚙️ Configuration Evolution", "🧬 Individual Details", "📈 Generation Charts"])
+        
+        with tab1:
+            st.markdown("**Generation-by-Generation Statistics**")
+            
+            # Prepare generation data
+            generation_data = []
+            num_generations = len(result.max) if result.max else 0
+            
+            for gen in range(num_generations):
+                gen_data = {
+                    'Generation': gen,
+                    'Best Fitness': f"{result.max[gen]:.4f}" if result.max and gen < len(result.max) else "N/A",
+                    'Average Fitness': f"{result.avg[gen]:.4f}" if result.avg and gen < len(result.avg) else "N/A",
+                    'Std Dev': f"{result.std[gen]:.4f}" if result.std and gen < len(result.std) else "N/A",
+                    'Min Fitness': f"{result.min[gen]:.4f}" if result.min and gen < len(result.min) else "N/A",
+                    'Test Fitness': f"{result.fitness_test[gen]:.4f}" if result.fitness_test and gen < len(result.fitness_test) else "N/A",
+                    'Invalid Count': result.invalid_count_avg[gen] if result.invalid_count_avg and gen < len(result.invalid_count_avg) else "N/A",
+                    'Avg Length': f"{result.nodes_length_avg[gen]:.2f}" if result.nodes_length_avg and gen < len(result.nodes_length_avg) else "N/A",
+                    'Avg Nodes': f"{result.nodes_length_avg[gen]:.2f}" if result.nodes_length_avg and gen < len(result.nodes_length_avg) else "N/A",
+                    'Avg Depth': f"{result.best_depth:.2f}" if result.best_depth else "N/A",
+                    'Avg Used Codons': f"{result.best_used_codons:.2%}" if result.best_used_codons else "N/A"
+                }
+                generation_data.append(gen_data)
+            
+            if generation_data:
+                gen_df = pd.DataFrame(generation_data)
+                st.dataframe(gen_df, hide_index=True, width='stretch')
+            else:
+                st.info("No generation data available for this run.")
+        
+        with tab2:
+            st.markdown("**Configuration Parameter Evolution Across Generations**")
+            
+            if hasattr(result, 'generation_configs') and result.generation_configs:
+                # Show configuration evolution
+                config_data = []
+                for gen_config in result.generation_configs:
+                    if hasattr(gen_config, 'to_dict'):
+                        config_dict = gen_config.to_dict()
+                    else:
+                        config_dict = gen_config
+                    
+                    config_data.append({
+                        'Generation': config_dict.get('generation', 'N/A'),
+                        'Population': config_dict.get('population', 'N/A'),
+                        'Elite Size': config_dict.get('elite_size', 'N/A'),
+                        'P Crossover': config_dict.get('p_crossover', 'N/A'),
+                        'P Mutation': config_dict.get('p_mutation', 'N/A'),
+                        'Tournament Size': config_dict.get('tournsize', 'N/A'),
+                        'Hall of Fame Size': config_dict.get('halloffame_size', 'N/A'),
+                        'Max Tree Depth': config_dict.get('max_tree_depth', 'N/A'),
+                        'Codon Size': config_dict.get('codon_size', 'N/A'),
+                        'Codon Consumption': config_dict.get('codon_consumption', 'N/A'),
+                        'Genome Representation': config_dict.get('genome_representation', 'N/A'),
+                        'Timestamp': config_dict.get('timestamp', 'N/A')
                     })
                 
-                run_df = pd.DataFrame(run_data)
-                st.dataframe(run_df, hide_index=True)
+                if config_data:
+                    config_df = pd.DataFrame(config_data)
+                    st.dataframe(config_df, hide_index=True, width='stretch')
+                else:
+                    st.info("No configuration data available for this run.")
+            else:
+                st.info("Configuration tracking was not enabled for this run.")
+        
+        with tab3:
+            st.markdown("**Best Individual Details**")
+            
+            # Best individual information
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Training Performance:**")
+                st.metric("Best Training Fitness", f"{result.best_training_fitness or 0:.4f}")
+                st.metric("Best Test Fitness", f"{result.best_test_fitness or 0:.4f}")
+                st.metric("Best Depth", result.best_depth or 0)
+                st.metric("Best Genome Length", result.best_genome_length or 0)
+                st.metric("Best Used Codons", f"{result.best_used_codons or 0:.2%}")
+            
+            with col2:
+                st.markdown("**Individual Characteristics:**")
+                st.metric("Total Generations", len(result.max) if result.max else 0)
+                st.metric("Final Generation", len(result.max) - 1 if result.max else 0)
+                st.metric("Convergence Generation", result.convergence_generation or "N/A")
+                st.metric("Invalid Count", result.invalid_count_avg[-1] if result.invalid_count_avg else "N/A")
+            
+            # Best phenotype
+            st.markdown("**Best Phenotype:**")
+            st.code(result.best_phenotype or "No phenotype available", language="text")
+            
+            # Evolution summary
+            if result.max and len(result.max) > 1:
+                initial_fitness = result.max[0] or 0
+                final_fitness = result.max[-1] or 0
+                improvement = final_fitness - initial_fitness
+                
+                st.markdown("**Evolution Summary:**")
+                st.metric("Initial Fitness", f"{initial_fitness:.4f}")
+                st.metric("Final Fitness", f"{final_fitness:.4f}")
+                st.metric("Total Improvement", f"{improvement:.4f}")
+                st.metric("Improvement %", f"{(improvement/abs(initial_fitness)*100):.2f}%" if initial_fitness != 0 else "N/A")
+        
+        with tab4:
+            st.markdown("**Generation-by-Generation Charts**")
+            
+            if result.max and len(result.max) > 0:
+                # Create charts for this specific run
+                import plotly.graph_objects as go
+                from plotly.subplots import make_subplots
+                
+                generations = list(range(len(result.max)))
+                
+                # Fitness evolution chart
+                fig_fitness = go.Figure()
+                fig_fitness.add_trace(go.Scatter(
+                    x=generations, y=result.max,
+                    mode='lines+markers',
+                    name='Best Fitness',
+                    line=dict(color='blue', width=2)
+                ))
+                if result.avg:
+                    fig_fitness.add_trace(go.Scatter(
+                        x=generations, y=result.avg,
+                        mode='lines',
+                        name='Average Fitness',
+                        line=dict(color='green', width=1, dash='dash')
+                    ))
+                if result.min:
+                    fig_fitness.add_trace(go.Scatter(
+                        x=generations, y=result.min,
+                        mode='lines',
+                        name='Min Fitness',
+                        line=dict(color='red', width=1, dash='dot')
+                    ))
+                
+                fig_fitness.update_layout(
+                    title=f"Fitness Evolution - {run_name}",
+                    xaxis_title="Generation",
+                    yaxis_title="Fitness",
+                    hovermode="x unified",
+                    height=400
+                )
+                st.plotly_chart(fig_fitness, width='stretch')
+                
+                # Invalid individuals chart
+                if result.invalid_count:
+                    fig_invalid = go.Figure()
+                    fig_invalid.add_trace(go.Scatter(
+                        x=generations, y=result.invalid_count,
+                        mode='lines+markers',
+                        name='Invalid Individuals',
+                        line=dict(color='orange', width=2)
+                    ))
+                    fig_invalid.update_layout(
+                        title=f"Invalid Individuals Count - {run_name}",
+                        xaxis_title="Generation",
+                        yaxis_title="Count",
+                        hovermode="x unified",
+                        height=400
+                    )
+                    st.plotly_chart(fig_invalid, width='stretch')
+                
+                # Tree characteristics chart
+                if result.avg_length and result.avg_nodes and result.avg_depth:
+                    fig_tree = make_subplots(
+                        rows=3, cols=1,
+                        subplot_titles=('Average Length', 'Average Nodes', 'Average Depth'),
+                        vertical_spacing=0.1
+                    )
+                    
+                    fig_tree.add_trace(go.Scatter(
+                        x=generations, y=result.avg_length,
+                        mode='lines+markers',
+                        name='Avg Length',
+                        line=dict(color='purple', width=2)
+                    ), row=1, col=1)
+                    
+                    fig_tree.add_trace(go.Scatter(
+                        x=generations, y=result.avg_nodes,
+                        mode='lines+markers',
+                        name='Avg Nodes',
+                        line=dict(color='brown', width=2)
+                    ), row=2, col=1)
+                    
+                    fig_tree.add_trace(go.Scatter(
+                        x=generations, y=result.avg_depth,
+                        mode='lines+markers',
+                        name='Avg Depth',
+                        line=dict(color='pink', width=2)
+                    ), row=3, col=1)
+                    
+                    fig_tree.update_layout(
+                        title=f"Tree Characteristics Evolution - {run_name}",
+                        height=600,
+                        showlegend=False
+                    )
+                    fig_tree.update_xaxes(title_text="Generation", row=3, col=1)
+                    st.plotly_chart(fig_tree, width='stretch')
+            else:
+                st.info("No chart data available for this run.")
     
     def _render_setup_charts(self, setup: Setup):
         """Render setup charts."""
@@ -639,7 +1043,7 @@ class AnalysisView(BaseView):
         """Render setup-wide chart with min/max/avg across all runs."""
         Charts.plot_setup_wide_with_bars(
             setup.results, 
-            title=f"Setup-wide Analysis - {setup.config.setup_name}",
+            title=f"Setup-wide Analysis - {setup.config.setup_name or 'Unknown Setup'}",
             fitness_metric=setup.config.fitness_metric,
             fitness_direction=setup.config.fitness_direction,
             measurement_options=measurement_options
@@ -657,10 +1061,10 @@ class AnalysisView(BaseView):
         
         with col1:
             st.write("**Fitness Information:**")
-            st.write(f"- Best Training Fitness: {best_result.best_training_fitness:.4f}")
-            st.write(f"- Best Depth: {best_result.best_depth}")
-            st.write(f"- Genome Length: {best_result.best_genome_length}")
-            st.write(f"- Used Codons: {best_result.best_used_codons:.2%}")
+            st.write(f"- Best Training Fitness: {best_result.best_training_fitness or 0:.4f}")
+            st.write(f"- Best Depth: {best_result.best_depth or 0}")
+            st.write(f"- Genome Length: {best_result.best_genome_length or 0}")
+            st.write(f"- Used Codons: {best_result.best_used_codons or 0:.2%}")
         
         with col2:
             st.write("**Evolution Information:**")
@@ -696,7 +1100,7 @@ class AnalysisView(BaseView):
                     st.download_button(
                         label="💾 Download Results CSV",
                         data=export_data,
-                        file_name=f"{setup.config.setup_name}_results.csv",
+                        file_name=f"{setup.config.setup_name or 'setup'}_results.csv",
                         mime="text/csv"
                     )
         except Exception as e:
@@ -711,7 +1115,7 @@ class AnalysisView(BaseView):
                     st.download_button(
                         label="💾 Download Configuration JSON",
                         data=export_data,
-                        file_name=f"{setup.config.setup_name}_config.json",
+                        file_name=f"{setup.config.setup_name or 'setup'}_config.json",
                         mime="application/json"
                     )
         except Exception as e:
@@ -943,11 +1347,11 @@ class AnalysisView(BaseView):
         ConfigCharts.plot_setup_wide_configuration_stats(
             setup.results,
             config_param=config_param,
-            title=f"Setup-wide {config_param.replace('_', ' ').title()} Statistics - {setup.config.setup_name}"
+            title=f"Setup-wide {config_param.replace('_', ' ').title()} Statistics - {setup.config.setup_name or 'Unknown Setup'}"
         )
     
     def _render_config_dashboard(self, setup: Setup):
         """Render configuration dashboard."""
-        st.subheader(f"Configuration Dashboard - {setup.config.setup_name}")
+        st.subheader(f"Configuration Dashboard - {setup.config.setup_name or 'Unknown Setup'}")
         
         ConfigCharts.create_configuration_dashboard(setup.results)

@@ -124,7 +124,7 @@ class SetupController(BaseController):
                 self.on_setup_error(e)
             return None
     
-    def run_setup(self, config: SetupConfig, live_placeholder=None, 
+    def run_setup(self, config: SetupConfig, parameter_configs: dict = None, live_placeholder=None, 
                       progress_bar=None, status_text=None, all_runs_container=None) -> Optional[Setup]:
         """
         Run a complete setup with multiple runs.
@@ -184,7 +184,7 @@ class SetupController(BaseController):
                         # Simple approach - just pass the placeholder
 
                         result = self._run_single_setup(
-                            run_config, dataset, grammar, run_id, run_idx + 1, config.n_runs, run_placeholder
+                            run_config, dataset, grammar, run_id, run_idx + 1, config.n_runs, parameter_configs, run_placeholder
                         )
                         if result:
                             all_run_results[run_id] = result
@@ -233,7 +233,7 @@ class SetupController(BaseController):
     
     def _run_single_setup(self, config: SetupConfig, dataset: Dataset, 
                               grammar: Grammar, run_id: str, run_number: int, 
-                              total_runs: int, live_placeholder=None) -> Optional[SetupResult]:
+                              total_runs: int, parameter_configs: dict = None, live_placeholder=None) -> Optional[SetupResult]:
         """
         Run a single setup run.
         
@@ -259,6 +259,7 @@ class SetupController(BaseController):
                 dataset=dataset,
                 grammar=grammar,
                 report_items=config.report_items,
+                parameter_configs=parameter_configs,
                 live_placeholder=live_placeholder
             )
             

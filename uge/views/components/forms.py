@@ -196,23 +196,6 @@ class Forms:
             st.session_state['fitness_direction'] = fitness_direction
         
         with col2:
-            st.markdown("**Evolution Type**")
-            evolution_type_options = list(DEFAULT_CONFIG['evolution_types'].keys())
-            evolution_type_index = evolution_type_options.index(DEFAULT_CONFIG['default_evolution_type'])
-            
-            evolution_type = st.selectbox(
-                "Evolution Type", 
-                options=evolution_type_options, 
-                index=evolution_type_index,
-                format_func=lambda x: DEFAULT_CONFIG['evolution_types'][x]['name'],
-                help=help_texts.get('evolution_type', "Choose evolution type: Fixed (same config all generations) or Dynamic (config can change per generation)")
-            )
-            
-            # Show evolution type description
-            evolution_info = DEFAULT_CONFIG['evolution_types'][evolution_type]
-            st.info(f"**{evolution_info['name']}**: {evolution_info['description']}")
-        
-        with col3:
             st.markdown("**Randomization**")
             random_seed = st.number_input(
                 "Random Seed", 
@@ -261,139 +244,378 @@ class Forms:
         
         st.divider()
         
-        # Section 2: Advanced Parameters (Inside Form)
-        with st.form("setup_form"):
-            st.subheader("⚙️ 2. Advanced Parameters")
-            st.markdown("*These parameters control the detailed behavior of the evolutionary algorithm.*")
+        # Parameter Configuration System
+        st.subheader("🎛️ Parameter Configuration System")
+        st.markdown("**Configure each parameter to be fixed or dynamic across generations**")
+        
+        # Initialize session state for parameter configurations
+        if 'parameter_configs' not in st.session_state:
+            st.session_state.parameter_configs = {}
+        
+        # Define configurable parameters
+        config_params = {
+            # Genetic Algorithm Parameters
+            'elite_size': {
+                'name': 'Elite Size',
+                'default': DEFAULT_CONFIG['elite_size'],
+                'min': 0,
+                'max': 50,
+                'help': 'Number of elite individuals to preserve'
+            },
+            'p_crossover': {
+                'name': 'Crossover Probability',
+                'default': DEFAULT_CONFIG['p_crossover'],
+                'min': 0.0,
+                'max': 1.0,
+                'step': 0.01,
+                'help': 'Probability of crossover operation'
+            },
+            'p_mutation': {
+                'name': 'Mutation Probability', 
+                'default': DEFAULT_CONFIG['p_mutation'],
+                'min': 0.0,
+                'max': 1.0,
+                'step': 0.01,
+                'help': 'Probability of mutation operation'
+            },
+            'tournsize': {
+                'name': 'Tournament Size',
+                'default': DEFAULT_CONFIG['tournsize'],
+                'min': 2,
+                'max': 50,
+                'help': 'Size of tournament for selection'
+            },
+            'halloffame_size': {
+                'name': 'Hall of Fame Size',
+                'default': DEFAULT_CONFIG['halloffame_size'],
+                'min': 1,
+                'max': 100,
+                'help': 'Size of hall of fame'
+            },
             
+            # Tree Parameters
+            'max_tree_depth': {
+                'name': 'Max Tree Depth',
+                'default': DEFAULT_CONFIG['max_tree_depth'],
+                'min': 5,
+                'max': 100,
+                'help': 'Maximum depth of the evolved trees'
+            },
+            'min_init_tree_depth': {
+                'name': 'Min Init Tree Depth',
+                'default': DEFAULT_CONFIG['min_init_tree_depth'],
+                'min': 1,
+                'max': 20,
+                'help': 'Minimum depth for initial trees'
+            },
+            'max_init_tree_depth': {
+                'name': 'Max Init Tree Depth',
+                'default': DEFAULT_CONFIG['max_init_tree_depth'],
+                'min': 1,
+                'max': 30,
+                'help': 'Maximum depth for initial trees'
+            },
+            
+            # Genome Parameters
+            'min_init_genome_length': {
+                'name': 'Min Init Genome Length',
+                'default': DEFAULT_CONFIG['min_init_genome_length'],
+                'min': 10,
+                'max': 200,
+                'help': 'Minimum length for initial genomes'
+            },
+            'max_init_genome_length': {
+                'name': 'Max Init Genome Length',
+                'default': DEFAULT_CONFIG['max_init_genome_length'],
+                'min': 10,
+                'max': 500,
+                'help': 'Maximum length for initial genomes'
+            },
+            'codon_size': {
+                'name': 'Codon Size',
+                'default': DEFAULT_CONFIG['codon_size'],
+                'min': 100,
+                'max': 512,
+                'help': 'Size of codons in the genome'
+            },
+            
+            # Categorical Parameters
+            'codon_consumption': {
+                'name': 'Codon Consumption',
+                'default': DEFAULT_CONFIG['codon_consumption'],
+                'options': ['lazy', 'eager'],
+                'help': 'How codons are consumed during tree generation'
+            },
+            'genome_representation': {
+                'name': 'Genome Representation',
+                'default': DEFAULT_CONFIG['genome_representation'],
+                'options': ['list'],
+                'help': 'How genomes are represented in memory'
+            },
+            'initialisation': {
+                'name': 'Initialisation',
+                'default': DEFAULT_CONFIG['initialisation'],
+                'options': ['sensible', 'random'],
+                'help': 'Method for generating initial trees'
+            }
+        }
+        
+        # Create configuration forms for each parameter
+        parameter_configs = {}
+        
+        for param_key, param_info in config_params.items():
+            with st.expander(f"⚙️ {param_info['name']}", expanded=False):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Mode selection
+                    mode_key = f"{param_key}_mode"
+                    if mode_key not in st.session_state:
+                        st.session_state[mode_key] = "Fixed"
+                    
+                    mode = st.selectbox(
+                        "Mode",
+                        ["Fixed", "Dynamic"],
+                        index=0 if st.session_state[mode_key] == "Fixed" else 1,
+                        key=f"{param_key}_mode_select"
+                    )
+                    
+                    # Update session state
+                    if mode != st.session_state[mode_key]:
+                        st.session_state[mode_key] = mode
+                        st.rerun()
+                
+                with col2:
+                    if mode == "Fixed":
+                        # Fixed value input
+                        if 'options' in param_info:
+                            # Categorical parameter - use selectbox
+                            default_index = param_info['options'].index(param_info['default']) if param_info['default'] in param_info['options'] else 0
+                            value = st.selectbox(
+                                f"{param_info['name']} (Fixed)",
+                                options=param_info['options'],
+                                index=default_index,
+                                help=param_info['help'],
+                                key=f"{param_key}_fixed"
+                            )
+                        elif 'step' in param_info:
+                            value = st.number_input(
+                                f"{param_info['name']} (Fixed)",
+                                min_value=param_info['min'],
+                                max_value=param_info['max'],
+                                value=param_info['default'],
+                                step=param_info['step'],
+                                help=param_info['help'],
+                                key=f"{param_key}_fixed"
+                            )
+                        else:
+                            value = st.number_input(
+                                f"{param_info['name']} (Fixed)",
+                                min_value=param_info['min'],
+                                max_value=param_info['max'],
+                                value=param_info['default'],
+                                help=param_info['help'],
+                                key=f"{param_key}_fixed"
+                            )
+                        
+                        parameter_configs[param_key] = {
+                            'mode': 'fixed',
+                            'value': value,
+                            'options': param_info.get('options', None)
+                        }
+                        st.info(f"ℹ️ {param_info['name']} will remain constant at {value}")
+                        
+                    else:  # Dynamic
+                        if 'options' in param_info:
+                            # Categorical parameter - show available options
+                            st.markdown(f"**Available Options:**")
+                            for option in param_info['options']:
+                                st.markdown(f"- {option}")
+                            
+                            parameter_configs[param_key] = {
+                                'mode': 'dynamic',
+                                'value': param_info['options'][0],  # Use first option as default
+                                'options': param_info['options']
+                            }
+                            st.success(f"✅ {param_info['name']} will be randomly selected from: {', '.join(param_info['options'])}")
+                        else:
+                            # Numerical parameter - Dynamic range inputs
+                            col_low, col_high = st.columns(2)
+                            
+                            with col_low:
+                                if 'step' in param_info:
+                                    low_value = st.number_input(
+                                        f"{param_info['name']} (Low)",
+                                        min_value=param_info['min'],
+                                        max_value=param_info['max'],
+                                        value=max(param_info['min'], param_info['default'] - param_info['step'] * 5),
+                                        step=param_info['step'],
+                                        help=f"Minimum {param_info['name'].lower()} for random variation",
+                                        key=f"{param_key}_low"
+                                    )
+                                else:
+                                    low_value = st.number_input(
+                                        f"{param_info['name']} (Low)",
+                                        min_value=param_info['min'],
+                                        max_value=param_info['max'],
+                                        value=max(param_info['min'], param_info['default'] - 1),
+                                        help=f"Minimum {param_info['name'].lower()} for random variation",
+                                        key=f"{param_key}_low"
+                                    )
+                            
+                            with col_high:
+                                if 'step' in param_info:
+                                    high_value = st.number_input(
+                                        f"{param_info['name']} (High)",
+                                        min_value=param_info['min'],
+                                        max_value=param_info['max'],
+                                        value=min(param_info['max'], param_info['default'] + param_info['step'] * 5),
+                                        step=param_info['step'],
+                                        help=f"Maximum {param_info['name'].lower()} for random variation",
+                                        key=f"{param_key}_high"
+                                    )
+                                else:
+                                    high_value = st.number_input(
+                                        f"{param_info['name']} (High)",
+                                        min_value=param_info['min'],
+                                        max_value=param_info['max'],
+                                        value=min(param_info['max'], param_info['default'] + 2),
+                                        help=f"Maximum {param_info['name'].lower()} for random variation",
+                                        key=f"{param_key}_high"
+                                    )
+                            
+                            # Ensure low <= high
+                            if low_value > high_value:
+                                st.warning(f"⚠️ Low must be ≤ High. Adjusting values.")
+                                low_value = high_value
+                            
+                            parameter_configs[param_key] = {
+                                'mode': 'dynamic',
+                                'value': low_value,  # Use low as default
+                                'low': low_value,
+                                'high': high_value,
+                                'options': None
+                            }
+                            st.success(f"✅ {param_info['name']} will vary randomly between {low_value} and {high_value}")
+        
+        st.divider()
+        
+        # Section 2: Dataset Configuration
+        st.subheader("📊 2. Dataset Configuration")
+        with st.form("dataset_config_form"):
             col1, col2 = st.columns(2)
             
             with col1:
-                # GE Parameters
-                st.markdown("**Genetic Algorithm Parameters**")
-                p_crossover = st.slider(
-                    "Crossover Probability", 
-                    min_value=0.0, max_value=1.0, 
-                    value=DEFAULT_CONFIG['p_crossover'], 
-                    step=0.01, 
-                    help=help_texts.get('p_crossover', "Probability of crossover operation")
+                # Label column selection
+                label_column = st.text_input(
+                    "Label Column", 
+                    value=DEFAULT_CONFIG['label_column'], 
+                    help=help_texts.get('label_column', "Name of the target column in the dataset"),
+                    key="label_column"
                 )
-                p_mutation = st.slider(
-                    "Mutation Probability", 
-                    min_value=0.0, max_value=1.0, 
-                    value=DEFAULT_CONFIG['p_mutation'], 
-                    step=0.01, 
-                    help=help_texts.get('p_mutation', "Probability of mutation operation")
-                )
-                elite_size = st.number_input(
-                    "Elite Size", 
-                    min_value=0, max_value=50, 
-                    value=DEFAULT_CONFIG['elite_size'], 
-                    help=help_texts.get('elite_size', "Number of elite individuals to preserve")
-                )
-                tournsize = st.number_input(
-                    "Tournament Size", 
-                    min_value=2, max_value=50, 
-                    value=DEFAULT_CONFIG['tournsize'], 
-                    help=help_texts.get('tournsize', "Size of tournament for selection")
-                )
-                halloffame_size = st.number_input(
-                    "Hall of Fame Size", 
-                    min_value=1, max_value=100, 
-                    value=max(1, int(elite_size)), 
-                    help=help_texts.get('halloffame_size', "Size of hall of fame")
+                
+                # Test size
+                test_size = st.slider(
+                    "Test Size", 
+                    min_value=0.1, max_value=0.5, 
+                    value=DEFAULT_CONFIG['test_size'], 
+                    step=0.05, 
+                    help=help_texts.get('test_size', "Proportion of data for testing"),
+                    key="test_size"
                 )
             
             with col2:
-                # Tree Parameters
-                st.markdown("**Tree Parameters**")
-                max_tree_depth = st.number_input(
-                    "Max Tree Depth", 
-                    min_value=1, max_value=100, 
-                    value=DEFAULT_CONFIG['max_tree_depth'], 
-                    help=help_texts.get('max_tree_depth', "Maximum tree depth")
-                )
-                min_init_tree_depth = st.number_input(
-                    "Min Init Tree Depth", 
-                    min_value=1, max_value=50, 
-                    value=DEFAULT_CONFIG['min_init_tree_depth'], 
-                    help=help_texts.get('min_init_tree_depth', "Minimum initial tree depth")
-                )
-                max_init_tree_depth = st.number_input(
-                    "Max Init Tree Depth", 
-                    min_value=1, max_value=50, 
-                    value=DEFAULT_CONFIG['max_init_tree_depth'], 
-                    help=help_texts.get('max_init_tree_depth', "Maximum initial tree depth")
-                )
-                
-                # Genome Parameters
-                st.markdown("**Genome Parameters**")
-                min_init_genome_length = st.number_input(
-                    "Min Init Genome Length", 
-                    min_value=1, max_value=5000, 
-                    value=DEFAULT_CONFIG['min_init_genome_length'], 
-                    help=help_texts.get('min_init_genome_length', "Minimum initial genome length")
-                )
-                max_init_genome_length = st.number_input(
-                    "Max Init Genome Length", 
-                    min_value=1, max_value=5000, 
-                    value=DEFAULT_CONFIG['max_init_genome_length'], 
-                    help=help_texts.get('max_init_genome_length', "Maximum initial genome length")
-                )
-                codon_size = st.number_input(
-                    "Codon Size", 
-                    min_value=2, max_value=65535, 
-                    value=DEFAULT_CONFIG['codon_size'], 
-                    help=help_texts.get('codon_size', "Codon size for genome representation")
-                )
-                codon_consumption = st.selectbox(
-                    "Codon Consumption", 
-                    options=["lazy", "eager"], 
-                    index=0, 
-                    help=help_texts.get('codon_consumption', "Codon consumption strategy")
-                )
-                genome_representation = st.selectbox(
-                    "Genome Representation", 
-                    options=["list"], 
-                    index=0, 
-                    help=help_texts.get('genome_representation', "Genome representation type")
-                )
-                initialisation = st.selectbox(
-                    "Initialisation", 
-                    options=["sensible", "random"], 
-                    index=0, 
-                    help=help_texts.get('initialisation', "Population initialization strategy")
-                )
-            
-            # Additional Parameters Row
-            col3, col4 = st.columns(2)
-            
-            with col3:
-                st.markdown("**Report Items**")
+                # Report items
                 report_items = st.multiselect(
                     "Select report items", 
                     options=DEFAULT_CONFIG['default_report_items'], 
                     default=DEFAULT_CONFIG['default_report_items'], 
-                    help=help_texts.get('report_items', "Items to include in setup reports")
+                    help=help_texts.get('report_items', "Items to include in setup reports"),
+                    key="report_items"
                 )
             
-            with col4:
-                st.markdown("**Dataset Options**")
+            # Submit button for dataset configuration
+            st.form_submit_button("✅ Confirm Dataset Configuration", type="secondary")
+        
+        st.divider()
+        
+        # Section 3: Current Parameter Values (Main Form)
+        with st.form("setup_form"):
+            st.subheader("📋 3. Current Parameter Values")
+            st.markdown("*These are the current parameter values based on your configuration above. Dynamic parameters will vary during evolution.*")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Current Parameter Values - Show what user configured
+                st.markdown("**📊 Parameter Summary**")
                 
-                # Always show label column input (required field)
-                label_column = st.text_input(
-                    "Label Column", 
-                    value=DEFAULT_CONFIG['label_column'], 
-                    help=help_texts.get('label_column', "Name of the label column")
-                )
+                # Get values and modes from parameter configurations
+                def get_param_display(param_key, param_name, default_value):
+                    param_config = parameter_configs.get(param_key, {})
+                    value = param_config.get('value', default_value)
+                    mode = param_config.get('mode', 'fixed')
+                    
+                    if mode == 'dynamic':
+                        if 'options' in param_config:
+                            # Categorical dynamic
+                            return f"**{param_name}:** {value} 🔄 *Dynamic* (from {param_config['options']})"
+                        else:
+                            # Numerical dynamic
+                            return f"**{param_name}:** {value} 🔄 *Dynamic* ({param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')})"
+                    else:
+                        return f"**{param_name}:** {value} 🔒 *Fixed*"
                 
-                test_size = st.slider(
-                    "Test Size", 
-                    0.1, 0.5, 
-                    DEFAULT_CONFIG['test_size'], 
-                    0.05, 
-                    help=help_texts.get('test_size', "Test set size ratio")
-                )
+                # GA Parameters
+                st.markdown("**🧬 Genetic Algorithm Parameters:**")
+                st.markdown(get_param_display('elite_size', 'Elite Size', DEFAULT_CONFIG['elite_size']))
+                st.markdown(get_param_display('p_crossover', 'Crossover Probability', DEFAULT_CONFIG['p_crossover']))
+                st.markdown(get_param_display('p_mutation', 'Mutation Probability', DEFAULT_CONFIG['p_mutation']))
+                st.markdown(get_param_display('tournsize', 'Tournament Size', DEFAULT_CONFIG['tournsize']))
+                st.markdown(get_param_display('halloffame_size', 'Hall of Fame Size', DEFAULT_CONFIG['halloffame_size']))
+                
+                # Tree Parameters
+                st.markdown("**🌳 Tree Parameters:**")
+                st.markdown(get_param_display('max_tree_depth', 'Max Tree Depth', DEFAULT_CONFIG['max_tree_depth']))
+                st.markdown(get_param_display('min_init_tree_depth', 'Min Init Tree Depth', DEFAULT_CONFIG['min_init_tree_depth']))
+                st.markdown(get_param_display('max_init_tree_depth', 'Max Init Tree Depth', DEFAULT_CONFIG['max_init_tree_depth']))
+                
+                # Genome Parameters
+                st.markdown("**🧬 Genome Parameters:**")
+                st.markdown(get_param_display('min_init_genome_length', 'Min Init Genome Length', DEFAULT_CONFIG['min_init_genome_length']))
+                st.markdown(get_param_display('max_init_genome_length', 'Max Init Genome Length', DEFAULT_CONFIG['max_init_genome_length']))
+                st.markdown(get_param_display('codon_size', 'Codon Size', DEFAULT_CONFIG['codon_size']))
+                
+                # Categorical Parameters
+                st.markdown("**📝 Categorical Parameters:**")
+                st.markdown(get_param_display('codon_consumption', 'Codon Consumption', DEFAULT_CONFIG['codon_consumption']))
+                st.markdown(get_param_display('genome_representation', 'Genome Representation', DEFAULT_CONFIG['genome_representation']))
+                st.markdown(get_param_display('initialisation', 'Initialisation', DEFAULT_CONFIG['initialisation']))
+                
+                # Store parameter configurations for form submission
+                parameter_configs_data = parameter_configs
+            
+            with col2:
+                # Dynamic Parameters Summary
+                st.markdown("**📊 Dynamic Parameters Summary**")
+                
+                # Dynamic parameters indicator
+                dynamic_count = sum(1 for config in parameter_configs.values() if config.get('mode') == 'dynamic')
+                if dynamic_count > 0:
+                    st.success(f"🔄 **{dynamic_count} parameters** are set to dynamic mode and will vary during evolution!")
+                    
+                    # Show which parameters are dynamic
+                    st.markdown("**Dynamic Parameters:**")
+                    for param_key, param_config in parameter_configs.items():
+                        if param_config.get('mode') == 'dynamic':
+                            param_name = param_config.get('name', param_key)
+                            if 'options' in param_config:
+                                st.markdown(f"- {param_name}: {param_config['options']}")
+                            else:
+                                st.markdown(f"- {param_name}: {param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')}")
+                else:
+                    st.info("🔒 **All parameters** are set to fixed mode.")
+            
             
             # Submit button inside form
             run_setup = st.form_submit_button("🚀 Run Setup", type="primary", use_container_width=True)
@@ -407,13 +629,34 @@ class Forms:
         if run_setup:
             # Get grammar from session state since it's outside the form
             selected_grammar = st.session_state.get('grammar_selectbox', UI_CONSTANTS['default_grammar'])
+            
+            # Get dataset configuration from session state
+            label_column = st.session_state.get('label_column', DEFAULT_CONFIG['label_column'])
+            test_size = st.session_state.get('test_size', DEFAULT_CONFIG['test_size'])
+            report_items = st.session_state.get('report_items', DEFAULT_CONFIG['default_report_items'])
+            
+            # Get current parameter values from configurations
+            elite_size = parameter_configs_data.get('elite_size', {}).get('value', DEFAULT_CONFIG['elite_size'])
+            p_crossover = parameter_configs_data.get('p_crossover', {}).get('value', DEFAULT_CONFIG['p_crossover'])
+            p_mutation = parameter_configs_data.get('p_mutation', {}).get('value', DEFAULT_CONFIG['p_mutation'])
+            tournsize = parameter_configs_data.get('tournsize', {}).get('value', DEFAULT_CONFIG['tournsize'])
+            halloffame_size = parameter_configs_data.get('halloffame_size', {}).get('value', DEFAULT_CONFIG['halloffame_size'])
+            max_tree_depth = parameter_configs_data.get('max_tree_depth', {}).get('value', DEFAULT_CONFIG['max_tree_depth'])
+            min_init_tree_depth = parameter_configs_data.get('min_init_tree_depth', {}).get('value', DEFAULT_CONFIG['min_init_tree_depth'])
+            max_init_tree_depth = parameter_configs_data.get('max_init_tree_depth', {}).get('value', DEFAULT_CONFIG['max_init_tree_depth'])
+            min_init_genome_length = parameter_configs_data.get('min_init_genome_length', {}).get('value', DEFAULT_CONFIG['min_init_genome_length'])
+            max_init_genome_length = parameter_configs_data.get('max_init_genome_length', {}).get('value', DEFAULT_CONFIG['max_init_genome_length'])
+            codon_size = parameter_configs_data.get('codon_size', {}).get('value', DEFAULT_CONFIG['codon_size'])
+            codon_consumption = parameter_configs_data.get('codon_consumption', {}).get('value', DEFAULT_CONFIG['codon_consumption'])
+            genome_representation = parameter_configs_data.get('genome_representation', {}).get('value', DEFAULT_CONFIG['genome_representation'])
+            initialisation = parameter_configs_data.get('initialisation', {}).get('value', DEFAULT_CONFIG['initialisation'])
+            
             form_data = {
                 'setup_name': setup_name,
                 'dataset': dataset,
                 'grammar': selected_grammar,
                 'fitness_metric': fitness_metric,
                 'fitness_direction': fitness_direction,
-                'evolution_type': evolution_type,
                 'n_runs': int(n_runs),
                 'generations': int(generations),
                 'population': int(population),
@@ -422,6 +665,7 @@ class Forms:
                 'elite_size': int(elite_size),
                 'tournsize': int(tournsize),
                 'halloffame_size': int(halloffame_size),
+                'parameter_configs': parameter_configs_data,  # Parameter configuration system
                 'max_tree_depth': int(max_tree_depth),
                 'min_init_tree_depth': int(min_init_tree_depth),
                 'max_init_tree_depth': int(max_init_tree_depth),

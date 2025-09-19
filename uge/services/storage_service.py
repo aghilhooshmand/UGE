@@ -150,10 +150,10 @@ class StorageService:
             return []
         
         # Get all setup directories and sort by name descending (newest first)
-        # Since setup names include timestamp (exp_YYYYMMDD_HHMMSS_*), 
+        # Since setup names include timestamp (setup_YYYYMMDD_HHMMSS_*), 
         # sorting by name descending gives us newest setups first
         setup_dirs = [p for p in self.setups_dir.iterdir() 
-                          if p.is_dir() and p.name.startswith('exp_')]
+                          if p.is_dir() and p.name.startswith('setup_')]
         
         return sorted(setup_dirs, key=lambda x: x.name, reverse=True)
     

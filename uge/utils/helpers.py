@@ -43,16 +43,16 @@ def get_operator_service():
 
 def create_setup_id():
     """
-    Create a unique experiment ID with timestamp and UUID.
+    Create a unique setup ID with timestamp and UUID.
     
     Returns:
-        str: Unique experiment ID in format 'exp_YYYYMMDD_HHMMSS_XXXXXXXX'
+        str: Unique setup ID in format 'setup_YYYYMMDD_HHMMSS_XXXXXXXX'
         
     Example:
         >>> create_setup_id()
-        'exp_20240101_143022_a1b2c3d4'
+        'setup_20240101_143022_a1b2c3d4'
     """
-    return f"exp_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}_{str(uuid.uuid4())[:8]}"
+    return f"setup_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}_{str(uuid.uuid4())[:8]}"
 
 
 def create_run_id():
