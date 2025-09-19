@@ -37,6 +37,7 @@ class SetupConfig:
         fitness_metric (str): Fitness metric to optimize ('mae' or 'accuracy')
         fitness_direction (int): Optimization direction (1 for maximize, -1 for minimize)
         n_runs (int): Number of independent runs to perform (typically 3-10)
+        evolution_type (str): Evolution type - 'fixed' (same config all generations) or 'dynamic' (config can change per generation)
         generations (int): Number of generations to evolve (typically 50-200)
         population (int): Population size (typically 100-500)
         p_crossover (float): Crossover probability (typically 0.7-0.9)
@@ -65,9 +66,19 @@ class SetupConfig:
     dataset: str
     grammar: str
     fitness_metric: str = 'mae'
-    fitness_direction: int = -1  # -1 for minimize (MAE), 1 for maximize (accuracy)
+    fitness_direction: int = field(default=-1, init=False)  # Will be set in __post_init__
     n_runs: int = 3
+    evolution_type: str = 'fixed'  # 'fixed' or 'dynamic'
     created_at: str = field(default_factory=lambda: dt.datetime.now().isoformat())
+    
+    def __post_init__(self):
+        """Set fitness_direction based on fitness_metric after initialization."""
+        if self.fitness_metric == 'mae':
+            self.fitness_direction = -1  # minimize (lower is better)
+        elif self.fitness_metric == 'accuracy':
+            self.fitness_direction = 1   # maximize (higher is better)
+        else:
+            self.fitness_direction = -1  # default to minimize
     
     # GA Parameters
     generations: int = 200
@@ -109,6 +120,7 @@ class SetupConfig:
             'fitness_metric': self.fitness_metric,
             'fitness_direction': self.fitness_direction,
             'n_runs': self.n_runs,
+            'evolution_type': self.evolution_type,
             'generations': self.generations,
             'population': self.population,
             'p_crossover': self.p_crossover,
@@ -135,6 +147,69 @@ class SetupConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SetupConfig':
         """Create configuration from dictionary."""
+        # Remove fitness_direction since it's set automatically in __post_init__
+        data_copy = data.copy()
+        data_copy.pop('fitness_direction', None)
+        return cls(**data_copy)
+
+
+@dataclass
+class GenerationConfig:
+    """
+    Configuration parameters for a specific generation.
+    
+    This class tracks configuration parameters that may vary per generation.
+    Currently, all parameters are the same across generations, but this
+    structure allows for future dynamic configuration changes.
+    
+    Attributes:
+        generation (int): Generation number (0-based)
+        population (int): Population size for this generation
+        p_crossover (float): Crossover probability for this generation
+        p_mutation (float): Mutation probability for this generation
+        elite_size (int): Elite size for this generation
+        tournsize (int): Tournament size for this generation
+        halloffame_size (int): Hall of fame size for this generation
+        max_tree_depth (int): Maximum tree depth for this generation
+        codon_size (int): Codon size for this generation
+        codon_consumption (str): Codon consumption strategy for this generation
+        genome_representation (str): Genome representation for this generation
+        timestamp (str): ISO timestamp when this generation config was recorded
+    """
+    
+    generation: int
+    population: int
+    p_crossover: float
+    p_mutation: float
+    elite_size: int
+    tournsize: int
+    halloffame_size: int
+    max_tree_depth: int
+    codon_size: int
+    codon_consumption: str
+    genome_representation: str
+    timestamp: str = field(default_factory=lambda: dt.datetime.now(dt.timezone.utc).isoformat())
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert generation config to dictionary format."""
+        return {
+            'generation': self.generation,
+            'population': self.population,
+            'p_crossover': self.p_crossover,
+            'p_mutation': self.p_mutation,
+            'elite_size': self.elite_size,
+            'tournsize': self.tournsize,
+            'halloffame_size': self.halloffame_size,
+            'max_tree_depth': self.max_tree_depth,
+            'codon_size': self.codon_size,
+            'codon_consumption': self.codon_consumption,
+            'genome_representation': self.genome_representation,
+            'timestamp': self.timestamp
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'GenerationConfig':
+        """Create generation config from dictionary."""
         return cls(**data)
 
 
@@ -167,6 +242,7 @@ class SetupResult:
         nodes_length_avg (List[float]): Average number of terminal symbols per generation
         nodes_length_max (List[int]): Maximum number of terminal symbols per generation
         nodes_length_std (List[float]): Standard deviation of terminal symbols per generation
+        generation_configs (List[GenerationConfig]): Configuration for each generation
         timestamp (str): ISO timestamp of result generation
     """
     
@@ -190,6 +266,7 @@ class SetupResult:
     nodes_length_avg: List[float] = field(default_factory=list)
     nodes_length_max: List[int] = field(default_factory=list)
     nodes_length_std: List[float] = field(default_factory=list)
+    generation_configs: List[GenerationConfig] = field(default_factory=list)
     timestamp: str = field(default_factory=lambda: dt.datetime.now(dt.timezone.utc).isoformat())
     
     def to_dict(self) -> Dict[str, Any]:
@@ -215,6 +292,7 @@ class SetupResult:
             'nodes_length_avg': self.nodes_length_avg,
             'nodes_length_max': self.nodes_length_max,
             'nodes_length_std': self.nodes_length_std,
+            'generation_configs': [gc.to_dict() for gc in self.generation_configs],
             'timestamp': self.timestamp
         }
     
@@ -222,6 +300,13 @@ class SetupResult:
     def from_dict(cls, data: Dict[str, Any]) -> 'SetupResult':
         """Create result from dictionary."""
         config = SetupConfig.from_dict(data['config'])
+        
+        # Handle generation_configs with backward compatibility
+        generation_configs = []
+        if 'generation_configs' in data:
+            generation_configs = [GenerationConfig.from_dict(gc_data) 
+                                for gc_data in data['generation_configs']]
+        
         return cls(
             config=config,
             report_items=data['report_items'],
@@ -243,6 +328,7 @@ class SetupResult:
             nodes_length_avg=data.get('nodes_length_avg', []),
             nodes_length_max=data.get('nodes_length_max', []),
             nodes_length_std=data.get('nodes_length_std', []),
+            generation_configs=generation_configs,
             timestamp=data.get('timestamp', dt.datetime.now(dt.timezone.utc).isoformat())
         )
 

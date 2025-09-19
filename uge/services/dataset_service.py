@@ -18,6 +18,13 @@ import numpy as np
 from uge.models.dataset import Dataset, DatasetInfo
 from uge.utils.constants import FILE_PATHS
 
+# Import DEFAULT_CONFIG with error handling to avoid circular imports
+try:
+    from uge.utils.constants import DEFAULT_CONFIG
+except ImportError:
+    # Fallback if import fails
+    DEFAULT_CONFIG = {'label_column': 'class'}
+
 
 class DatasetService:
     """
@@ -123,7 +130,6 @@ class DatasetService:
                 return dataset.preprocess_cleveland_data(random_seed)
             else:
                 # Use 'class' as the default label column if not provided
-                from uge.utils.constants import DEFAULT_CONFIG
                 label_column = label_column or DEFAULT_CONFIG['label_column']
                 return dataset.preprocess_csv_data(label_column, test_size, random_seed)
         except Exception as e:
@@ -317,7 +323,6 @@ class DatasetService:
             # Check for label column in CSV datasets
             if dataset_name != 'processed.cleveland.data':
                 # Use 'class' as the default label column if not provided
-                from uge.utils.constants import DEFAULT_CONFIG
                 label_column = label_column or DEFAULT_CONFIG['label_column']
                 if label_column not in data.columns:
                     issues.append(f"Label column '{label_column}' not found in dataset")

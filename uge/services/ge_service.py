@@ -22,11 +22,66 @@ from grape import grape, algorithms
 from deap import creator, base, tools
 
 # Import our models and utilities
-from uge.models.setup import SetupConfig, SetupResult
+from uge.models.setup import SetupConfig, SetupResult, GenerationConfig
 from uge.models.dataset import Dataset
 from uge.models.grammar import Grammar
-from uge.utils.helpers import fitness_eval
 from uge.utils.logger import StreamlitLogger
+from uge.utils.constants import DEFAULT_CONFIG
+
+# Import fitness evaluation functions directly to avoid circular imports
+def mae(y, yhat):
+    """Calculate Mean Absolute Error between true and predicted values."""
+    return np.mean(np.abs(np.array(y) - np.array(yhat)))
+
+def accuracy(y, yhat):
+    """Calculate accuracy between true and predicted values."""
+    compare = np.equal(y, yhat)
+    return np.mean(compare)
+
+def fitness_eval(individual, points, metric='mae'):
+    """
+    Evaluate the fitness of a Grammatical Evolution individual.
+    
+    This function is copied here to avoid circular import issues.
+    """
+    x = points[0]
+    Y = points[1]
+    
+    # Check if individual is invalid
+    if individual.invalid:
+        return np.nan,
+    
+    try:
+        # Simple evaluation context without operator service to avoid circular imports
+        eval_context = {
+            'x': x,  # Make the data available as 'x'
+            'np': np,  # Make numpy available
+        }
+        
+        # Evaluate the generated phenotype (Python code)
+        pred = eval(individual.phenotype, eval_context)
+    except (FloatingPointError, ZeroDivisionError, OverflowError, MemoryError, NameError, SyntaxError, TypeError, ValueError):
+        return np.nan,
+    
+    # Check if prediction is real-valued
+    if not np.isrealobj(pred):
+        return np.nan,
+    
+    try:
+        # Convert predictions to binary classifications
+        Y_class = [1 if pred[i] > 0 else 0 for i in range(len(Y))]
+    except (IndexError, TypeError):
+        return np.nan,
+    
+    # Calculate fitness based on metric
+    if metric == 'mae':
+        fitness_val = mae(Y, Y_class)
+    elif metric == 'accuracy':
+        fitness_val = accuracy(Y, Y_class)
+    else:
+        fitness_val = mae(Y, Y_class)  # Default to MAE
+    
+    return fitness_val,
 
 
 class GEService:
@@ -171,6 +226,78 @@ class GEService:
         stats.register("max", np.nanmax)
         return stats
     
+    def _create_generation_config(self, config: SetupConfig, generation: int) -> GenerationConfig:
+        """
+        Create a GenerationConfig for a specific generation.
+        
+        For fixed evolution: all configurations are the same across generations.
+        For dynamic evolution: configurations can be modified based on generation number.
+        
+        Args:
+            config (SetupConfig): Base setup configuration
+            generation (int): Generation number (0-based)
+            
+        Returns:
+            GenerationConfig: Configuration for the specified generation
+        """
+        if config.evolution_type == 'fixed':
+            # Fixed evolution: use the same configuration for all generations
+            return GenerationConfig(
+                generation=generation,
+                population=config.population,
+                p_crossover=config.p_crossover,
+                p_mutation=config.p_mutation,
+                elite_size=config.elite_size,
+                tournsize=config.tournsize,
+                halloffame_size=config.halloffame_size,
+                max_tree_depth=config.max_tree_depth,
+                codon_size=config.codon_size,
+                codon_consumption=config.codon_consumption,
+                genome_representation=config.genome_representation
+            )
+        
+        elif config.evolution_type == 'dynamic':
+            # Dynamic evolution: modify parameters based on generation
+            # This is where you can implement adaptive strategies
+            # For now, we'll use the same config but this can be extended
+            
+            # Example: Gradually increase mutation rate over generations
+            # p_mutation = config.p_mutation * (1 + 0.1 * generation / config.generations)
+            
+            # Example: Adjust population size based on generation
+            # population = int(config.population * (1 + 0.05 * generation / config.generations))
+            
+            # For now, return the same configuration (can be extended later)
+            return GenerationConfig(
+                generation=generation,
+                population=config.population,
+                p_crossover=config.p_crossover,
+                p_mutation=config.p_mutation,
+                elite_size=config.elite_size,
+                tournsize=config.tournsize,
+                halloffame_size=config.halloffame_size,
+                max_tree_depth=config.max_tree_depth,
+                codon_size=config.codon_size,
+                codon_consumption=config.codon_consumption,
+                genome_representation=config.genome_representation
+            )
+        
+        else:
+            # Fallback to fixed evolution for unknown types
+            return GenerationConfig(
+                generation=generation,
+                population=config.population,
+                p_crossover=config.p_crossover,
+                p_mutation=config.p_mutation,
+                elite_size=config.elite_size,
+                tournsize=config.tournsize,
+                halloffame_size=config.halloffame_size,
+                max_tree_depth=config.max_tree_depth,
+                codon_size=config.codon_size,
+                codon_consumption=config.codon_consumption,
+                genome_representation=config.genome_representation
+            )
+    
     def run_setup(self, config: SetupConfig, dataset: Dataset, 
                       grammar: Grammar, report_items: List[str],
                       live_placeholder=None) -> SetupResult:
@@ -209,7 +336,6 @@ class GEService:
                 X_train, Y_train, X_test, Y_test = dataset.preprocess_cleveland_data(config.random_seed)
             else:
                 # Use 'class' as the default label column
-                from uge.utils.constants import DEFAULT_CONFIG
                 label_column = config.label_column or DEFAULT_CONFIG['label_column']
                 X_train, Y_train, X_test, Y_test = dataset.preprocess_csv_data(
                     label_column, config.test_size, config.random_seed
@@ -236,7 +362,12 @@ class GEService:
             # Setup logging
             logger = StreamlitLogger(live_placeholder) if live_placeholder else None
             
-            # Run the evolutionary algorithm
+            # Run the evolutionary algorithm with generation config tracking
+            generation_configs = []
+            
+            # Check if we should track generation configurations
+            track_configs = DEFAULT_CONFIG.get('track_generation_configs', True)
+            
             with (contextlib.redirect_stdout(logger) if logger else contextlib.nullcontext()):
                 population, logbook = algorithms.ge_eaSimpleWithElitism(
                     population, toolbox, 
@@ -258,8 +389,13 @@ class GEService:
                     verbose=True
                 )
             
+            # Create generation configurations for all generations
+            if track_configs:
+                for gen in range(config.generations + 1):  # +1 to include generation 0
+                    generation_configs.append(self._create_generation_config(config, gen))
+            
             # Process results
-            result = self._process_results(config, logbook, hof, report_items)
+            result = self._process_results(config, logbook, hof, report_items, generation_configs)
             
             if self.logger:
                 self.logger(f"Setup completed successfully. Best fitness: {result.best_training_fitness}")
@@ -275,7 +411,7 @@ class GEService:
             raise RuntimeError(error_msg) from e
     
     def _process_results(self, config: SetupConfig, logbook, hof, 
-                        report_items: List[str]) -> SetupResult:
+                        report_items: List[str], generation_configs: List[GenerationConfig] = None) -> SetupResult:
         """
         Process setup results into SetupResult object.
         
@@ -284,6 +420,7 @@ class GEService:
             logbook: DEAP logbook with statistics
             hof: DEAP hall of fame
             report_items (List[str]): Report items
+            generation_configs (List[GenerationConfig], optional): Generation configurations
             
         Returns:
             SetupResult: Processed results
@@ -334,7 +471,8 @@ class GEService:
             nodes_length_min=list(map(int, series.get('nodes_length_min', []))) if series.get('nodes_length_min') else [],
             nodes_length_avg=list(map(float, series.get('nodes_length_avg', []))) if series.get('nodes_length_avg') else [],
             nodes_length_max=list(map(int, series.get('nodes_length_max', []))) if series.get('nodes_length_max') else [],
-            nodes_length_std=list(map(float, series.get('nodes_length_std', []))) if series.get('nodes_length_std') else []
+            nodes_length_std=list(map(float, series.get('nodes_length_std', []))) if series.get('nodes_length_std') else [],
+            generation_configs=generation_configs or []
         )
         
         return result
@@ -381,5 +519,10 @@ class GEService:
         # Check fitness direction
         if config.fitness_direction not in [1, -1]:
             warnings.append("Fitness direction must be 1 (maximize) or -1 (minimize)")
+        
+        # Check evolution type
+        valid_evolution_types = ['fixed', 'dynamic']
+        if config.evolution_type not in valid_evolution_types:
+            warnings.append(f"Evolution type must be one of: {valid_evolution_types}")
         
         return warnings

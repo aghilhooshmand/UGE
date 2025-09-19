@@ -75,7 +75,30 @@ DEFAULT_CONFIG = {
         'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'invalid_count_std',
         'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'nodes_length_std',
         'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time'
-    ]
+    ],
+    
+    # Generation Configuration Tracking
+    'track_generation_configs': True,  # Whether to track configurations per generation
+    'generation_config_params': [
+        'population', 'p_crossover', 'p_mutation', 'elite_size', 'tournsize', 
+        'halloffame_size', 'max_tree_depth', 'codon_size', 'codon_consumption', 
+        'genome_representation'
+    ],
+    
+    # Evolution Type Options
+    'evolution_types': {
+        'fixed': {
+            'name': 'Fixed Evolution',
+            'description': 'Use the same configuration for all generations (recommended for beginners)',
+            'track_configs': True  # Still track but all will be the same
+        },
+        'dynamic': {
+            'name': 'Dynamic Evolution', 
+            'description': 'Allow configuration to change per generation (advanced feature)',
+            'track_configs': True
+        }
+    },
+    'default_evolution_type': 'fixed'
 }
 
 # User Interface Constants
