@@ -547,82 +547,81 @@ class Forms:
         
         st.divider()
         
-        # Section 4: Current Parameter Values (Main Form)
-        with st.form("setup_form"):
-            st.subheader("📋 4. Current Parameter Values")
-            st.markdown("*These are the current parameter values based on your configuration above. Dynamic parameters will vary during evolution.*")
+        # Section 4: Current Parameter Values (Display Only)
+        st.subheader("📋 4. Current Parameter Values")
+        st.markdown("*These are the current parameter values based on your configuration above. Dynamic parameters will vary during evolution.*")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Current Parameter Values - Show what user configured
+            st.markdown("**📊 Parameter Summary**")
             
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Current Parameter Values - Show what user configured
-                st.markdown("**📊 Parameter Summary**")
+            # Get values and modes from parameter configurations
+            def get_param_display(param_key, param_name, default_value):
+                param_config = parameter_configs.get(param_key, {})
+                value = param_config.get('value', default_value)
+                mode = param_config.get('mode', 'fixed')
                 
-                # Get values and modes from parameter configurations
-                def get_param_display(param_key, param_name, default_value):
-                    param_config = parameter_configs.get(param_key, {})
-                    value = param_config.get('value', default_value)
-                    mode = param_config.get('mode', 'fixed')
-                    
-                    if mode == 'dynamic':
-                        if 'options' in param_config:
-                            # Categorical dynamic
-                            return f"**{param_name}:** {value} 🔄 *Dynamic* (from {param_config['options']})"
-                        else:
-                            # Numerical dynamic
-                            return f"**{param_name}:** {value} 🔄 *Dynamic* ({param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')})"
+                if mode == 'dynamic':
+                    if 'options' in param_config:
+                        # Categorical dynamic
+                        return f"**{param_name}:** {value} 🔄 *Dynamic* (from {param_config['options']})"
                     else:
-                        return f"**{param_name}:** {value} 🔒 *Fixed*"
-                
-                # GA Parameters
-                st.markdown("**🧬 Genetic Algorithm Parameters:**")
-                st.markdown(get_param_display('elite_size', 'Elite Size', DEFAULT_CONFIG['elite_size']))
-                st.markdown(get_param_display('p_crossover', 'Crossover Probability', DEFAULT_CONFIG['p_crossover']))
-                st.markdown(get_param_display('p_mutation', 'Mutation Probability', DEFAULT_CONFIG['p_mutation']))
-                st.markdown(get_param_display('tournsize', 'Tournament Size', DEFAULT_CONFIG['tournsize']))
-                st.markdown(get_param_display('halloffame_size', 'Hall of Fame Size', DEFAULT_CONFIG['halloffame_size']))
-                
-                # Tree Parameters
-                st.markdown("**🌳 Tree Parameters:**")
-                st.markdown(get_param_display('max_tree_depth', 'Max Tree Depth', DEFAULT_CONFIG['max_tree_depth']))
-                st.markdown(get_param_display('min_init_tree_depth', 'Min Init Tree Depth', DEFAULT_CONFIG['min_init_tree_depth']))
-                st.markdown(get_param_display('max_init_tree_depth', 'Max Init Tree Depth', DEFAULT_CONFIG['max_init_tree_depth']))
-                
-                # Genome Parameters
-                st.markdown("**🧬 Genome Parameters:**")
-                st.markdown(get_param_display('min_init_genome_length', 'Min Init Genome Length', DEFAULT_CONFIG['min_init_genome_length']))
-                st.markdown(get_param_display('max_init_genome_length', 'Max Init Genome Length', DEFAULT_CONFIG['max_init_genome_length']))
-                st.markdown(get_param_display('codon_size', 'Codon Size', DEFAULT_CONFIG['codon_size']))
-                
-                # Categorical Parameters
-                st.markdown("**📝 Categorical Parameters:**")
-                st.markdown(get_param_display('codon_consumption', 'Codon Consumption', DEFAULT_CONFIG['codon_consumption']))
-                st.markdown(get_param_display('genome_representation', 'Genome Representation', DEFAULT_CONFIG['genome_representation']))
-                st.markdown(get_param_display('initialisation', 'Initialisation', DEFAULT_CONFIG['initialisation']))
-                
-                # Store parameter configurations for form submission
-                parameter_configs_data = parameter_configs
-            
-            with col2:
-                # Dynamic Parameters Summary
-                st.markdown("**📊 Dynamic Parameters Summary**")
-                
-                # Dynamic parameters indicator
-                dynamic_count = sum(1 for config in parameter_configs.values() if config.get('mode') == 'dynamic')
-                if dynamic_count > 0:
-                    st.success(f"🔄 **{dynamic_count} parameters** are set to dynamic mode and will vary during evolution!")
-                    
-                    # Show which parameters are dynamic
-                    st.markdown("**Dynamic Parameters:**")
-                    for param_key, param_config in parameter_configs.items():
-                        if param_config.get('mode') == 'dynamic':
-                            param_name = param_config.get('name', param_key)
-                            if 'options' in param_config:
-                                st.markdown(f"- {param_name}: {param_config['options']}")
-                            else:
-                                st.markdown(f"- {param_name}: {param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')}")
+                        # Numerical dynamic
+                        return f"**{param_name}:** {value} 🔄 *Dynamic* ({param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')})"
                 else:
-                    st.info("🔒 **All parameters** are set to fixed mode.")
+                    return f"**{param_name}:** {value} 🔒 *Fixed*"
+            
+            # GA Parameters
+            st.markdown("**🧬 Genetic Algorithm Parameters:**")
+            st.markdown(get_param_display('elite_size', 'Elite Size', DEFAULT_CONFIG['elite_size']))
+            st.markdown(get_param_display('p_crossover', 'Crossover Probability', DEFAULT_CONFIG['p_crossover']))
+            st.markdown(get_param_display('p_mutation', 'Mutation Probability', DEFAULT_CONFIG['p_mutation']))
+            st.markdown(get_param_display('tournsize', 'Tournament Size', DEFAULT_CONFIG['tournsize']))
+            st.markdown(get_param_display('halloffame_size', 'Hall of Fame Size', DEFAULT_CONFIG['halloffame_size']))
+            
+            # Tree Parameters
+            st.markdown("**🌳 Tree Parameters:**")
+            st.markdown(get_param_display('max_tree_depth', 'Max Tree Depth', DEFAULT_CONFIG['max_tree_depth']))
+            st.markdown(get_param_display('min_init_tree_depth', 'Min Init Tree Depth', DEFAULT_CONFIG['min_init_tree_depth']))
+            st.markdown(get_param_display('max_init_tree_depth', 'Max Init Tree Depth', DEFAULT_CONFIG['max_init_tree_depth']))
+            
+            # Genome Parameters
+            st.markdown("**🧬 Genome Parameters:**")
+            st.markdown(get_param_display('min_init_genome_length', 'Min Init Genome Length', DEFAULT_CONFIG['min_init_genome_length']))
+            st.markdown(get_param_display('max_init_genome_length', 'Max Init Genome Length', DEFAULT_CONFIG['max_init_genome_length']))
+            st.markdown(get_param_display('codon_size', 'Codon Size', DEFAULT_CONFIG['codon_size']))
+            
+            # Categorical Parameters
+            st.markdown("**📝 Categorical Parameters:**")
+            st.markdown(get_param_display('codon_consumption', 'Codon Consumption', DEFAULT_CONFIG['codon_consumption']))
+            st.markdown(get_param_display('genome_representation', 'Genome Representation', DEFAULT_CONFIG['genome_representation']))
+            st.markdown(get_param_display('initialisation', 'Initialisation', DEFAULT_CONFIG['initialisation']))
+            
+            # Store parameter configurations for form submission
+            parameter_configs_data = parameter_configs
+        
+        with col2:
+            # Dynamic Parameters Summary
+            st.markdown("**📊 Dynamic Parameters Summary**")
+            
+            # Dynamic parameters indicator
+            dynamic_count = sum(1 for config in parameter_configs.values() if config.get('mode') == 'dynamic')
+            if dynamic_count > 0:
+                st.success(f"🔄 **{dynamic_count} parameters** are set to dynamic mode and will vary during evolution!")
+                
+                # Show which parameters are dynamic
+                st.markdown("**Dynamic Parameters:**")
+                for param_key, param_config in parameter_configs.items():
+                    if param_config.get('mode') == 'dynamic':
+                        param_name = param_config.get('name', param_key)
+                        if 'options' in param_config:
+                            st.markdown(f"- {param_name}: {param_config['options']}")
+                        else:
+                            st.markdown(f"- {param_name}: {param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')}")
+            else:
+                st.info("🔒 **All parameters** are set to fixed mode.")
         
         st.divider()
         
