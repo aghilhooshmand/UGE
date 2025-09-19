@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from typing import Dict, Any, List
 from uge.services.storage_service import StorageService
+from uge.views.components.config_charts import ConfigCharts
 
 
 class ComparisonView:
@@ -184,7 +185,7 @@ class ComparisonView:
         # Chart type selection
         chart_type = st.selectbox(
             "Select Chart Type",
-            ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "All Metrics"],
+            ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "Configuration Comparison", "All Metrics"],
             key="comparison_chart_type"
         )
         
@@ -202,6 +203,20 @@ class ComparisonView:
                 ["Average", "Maximum", "Minimum", "Average with STD Bars"],
                 key=f"comparison_metric_{chart_type.lower().replace(' ', '_')}"
             )
+        elif chart_type == "Configuration Comparison":
+            # Get available configuration parameters from the first setup
+            first_setup_data = list(comparison_results.values())[0]
+            available_config_params = self._get_available_config_params(first_setup_data)
+            
+            if available_config_params:
+                metric_type = st.selectbox(
+                    "Select Configuration Parameter",
+                    available_config_params,
+                    key="comparison_config_param"
+                )
+            else:
+                st.warning("No configuration parameters available for comparison.")
+                metric_type = None
         else:
             metric_type = "All"
         
@@ -242,6 +257,9 @@ class ComparisonView:
             self._render_invalid_count_chart(comparison_results, metric_type)
         elif chart_type == "Nodes Length Evolution":
             self._render_nodes_length_chart(comparison_results, metric_type)
+        elif chart_type == "Configuration Comparison":
+            if metric_type:
+                self._render_configuration_comparison_chart(comparison_results, metric_type)
         elif chart_type == "All Metrics":
             self._render_all_metrics_chart(comparison_results)
     
@@ -720,3 +738,88 @@ class ComparisonView:
         
         df = pd.DataFrame(all_data)
         return df.to_csv(index=False)
+    
+    def _get_available_config_params(self, setup_data: Dict[str, Any]) -> List[str]:
+        """
+        Get available configuration parameters from setup data.
+        
+        Args:
+            setup_data (Dict[str, Any]): Setup data dictionary
+            
+        Returns:
+            List[str]: List of available configuration parameter names
+        """
+        # Try to get generation configs from the setup data
+        generation_configs = None
+        if 'results' in setup_data:
+            # If it's a Setup object
+            results = setup_data['results']
+            if results:
+                first_result = list(results.values())[0]
+                if hasattr(first_result, 'generation_configs'):
+                    generation_configs = first_result.generation_configs
+        elif 'generation_configs' in setup_data:
+            # If it's direct generation configs
+            generation_configs = setup_data['generation_configs']
+        
+        if not generation_configs:
+            return []
+        
+        # Get available configuration parameters
+        first_gen_config = generation_configs[0]
+        if isinstance(first_gen_config, dict):
+            config_params = list(first_gen_config.keys())
+        else:
+            config_params = [attr for attr in dir(first_gen_config) 
+                           if not attr.startswith('_') and not callable(getattr(first_gen_config, attr))]
+        
+        # Remove non-numeric parameters
+        numeric_params = []
+        for param in config_params:
+            if param in ['generation', 'timestamp']:
+                continue
+            try:
+                value = first_gen_config[param] if isinstance(first_gen_config, dict) else getattr(first_gen_config, param)
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    numeric_params.append(param)
+            except:
+                continue
+        
+        return numeric_params
+    
+    def _render_configuration_comparison_chart(self, comparison_results: Dict[str, Any], config_param: str) -> None:
+        """
+        Render configuration comparison chart across setups.
+        
+        Args:
+            comparison_results (Dict[str, Any]): Comparison results data
+            config_param (str): Configuration parameter to compare
+        """
+        # Transform comparison results to the format expected by ConfigCharts
+        setup_results = {}
+        
+        for setup_name, setup_data in comparison_results.items():
+            # Try to get generation configs from the setup data
+            generation_configs = None
+            if 'results' in setup_data:
+                # If it's a Setup object
+                results = setup_data['results']
+                if results:
+                    first_result = list(results.values())[0]
+                    if hasattr(first_result, 'generation_configs'):
+                        generation_configs = first_result.generation_configs
+            elif 'generation_configs' in setup_data:
+                # If it's direct generation configs
+                generation_configs = setup_data['generation_configs']
+            
+            if generation_configs:
+                setup_results[setup_name] = {'generation_configs': generation_configs}
+        
+        if setup_results:
+            ConfigCharts.plot_configuration_comparison(
+                setup_results,
+                config_param=config_param,
+                title=f"{config_param.replace('_', ' ').title()} Comparison Across Setups"
+            )
+        else:
+            st.warning("No configuration data available for comparison.")

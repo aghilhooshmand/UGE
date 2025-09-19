@@ -569,6 +569,8 @@ class Forms:
         with col1:
             show_charts = st.checkbox("Show Charts", value=True)
             show_statistics = st.checkbox("Show Statistics", value=True)
+            show_config_charts = st.checkbox("Show Configuration Charts", value=True, 
+                                           help="Show charts for configuration parameter evolution across generations")
             show_best_individual = st.checkbox("Show Best Individual", value=True)
         
         with col2:
@@ -577,6 +579,7 @@ class Forms:
         return {
             'show_charts': show_charts,
             'show_statistics': show_statistics,
+            'show_config_charts': show_config_charts,
             'show_best_individual': show_best_individual,
             'export_data': export_data
         }

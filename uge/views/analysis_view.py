@@ -15,6 +15,7 @@ import pandas as pd
 from typing import Dict, List, Optional, Any, Callable
 from uge.views.components.base_view import BaseView
 from uge.views.components.charts import Charts
+from uge.views.components.config_charts import ConfigCharts
 from uge.views.components.forms import Forms
 from uge.models.setup import Setup, SetupResult
 from uge.utils.tooltip_manager import tooltip_manager
@@ -115,6 +116,10 @@ class AnalysisView(BaseView):
         if analysis_options.get('show_charts', True):
             with st.expander("📈 Setup Charts", expanded=True):
                 self._render_setup_charts(setup)
+        
+        if analysis_options.get('show_config_charts', True):
+            with st.expander("⚙️ Configuration Evolution Charts", expanded=True):
+                self._render_configuration_charts(setup)
         
         if analysis_options.get('show_best_individual', True):
             with st.expander("🏆 Best Individual", expanded=True):
@@ -833,3 +838,116 @@ class AnalysisView(BaseView):
         # Render the setup-wide nodes length chart
         from uge.views.components.charts import Charts
         Charts.plot_setup_wide_nodes_length(setup.results, measurement_options)
+    
+    def _render_configuration_charts(self, setup: Setup):
+        """Render configuration evolution charts."""
+        
+        if not setup.results:
+            st.info("No results available for configuration charting")
+            return
+        
+        # Check if any results have generation configurations
+        has_config_data = any(
+            hasattr(result, 'generation_configs') and result.generation_configs 
+            for result in setup.results.values()
+        )
+        
+        if not has_config_data:
+            st.info("No generation configuration data available. Configuration tracking is only available for setups with generation-level configuration tracking enabled.")
+            return
+        
+        # Get available configuration parameters
+        available_params = ConfigCharts.get_available_config_params(setup.results)
+        
+        if not available_params:
+            st.warning("No numeric configuration parameters found in generation configurations.")
+            return
+        
+        # Configuration analysis type selection
+        config_analysis_type = st.selectbox(
+            "Select Configuration Analysis Type",
+            ["Individual Run Configuration", "Setup-wide Configuration Statistics", "Configuration Dashboard"],
+            help="Choose how to analyze configuration parameter evolution"
+        )
+        
+        if config_analysis_type == "Individual Run Configuration":
+            self._render_individual_config_charts(setup, available_params)
+        elif config_analysis_type == "Setup-wide Configuration Statistics":
+            self._render_setup_wide_config_charts(setup, available_params)
+        else:  # Configuration Dashboard
+            self._render_config_dashboard(setup)
+    
+    def _render_individual_config_charts(self, setup: Setup, available_params: List[str]):
+        """Render individual run configuration charts."""
+        # Sort runs by timestamp to get consistent ordering (newest first)
+        sorted_runs = sorted(setup.results.items(), key=lambda x: x[1].timestamp, reverse=True)
+        
+        # Create run selection options
+        run_options = []
+        for run_idx, (run_id, result) in enumerate(sorted_runs, 1):
+            run_options.append(f"RUN_{run_idx}")
+        
+        # Add run selection dropdown
+        selected_run = st.selectbox(
+            "Select Run to Display:",
+            options=run_options,
+            help="Choose which individual run to display in the configuration chart"
+        )
+        
+        # Find the selected run
+        selected_run_idx = run_options.index(selected_run)
+        selected_run_id, selected_result = sorted_runs[selected_run_idx]
+        
+        # Configuration parameter selection
+        config_param = st.selectbox(
+            "Select Configuration Parameter:",
+            options=available_params,
+            help="Choose which configuration parameter to visualize"
+        )
+        
+        # Display the selected run configuration
+        st.subheader(f"{selected_run} - {config_param.replace('_', ' ').title()} Evolution")
+        
+        if hasattr(selected_result, 'generation_configs') and selected_result.generation_configs:
+            # Convert generation configs to dict format if needed
+            gen_configs = []
+            for gen_config in selected_result.generation_configs:
+                if isinstance(gen_config, dict):
+                    gen_configs.append(gen_config)
+                else:
+                    gen_configs.append({
+                        'generation': gen_config.generation,
+                        config_param: getattr(gen_config, config_param, None)
+                    })
+            
+            ConfigCharts.plot_configuration_evolution(
+                gen_configs,
+                config_param=config_param,
+                title=f"{config_param.replace('_', ' ').title()} Evolution - {selected_run}"
+            )
+        else:
+            st.warning(f"No generation configuration data available for {selected_run}")
+    
+    def _render_setup_wide_config_charts(self, setup: Setup, available_params: List[str]):
+        """Render setup-wide configuration statistics charts."""
+        # Configuration parameter selection
+        config_param = st.selectbox(
+            "Select Configuration Parameter:",
+            options=available_params,
+            help="Choose which configuration parameter to analyze across all runs",
+            key="setup_wide_config_param"
+        )
+        
+        st.subheader(f"Setup-wide {config_param.replace('_', ' ').title()} Statistics")
+        
+        ConfigCharts.plot_setup_wide_configuration_stats(
+            setup.results,
+            config_param=config_param,
+            title=f"Setup-wide {config_param.replace('_', ' ').title()} Statistics - {setup.config.setup_name}"
+        )
+    
+    def _render_config_dashboard(self, setup: Setup):
+        """Render configuration dashboard."""
+        st.subheader(f"Configuration Dashboard - {setup.config.setup_name}")
+        
+        ConfigCharts.create_configuration_dashboard(setup.results)
