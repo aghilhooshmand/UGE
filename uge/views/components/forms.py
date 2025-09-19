@@ -513,7 +513,8 @@ class Forms:
                     help=help_texts.get('label_column', "Name of the target column in the dataset"),
                     key="label_column"
                 )
-                
+            
+            with col2:
                 # Test size
                 test_size = st.slider(
                     "Test Size", 
@@ -524,24 +525,31 @@ class Forms:
                     key="test_size"
                 )
             
-            with col2:
-                # Report items
-                report_items = st.multiselect(
-                    "Select report items", 
-                    options=DEFAULT_CONFIG['default_report_items'], 
-                    default=DEFAULT_CONFIG['default_report_items'], 
-                    help=help_texts.get('report_items', "Items to include in setup reports"),
-                    key="report_items"
-                )
-            
             # Submit button for dataset configuration
             st.form_submit_button("✅ Confirm Dataset Configuration", type="secondary")
         
         st.divider()
         
-        # Section 3: Current Parameter Values (Main Form)
+        # Section 3: Report Items Configuration
+        st.subheader("📝 3. Report Items Configuration")
+        with st.form("report_config_form"):
+            # Report items
+            report_items = st.multiselect(
+                "Select report items", 
+                options=DEFAULT_CONFIG['default_report_items'], 
+                default=DEFAULT_CONFIG['default_report_items'], 
+                help=help_texts.get('report_items', "Items to include in setup reports"),
+                key="report_items"
+            )
+            
+            # Submit button for report configuration
+            st.form_submit_button("✅ Confirm Report Items", type="secondary")
+        
+        st.divider()
+        
+        # Section 4: Current Parameter Values (Main Form)
         with st.form("setup_form"):
-            st.subheader("📋 3. Current Parameter Values")
+            st.subheader("📋 4. Current Parameter Values")
             st.markdown("*These are the current parameter values based on your configuration above. Dynamic parameters will vary during evolution.*")
             
             col1, col2 = st.columns(2)
@@ -615,15 +623,14 @@ class Forms:
                                 st.markdown(f"- {param_name}: {param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')}")
                 else:
                     st.info("🔒 **All parameters** are set to fixed mode.")
-            
-            
-            # Submit button inside form
-            run_setup = st.form_submit_button("🚀 Run Setup", type="primary", use_container_width=True)
         
         st.divider()
         
-        # Section 3: Run Setup Status
-        st.subheader("🚀 3. Execute Setup")
+        # Section 5: Execute Setup
+        st.subheader("🚀 5. Execute Setup")
+        
+        # Run Setup button outside of any form
+        run_setup = st.button("🚀 Run Setup", type="primary", use_container_width=True)
         
         # Handle form submission when button is clicked
         if run_setup:
