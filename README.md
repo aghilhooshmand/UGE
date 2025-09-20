@@ -33,6 +33,8 @@ UGE is a sophisticated web application that provides a user-friendly interface f
 - 📝 **Professional Grammar Editor**: Full CRUD operations for BNF grammar management
 - 💾 **Persistent Storage**: Automatic saving and loading of setups
 - 🏗️ **Clean Architecture**: MVC pattern with proper separation of concerns
+- ⚙️ **Dynamic Parameter Configuration**: Per-parameter dynamic evolution system
+- 🔧 **Parameter Configuration System**: Individual control over GA, Tree, Genome, and Categorical parameters
 
 ### Technologies Used
 
@@ -89,6 +91,38 @@ streamlit run app.py
 5. **Configure parameters** (or use defaults)
 6. **Click "🚀 Run Setup"**
 7. **View results** in the "Analysis" page
+
+### Dynamic Parameter Configuration
+
+The UGE application supports a sophisticated **Parameter Configuration System** that allows you to control each parameter individually:
+
+#### 🔧 **Parameter Types**
+
+- **GA Parameters**: Elite Size, Population Size, Generations, Crossover Probability, Mutation Probability
+- **Tree Parameters**: Max Tree Depth, Min/Max Init Tree Depth
+- **Genome Parameters**: Min/Max Init Genome Length, Codon Size
+- **Categorical Parameters**: Codon Consumption, Genome Representation, Initialisation
+
+#### ⚙️ **Configuration Modes**
+
+For each parameter, you can choose:
+
+- **Fixed Mode**: Parameter maintains the same value throughout all generations
+- **Dynamic Mode**: Parameter changes randomly between generations within specified ranges
+
+#### 🎯 **Dynamic Configuration Example**
+
+1. **Set Elite Size to Dynamic**: Choose "Dynamic" mode
+2. **Set Range**: Specify low (e.g., 1) and high (e.g., 5) values
+3. **Evolution**: Each generation will use a random elite size between 1 and 5
+4. **Tracking**: All parameter changes are tracked per generation for analysis
+
+#### 📊 **Benefits**
+
+- **Adaptive Evolution**: Parameters can adapt during evolution
+- **Research Flexibility**: Test different parameter strategies
+- **Complete Tracking**: All parameter changes are recorded and analyzable
+- **Reproducible**: Uses generation-specific random seeds for reproducibility
 
 ### Grammar Editor Features
 

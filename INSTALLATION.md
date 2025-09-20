@@ -117,8 +117,9 @@ UGE/
 - Go to "Run Setup" page
 - Select a dataset (or upload your own)
 - Choose a grammar file
-- Configure setup parameters
-- Click "Start Setup"
+- Configure setup parameters using the Parameter Configuration System
+- Choose between Fixed or Dynamic mode for each parameter
+- Click "🚀 Run Setup"
 
 #### 2. **Analyze Results**
 - Go to "Analysis" page
@@ -131,6 +132,12 @@ UGE/
 - Select multiple setups
 - Compare performance metrics
 - Generate comparison charts
+
+#### 4. **Dynamic Parameter Configuration**
+- Use the Parameter Configuration System to control individual parameters
+- Set parameters to Fixed mode for consistent values across generations
+- Set parameters to Dynamic mode with low/high ranges for adaptive evolution
+- Track all parameter changes per generation in the Analysis page
 
 ### ⚙️ Configuration
 

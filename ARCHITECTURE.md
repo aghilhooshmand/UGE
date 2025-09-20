@@ -14,9 +14,10 @@
 The UGE (Unified Grammatical Evolution) application is a Streamlit-based web application for running and analyzing Grammatical Evolution setups. It follows the Model-View-Controller (MVC) architectural pattern and provides a comprehensive interface for:
 
 - **Dataset Management**: Loading and preprocessing datasets
-- **Setup Configuration**: Setting up GE parameters
-- **Setup Execution**: Running multiple independent runs
-- **Results Analysis**: Visualizing and comparing results
+- **Setup Configuration**: Setting up GE parameters with dynamic parameter support
+- **Setup Execution**: Running multiple independent runs with unified algorithm
+- **Results Analysis**: Visualizing and comparing results with comprehensive statistics
+- **Dynamic Parameter System**: Per-parameter configuration for adaptive evolution
 
 ## 🏗️ Architecture Pattern
 
