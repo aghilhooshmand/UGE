@@ -167,7 +167,7 @@ class Dataset:
         # Split into train/test
         from sklearn.model_selection import train_test_split
         X_train, X_test, Y_train, Y_test = train_test_split(
-            X, Y, test_size=0.3, random_state=random_seed
+            X, Y, test_size=0.2, random_state=random_seed
         )
         
         # Transpose for GE format (features as columns)

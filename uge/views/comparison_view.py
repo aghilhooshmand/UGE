@@ -403,21 +403,25 @@ class ComparisonView:
                     st.warning(f"No invalid count data available for {setup_name}")
                     continue
                 
+                # Start from second generation (index 1) instead of generation 0
+                start_gen = 1 if len(generations) > 1 else 0
+                valid_generations = generations[start_gen:]
+                
                 # Select values based on metric type
                 if metric_type == "Average":
-                    y_values = avg_values if avg_values else []
+                    y_values = avg_values[start_gen:] if avg_values else []
                     trace_name = f"{setup_name} (Invalid Avg)"
                 elif metric_type == "Maximum":
-                    y_values = max_values if max_values else []
+                    y_values = max_values[start_gen:] if max_values else []
                     trace_name = f"{setup_name} (Invalid Max)"
                 elif metric_type == "Minimum":
-                    y_values = min_values if min_values else []
+                    y_values = min_values[start_gen:] if min_values else []
                     trace_name = f"{setup_name} (Invalid Min)"
                 elif metric_type == "Average with STD Bars":
-                    y_values = avg_values if avg_values else []
+                    y_values = avg_values[start_gen:] if avg_values else []
                     trace_name = f"{setup_name} (Invalid Avg)"
                 else:
-                    y_values = avg_values if avg_values else []
+                    y_values = avg_values[start_gen:] if avg_values else []
                     trace_name = f"{setup_name} (Invalid)"
                 
                 if not y_values:
@@ -426,7 +430,7 @@ class ComparisonView:
                 
                 # Add main line
                 fig.add_trace(go.Scatter(
-                    x=generations,
+                    x=valid_generations,
                     y=y_values,
                     mode='lines+markers',
                     name=trace_name,
@@ -436,17 +440,19 @@ class ComparisonView:
                 traces_added += 1
                 
                 # Add STD error bars if requested and available
-                if metric_type == "Average with STD Bars" and std_values and len(std_values) == len(y_values):
-                    fig.data[-1].update(
-                        error_y=dict(
-                            type='data',
-                            symmetric=True,
-                            array=std_values,
-                            visible=True,
-                            color='lightblue',
-                            thickness=2
+                if metric_type == "Average with STD Bars" and std_values and len(std_values) > start_gen:
+                    valid_std = std_values[start_gen:]
+                    if len(valid_std) == len(y_values):
+                        fig.data[-1].update(
+                            error_y=dict(
+                                type='data',
+                                symmetric=True,
+                                array=valid_std,
+                                visible=True,
+                                color='lightblue',
+                                thickness=2
+                            )
                         )
-                    )
         
         if traces_added == 0:
             st.warning("No valid invalid count data found for any setup.")
@@ -497,21 +503,25 @@ class ComparisonView:
                     st.warning(f"No nodes length data available for {setup_name}")
                     continue
                 
+                # Start from second generation (index 1) instead of generation 0
+                start_gen = 1 if len(generations) > 1 else 0
+                valid_generations = generations[start_gen:]
+                
                 # Select values based on metric type
                 if metric_type == "Average":
-                    y_values = avg_values if avg_values else []
+                    y_values = avg_values[start_gen:] if avg_values else []
                     trace_name = f"{setup_name} (Nodes Avg)"
                 elif metric_type == "Maximum":
-                    y_values = max_values if max_values else []
+                    y_values = max_values[start_gen:] if max_values else []
                     trace_name = f"{setup_name} (Nodes Max)"
                 elif metric_type == "Minimum":
-                    y_values = min_values if min_values else []
+                    y_values = min_values[start_gen:] if min_values else []
                     trace_name = f"{setup_name} (Nodes Min)"
                 elif metric_type == "Average with STD Bars":
-                    y_values = avg_values if avg_values else []
+                    y_values = avg_values[start_gen:] if avg_values else []
                     trace_name = f"{setup_name} (Nodes Avg)"
                 else:
-                    y_values = avg_values if avg_values else []
+                    y_values = avg_values[start_gen:] if avg_values else []
                     trace_name = f"{setup_name} (Nodes)"
                 
                 if not y_values:
@@ -520,7 +530,7 @@ class ComparisonView:
                 
                 # Add main line
                 fig.add_trace(go.Scatter(
-                    x=generations,
+                    x=valid_generations,
                     y=y_values,
                     mode='lines+markers',
                     name=trace_name,
@@ -530,17 +540,19 @@ class ComparisonView:
                 traces_added += 1
                 
                 # Add STD error bars if requested and available
-                if metric_type == "Average with STD Bars" and std_values and len(std_values) == len(y_values):
-                    fig.data[-1].update(
-                        error_y=dict(
-                            type='data',
-                            symmetric=True,
-                            array=std_values,
-                            visible=True,
-                            color='lightblue',
-                            thickness=2
+                if metric_type == "Average with STD Bars" and std_values and len(std_values) > start_gen:
+                    valid_std = std_values[start_gen:]
+                    if len(valid_std) == len(y_values):
+                        fig.data[-1].update(
+                            error_y=dict(
+                                type='data',
+                                symmetric=True,
+                                array=valid_std,
+                                visible=True,
+                                color='lightblue',
+                                thickness=2
+                            )
                         )
-                    )
         
         if traces_added == 0:
             st.warning("No valid nodes length data found for any setup.")

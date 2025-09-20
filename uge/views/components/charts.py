@@ -621,14 +621,16 @@ class Charts:
             st.warning("⚠️ No invalid individuals data available for this run.")
             return
         
-        generations = list(range(len(result.invalid_count_avg)))
+        # Start from second generation (index 1) instead of generation 0
+        start_gen = 1 if len(result.invalid_count_avg) > 1 else 0
+        generations = list(range(start_gen, len(result.invalid_count_avg)))
         
         fig = go.Figure()
         
         # Add traces based on measurement options
         if measurement_options.get("invalid_min", True):
             fig.add_trace(go.Scatter(
-                x=generations, y=result.invalid_count_min,
+                x=generations, y=result.invalid_count_min[start_gen:],
                 mode="lines+markers",
                 name="Minimum Invalid Count",
                 line=dict(color="green", width=2),
@@ -638,7 +640,7 @@ class Charts:
         if measurement_options.get("invalid_avg", True):
             # Add average line with error bars (like fitness charts)
             fig.add_trace(go.Scatter(
-                x=generations, y=result.invalid_count_avg,
+                x=generations, y=result.invalid_count_avg[start_gen:],
                 mode="lines+markers",
                 name="Average Invalid Count",
                 line=dict(color="blue", width=2),
@@ -646,7 +648,7 @@ class Charts:
                 error_y=dict(
                     type='data',
                     symmetric=True,
-                    array=result.invalid_count_std if result.invalid_count_std else [0] * len(result.invalid_count_avg),
+                    array=result.invalid_count_std[start_gen:] if result.invalid_count_std else [0] * len(result.invalid_count_avg[start_gen:]),
                     visible=True,
                     color='lightblue',
                     thickness=2
@@ -655,7 +657,7 @@ class Charts:
         
         if measurement_options.get("invalid_max", True):
             fig.add_trace(go.Scatter(
-                x=generations, y=result.invalid_count_max,
+                x=generations, y=result.invalid_count_max[start_gen:],
                 mode="lines+markers",
                 name="Maximum Invalid Count",
                 line=dict(color="red", width=2),
@@ -720,14 +722,16 @@ class Charts:
                 aggregated_avg.append(sum(gen_avg_values) / len(gen_avg_values))
                 aggregated_max.append(max(gen_max_values))
         
-        generations = list(range(len(aggregated_avg)))
+        # Start from second generation (index 1) instead of generation 0
+        start_gen = 1 if len(aggregated_avg) > 1 else 0
+        generations = list(range(start_gen, len(aggregated_avg)))
         
         fig = go.Figure()
         
         # Add traces based on measurement options
         if measurement_options.get("invalid_min", True):
             fig.add_trace(go.Scatter(
-                x=generations, y=aggregated_min,
+                x=generations, y=aggregated_min[start_gen:],
                 mode="lines+markers",
                 name="Minimum Across Runs",
                 line=dict(color="green", width=3),
@@ -748,7 +752,7 @@ class Charts:
             
             # Add average line with error bars (like fitness charts)
             fig.add_trace(go.Scatter(
-                x=generations, y=aggregated_avg,
+                x=generations, y=aggregated_avg[start_gen:],
                 mode="lines+markers",
                 name="Average Across Runs",
                 line=dict(color="blue", width=3),
@@ -756,7 +760,7 @@ class Charts:
                 error_y=dict(
                     type='data',
                     symmetric=True,
-                    array=aggregated_std,
+                    array=aggregated_std[start_gen:],
                     visible=True,
                     color='lightblue',
                     thickness=2
@@ -765,7 +769,7 @@ class Charts:
         
         if measurement_options.get("invalid_max", True):
             fig.add_trace(go.Scatter(
-                x=generations, y=aggregated_max,
+                x=generations, y=aggregated_max[start_gen:],
                 mode="lines+markers",
                 name="Maximum Across Runs",
                 line=dict(color="red", width=3),
@@ -798,14 +802,16 @@ class Charts:
             st.warning("⚠️ No nodes length data available for this run.")
             return
         
-        generations = list(range(len(result.nodes_length_avg)))
+        # Start from second generation (index 1) instead of generation 0
+        start_gen = 1 if len(result.nodes_length_avg) > 1 else 0
+        generations = list(range(start_gen, len(result.nodes_length_avg)))
         
         fig = go.Figure()
         
         # Add traces based on measurement options
         if measurement_options.get("nodes_length_min", True):
             fig.add_trace(go.Scatter(
-                x=generations, y=result.nodes_length_min,
+                x=generations, y=result.nodes_length_min[start_gen:],
                 mode="lines+markers",
                 name="Minimum Nodes Length",
                 line=dict(color="green", width=2),
@@ -815,7 +821,7 @@ class Charts:
         if measurement_options.get("nodes_length_avg", True):
             # Add average line with error bars (like fitness charts)
             fig.add_trace(go.Scatter(
-                x=generations, y=result.nodes_length_avg,
+                x=generations, y=result.nodes_length_avg[start_gen:],
                 mode="lines+markers",
                 name="Average Nodes Length",
                 line=dict(color="blue", width=2),
@@ -823,7 +829,7 @@ class Charts:
                 error_y=dict(
                     type='data',
                     symmetric=True,
-                    array=result.nodes_length_std if result.nodes_length_std else [0] * len(result.nodes_length_avg),
+                    array=result.nodes_length_std[start_gen:] if result.nodes_length_std else [0] * len(result.nodes_length_avg[start_gen:]),
                     visible=True,
                     color='lightblue',
                     thickness=2
@@ -832,7 +838,7 @@ class Charts:
         
         if measurement_options.get("nodes_length_max", True):
             fig.add_trace(go.Scatter(
-                x=generations, y=result.nodes_length_max,
+                x=generations, y=result.nodes_length_max[start_gen:],
                 mode="lines+markers",
                 name="Maximum Nodes Length",
                 line=dict(color="red", width=2),
@@ -897,14 +903,16 @@ class Charts:
                 aggregated_avg.append(sum(gen_avg_values) / len(gen_avg_values))
                 aggregated_max.append(max(gen_max_values))
         
-        generations = list(range(len(aggregated_avg)))
+        # Start from second generation (index 1) instead of generation 0
+        start_gen = 1 if len(aggregated_avg) > 1 else 0
+        generations = list(range(start_gen, len(aggregated_avg)))
         
         fig = go.Figure()
         
         # Add traces based on measurement options
         if measurement_options.get("nodes_length_min", True):
             fig.add_trace(go.Scatter(
-                x=generations, y=aggregated_min,
+                x=generations, y=aggregated_min[start_gen:],
                 mode="lines+markers",
                 name="Minimum Across Runs",
                 line=dict(color="green", width=3),
@@ -925,7 +933,7 @@ class Charts:
             
             # Add average line with error bars (like fitness charts)
             fig.add_trace(go.Scatter(
-                x=generations, y=aggregated_avg,
+                x=generations, y=aggregated_avg[start_gen:],
                 mode="lines+markers",
                 name="Average Across Runs",
                 line=dict(color="blue", width=3),
@@ -933,7 +941,7 @@ class Charts:
                 error_y=dict(
                     type='data',
                     symmetric=True,
-                    array=aggregated_std,
+                    array=aggregated_std[start_gen:],
                     visible=True,
                     color='lightblue',
                     thickness=2
@@ -942,7 +950,7 @@ class Charts:
         
         if measurement_options.get("nodes_length_max", True):
             fig.add_trace(go.Scatter(
-                x=generations, y=aggregated_max,
+                x=generations, y=aggregated_max[start_gen:],
                 mode="lines+markers",
                 name="Maximum Across Runs",
                 line=dict(color="red", width=3),
