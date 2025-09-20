@@ -27,6 +27,7 @@ from uge.models.dataset import Dataset
 from uge.models.grammar import Grammar
 from uge.utils.logger import StreamlitLogger
 from uge.utils.constants import DEFAULT_CONFIG
+from uge.utils.helpers import fitness_eval
 
 # Import fitness evaluation functions directly to avoid circular imports
 def mae(y, yhat):
@@ -143,13 +144,14 @@ class GEService:
             creator.create('Individual', grape.Individual, fitness=fitness_class)
         return creator.Individual
     
-    def _setup_toolbox(self, config: SetupConfig, fitness_class) -> base.Toolbox:
+    def _setup_toolbox(self, config: SetupConfig, fitness_class, bnf_grammar) -> base.Toolbox:
         """
         Setup DEAP toolbox with all required operators.
         
         Args:
             config (SetupConfig): Setup configuration
             fitness_class: DEAP fitness class
+            bnf_grammar: BNF grammar for crossover operations
             
         Returns:
             base.Toolbox: Configured DEAP toolbox
@@ -163,14 +165,26 @@ class GEService:
             toolbox.register("populationCreator", grape.sensible_initialisation, creator.Individual)
         
         # Create fitness wrapper that uses the specified metric
-        def fitness_wrapper(individual, points):
-            return fitness_eval(individual, points, config.fitness_metric)
+        def fitness_wrapper(individual, *args, **kwargs):
+            return fitness_eval(individual, self.current_points, config.fitness_metric)
+        
+        # Import partial for binding parameters
+        from functools import partial
+        
+        # Create crossover wrapper
+        def crossover_wrapper(ind1, ind2, *args, **kwargs):
+            return grape.crossover_onepoint(ind1, ind2, bnf_grammar, config.max_tree_depth, config.codon_consumption)
+        
+        # Create mutation wrapper
+        def mutation_wrapper(ind, *args, **kwargs):
+            return grape.mutation_int_flip_per_codon(ind, config.p_mutation, config.codon_size, 
+                                                   bnf_grammar, config.max_tree_depth, config.codon_consumption)
         
         # Register operators
         toolbox.register("evaluate", fitness_wrapper)
         toolbox.register("select", tools.selTournament, tournsize=config.tournsize)
-        toolbox.register("mate", grape.crossover_onepoint)
-        toolbox.register("mutate", grape.mutation_int_flip_per_codon)
+        toolbox.register("mate", crossover_wrapper)
+        toolbox.register("mutate", mutation_wrapper)
         
         return toolbox
     
@@ -214,10 +228,10 @@ class GEService:
     
     def _setup_statistics(self) -> tools.Statistics:
         """
-        Setup statistics collection.
+        Setup comprehensive statistics collection matching the standard algorithm.
         
         Returns:
-            tools.Statistics: Configured statistics object
+            tools.Statistics: Configured statistics object with comprehensive metrics
         """
         stats = tools.Statistics(key=lambda ind: ind.fitness.values)
         stats.register("avg", np.nanmean)
@@ -250,8 +264,6 @@ class GEService:
             if param_config.get('options') is not None:
                 # Categorical parameter - randomly select from options
                 value = random.choice(param_config['options'])
-                param_name = param_config.get('name', 'parameter')
-                print(f"Generation {generation}: Dynamic {param_name} = {value} (options: {param_config['options']})")
                 return value
             else:
                 # Numerical parameter - generate random value within range
@@ -262,9 +274,6 @@ class GEService:
                     # For integer parameters
                     value = random.randint(param_config['low'], param_config['high'])
                 
-                # Debug logging
-                param_name = param_config.get('name', 'parameter')
-                print(f"Generation {generation}: Dynamic {param_name} = {value} (range: {param_config['low']}-{param_config['high']})")
                 
                 return value
         else:
@@ -395,103 +404,7 @@ class GEService:
             initialisation=initialisation
         )
     
-    def _run_dynamic_evolution(self, population, toolbox, config, bnf_grammar, 
-                              X_train, Y_train, X_test, Y_test, 
-                              report_items, stats, halloffame, verbose, 
-                              generation_configs, parameter_configs):
-        """
-        Run evolution with dynamic parameters that can change per generation.
-        
-        This method implements a custom evolution loop that allows for dynamic
-        parameter changes (like elite_size) during evolution.
-        """
-        from deap import tools
-        
-        # Initialize logbook
-        logbook = tools.Logbook()
-        logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
-        
-        # Evaluate the initial population
-        fitnesses = list(map(toolbox.evaluate, population))
-        for ind, fit in zip(population, fitnesses):
-            ind.fitness.values = fit
-        
-        # Record initial statistics
-        if halloffame is not None:
-            halloffame.update(population)
-        
-        record = stats.compile(population) if stats else {}
-        logbook.record(gen=0, nevals=len(population), **record)
-        
-        if verbose:
-            print(logbook.stream)
-        
-        # Evolution loop
-        for gen in range(1, config.generations + 1):
-            # Get generation-specific configuration
-            gen_config = self._create_generation_config(config, gen, dynamic_configs)
-            
-            # Update generation configs list
-            if generation_configs is not None:
-                generation_configs.append(gen_config)
-            
-            # Select parents
-            offspring = toolbox.select(population, len(population))
-            
-            # Clone the selected individuals
-            offspring = list(map(toolbox.clone, offspring))
-            
-            # Apply crossover using dynamic parameters
-            for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                if random.random() < gen_config.p_crossover:
-                    toolbox.mate(child1, child2)
-                    del child1.fitness.values, child2.fitness.values
-            
-            # Apply mutation using dynamic parameters
-            for mutant in offspring:
-                if random.random() < gen_config.p_mutation:
-                    toolbox.mutate(mutant)
-                    del mutant.fitness.values
-            
-            # Evaluate individuals with invalid fitness
-            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-            fitnesses = map(toolbox.evaluate, invalid_ind)
-            for ind, fit in zip(invalid_ind, fitnesses):
-                ind.fitness.values = fit
-            
-            # Update hall of fame with the current population
-            if halloffame is not None:
-                halloffame.update(offspring)
-            
-            # Apply elitism using the dynamic elite size
-            if gen_config.elite_size > 0:
-                # Sort offspring by fitness (descending for maximization, ascending for minimization)
-                if config.fitness_direction == 1:  # Maximization
-                    offspring_sorted = sorted(offspring, key=lambda ind: ind.fitness.values[0], reverse=True)
-                else:  # Minimization
-                    offspring_sorted = sorted(offspring, key=lambda ind: ind.fitness.values[0], reverse=False)
-                
-                # Replace worst individuals with best individuals from hall of fame
-                if halloffame is not None and len(halloffame) > 0:
-                    elite_individuals = halloffame.items[:gen_config.elite_size]
-                    for i, elite in enumerate(elite_individuals):
-                        if i < len(offspring_sorted):
-                            offspring_sorted[-(i+1)] = toolbox.clone(elite)
-                
-                # Replace the current population with the modified offspring
-                population[:] = offspring_sorted
-            else:
-                # Replace the current population with the offspring (no elitism)
-                population[:] = offspring
-            
-            # Record statistics for this generation
-            record = stats.compile(population) if stats else {}
-            logbook.record(gen=gen, nevals=len(invalid_ind), **record)
-            
-            if verbose:
-                print(logbook.stream)
-        
-        return population, logbook
+    
     
     def run_setup(self, config: SetupConfig, dataset: Dataset, 
                       grammar: Grammar, report_items: List[str],
@@ -544,8 +457,11 @@ class GEService:
             fitness_class = self._create_fitness_class(config.fitness_direction)
             individual_class = self._create_individual_class(fitness_class)
             
+            # Set current points for fitness evaluation
+            self.current_points = (X_train, Y_train)
+            
             # Setup toolbox
-            toolbox = self._setup_toolbox(config, fitness_class)
+            toolbox = self._setup_toolbox(config, fitness_class, bnf_grammar)
             
             # Create population
             population = self._create_population(toolbox, config, bnf_grammar, live_placeholder)
@@ -566,20 +482,39 @@ class GEService:
             with (contextlib.redirect_stdout(logger) if logger else contextlib.nullcontext()):
                 # Check if we have any dynamic configurations
                 has_dynamic = parameter_configs and any(
-                    config.get('mode') == 'dynamic' 
-                    for config in parameter_configs.values()
+                    param_config.get('mode') == 'dynamic' 
+                    for param_config in parameter_configs.values()
                 )
                 
                 if has_dynamic:
-                    # Use custom evolution loop with dynamic parameters
-                    population, logbook = self._run_dynamic_evolution(
-                        population, toolbox, config, bnf_grammar, 
-                        X_train, Y_train, X_test, Y_test, 
-                        report_items, stats, hof, True, 
-                        generation_configs, parameter_configs
+                    # For dynamic parameters, we need to use initial values and track changes separately
+                    # The algorithm will run with initial parameter values, but we'll track the dynamic changes
+                    # This is a limitation of using the standard algorithm with dynamic parameters
+                    if self.logger:
+                        self.logger("Note: Dynamic parameters detected. Algorithm will use initial parameter values.")
+                    
+                    # Use initial parameter values for the algorithm
+                    population, logbook = algorithms.ge_eaSimpleWithElitism(
+                        population, toolbox, 
+                        cxpb=config.p_crossover, 
+                        mutpb=config.p_mutation,
+                        ngen=config.generations, 
+                        elite_size=config.elite_size,
+                        bnf_grammar=bnf_grammar,
+                        codon_size=config.codon_size,
+                        max_tree_depth=config.max_tree_depth,
+                        max_genome_length=config.max_init_genome_length,
+                        points_train=[X_train, Y_train],
+                        points_test=[X_test, Y_test],
+                        codon_consumption=config.codon_consumption,
+                        report_items=report_items,
+                        genome_representation=config.genome_representation,
+                        stats=stats, 
+                        halloffame=hof, 
+                        verbose=True
                     )
                 else:
-                    # Use standard evolution with fixed parameters
+                    # Use standard algorithm with fixed parameters
                     population, logbook = algorithms.ge_eaSimpleWithElitism(
                         population, toolbox, 
                         cxpb=config.p_crossover, 
