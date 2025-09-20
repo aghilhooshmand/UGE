@@ -174,9 +174,25 @@ def fitness_eval(individual, points, metric='mae'):
         return np.nan,
     
     try:
+        # Ensure pred is a numpy array
+        pred = np.array(pred)
+        
+        # Handle different prediction shapes
+        if pred.ndim == 0:  # Single value
+            pred = np.full(len(Y), pred)
+        elif pred.ndim > 1:  # Multi-dimensional array
+            pred = pred.flatten()
+        
+        # Ensure pred has the same length as Y
+        if len(pred) != len(Y):
+            if len(pred) == 1:  # Single prediction for all samples
+                pred = np.full(len(Y), pred[0])
+            else:  # Different lengths - this is an error
+                return np.nan,
+        
         # Convert predictions to binary classifications
         Y_class = [1 if pred[i] > 0 else 0 for i in range(len(Y))]
-    except (IndexError, TypeError):
+    except (IndexError, TypeError, ValueError):
         return np.nan,
     
     # Calculate fitness based on metric

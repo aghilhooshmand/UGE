@@ -27,7 +27,7 @@ from uge.models.dataset import Dataset
 from uge.models.grammar import Grammar
 from uge.utils.logger import StreamlitLogger
 from uge.utils.constants import DEFAULT_CONFIG
-from uge.utils.helpers import fitness_eval
+from uge.utils.helpers import fitness_eval, get_operator_service
 
 # Import fitness evaluation functions directly to avoid circular imports
 def mae(y, yhat):
@@ -48,39 +48,55 @@ def fitness_eval(individual, points, metric='mae'):
     x = points[0]
     Y = points[1]
     
-    # Check if individual is invalid
     if individual.invalid:
         return np.nan,
     
     try:
-        # Simple evaluation context without operator service to avoid circular imports
-        eval_context = {
-            'x': x,  # Make the data available as 'x'
-            'np': np,  # Make numpy available
-        }
+        operator_service = get_operator_service()
+        all_operators = operator_service.get_all_operators()
+        function_mapping = operator_service.create_operator_function_mapping(list(all_operators.keys()))
         
-        # Evaluate the generated phenotype (Python code)
+        eval_context = {
+            'x': x,
+            'np': np,
+        }
+        eval_context.update(function_mapping)
+        
         pred = eval(individual.phenotype, eval_context)
     except (FloatingPointError, ZeroDivisionError, OverflowError, MemoryError, NameError, SyntaxError, TypeError, ValueError):
         return np.nan,
     
-    # Check if prediction is real-valued
     if not np.isrealobj(pred):
         return np.nan,
     
     try:
+        # Ensure pred is a numpy array
+        pred = np.array(pred)
+        
+        # Handle different prediction shapes
+        if pred.ndim == 0:  # Single value
+            pred = np.full(len(Y), pred)
+        elif pred.ndim > 1:  # Multi-dimensional array
+            pred = pred.flatten()
+        
+        # Ensure pred has the same length as Y
+        if len(pred) != len(Y):
+            if len(pred) == 1:  # Single prediction for all samples
+                pred = np.full(len(Y), pred[0])
+            else:  # Different lengths - this is an error
+                return np.nan,
+        
         # Convert predictions to binary classifications
         Y_class = [1 if pred[i] > 0 else 0 for i in range(len(Y))]
-    except (IndexError, TypeError):
+    except (IndexError, TypeError, ValueError):
         return np.nan,
     
-    # Calculate fitness based on metric
     if metric == 'mae':
         fitness_val = mae(Y, Y_class)
     elif metric == 'accuracy':
         fitness_val = accuracy(Y, Y_class)
     else:
-        fitness_val = mae(Y, Y_class)  # Default to MAE
+        fitness_val = mae(Y, Y_class)
     
     return fitness_val,
 
@@ -240,17 +256,19 @@ class GEService:
         stats.register("max", np.nanmax)
         return stats
     
-    def _generate_dynamic_parameter(self, param_config: dict, generation: int, random_seed: int) -> any:
+    def _generate_elite_size_value(self, param_config: dict, generation: int, random_seed: int, 
+                                  current_elite_size: int = None) -> int:
         """
-        Generate a dynamic parameter value based on configuration.
+        Generate elite size value based on configuration mode.
         
         Args:
-            param_config (dict): Parameter configuration with mode, value, low, high, options
+            param_config (dict): Elite size configuration with mode, value, low, high, custom settings
             generation (int): Current generation number
             random_seed (int): Base random seed
+            current_elite_size (int): Current elite size value (for custom mode)
             
         Returns:
-            any: Generated parameter value (int, float, or string)
+            int: Generated elite size value
         """
         import random
         
@@ -259,28 +277,420 @@ class GEService:
         elif param_config['mode'] == 'dynamic':
             # Use generation-specific seed for reproducible randomness
             random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change elite size every N generations and use new value for next N generations
+            if current_elite_size is None:
+                current_elite_size = param_config['value']
             
-            # Check if this is a categorical parameter
-            if param_config.get('options') is not None:
-                # Categorical parameter - randomly select from options
-                value = random.choice(param_config['options'])
-                return value
+            # Custom parameters
+            change_every = param_config.get('change_every', 5)  # Change every 5 generations
+            change_amount = param_config.get('change_amount', 1)  # Add/subtract 1
+            change_operation = param_config.get('change_operation', 'add')  # 'add' or 'subtract'
+            min_value = param_config.get('min_value', 1)
+            max_value = param_config.get('max_value', 10)
+            
+            # Calculate how many complete cycles of change_every generations have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                # Generation 0: use initial value
+                return current_elite_size
             else:
-                # Numerical parameter - generate random value within range
-                if isinstance(param_config['low'], float):
-                    # For float parameters (probabilities)
-                    value = random.uniform(param_config['low'], param_config['high'])
+                # Calculate the new value based on how many cycles have passed
+                if change_operation == 'add':
+                    new_value = current_elite_size + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = current_elite_size - (change_amount * cycle_number)
                 else:
-                    # For integer parameters
-                    value = random.randint(param_config['low'], param_config['high'])
+                    new_value = current_elite_size
                 
-                
-                return value
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return new_value
         else:
             # Fallback to fixed value
             return param_config['value']
+    
+    def _generate_crossover_probability_value(self, param_config: dict, generation: int, random_seed: int) -> float:
+        """Generate crossover probability value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.uniform(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change crossover probability every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 0.1)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 0.1)
+            max_value = param_config.get('max_value', 1.0)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return new_value
+        else:
+            return param_config['value']
+    
+    def _generate_mutation_probability_value(self, param_config: dict, generation: int, random_seed: int) -> float:
+        """Generate mutation probability value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.uniform(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change mutation probability every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 0.05)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 0.01)
+            max_value = param_config.get('max_value', 0.5)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return new_value
+        else:
+            return param_config['value']
+    
+    def _generate_tournament_size_value(self, param_config: dict, generation: int, random_seed: int) -> int:
+        """Generate tournament size value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change tournament size every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 1)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 2)
+            max_value = param_config.get('max_value', 20)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return int(new_value)
+        else:
+            return param_config['value']
+    
+    def _generate_halloffame_size_value(self, param_config: dict, generation: int, random_seed: int) -> int:
+        """Generate hall of fame size value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change hall of fame size every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 1)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 1)
+            max_value = param_config.get('max_value', 50)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return int(new_value)
+        else:
+            return param_config['value']
+    
+    def _generate_max_tree_depth_value(self, param_config: dict, generation: int, random_seed: int) -> int:
+        """Generate max tree depth value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change max tree depth every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 2)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 5)
+            max_value = param_config.get('max_value', 100)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return int(new_value)
+        else:
+            return param_config['value']
+    
+    def _generate_min_init_tree_depth_value(self, param_config: dict, generation: int, random_seed: int) -> int:
+        """Generate min init tree depth value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change min init tree depth every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 1)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 1)
+            max_value = param_config.get('max_value', 20)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return int(new_value)
+        else:
+            return param_config['value']
+    
+    def _generate_max_init_tree_depth_value(self, param_config: dict, generation: int, random_seed: int) -> int:
+        """Generate max init tree depth value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change max init tree depth every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 2)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 1)
+            max_value = param_config.get('max_value', 30)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return int(new_value)
+        else:
+            return param_config['value']
+    
+    def _generate_min_init_genome_length_value(self, param_config: dict, generation: int, random_seed: int) -> int:
+        """Generate min init genome length value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change min init genome length every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 10)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 10)
+            max_value = param_config.get('max_value', 200)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return int(new_value)
+        else:
+            return param_config['value']
+    
+    def _generate_max_init_genome_length_value(self, param_config: dict, generation: int, random_seed: int) -> int:
+        """Generate max init genome length value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change max init genome length every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 20)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 10)
+            max_value = param_config.get('max_value', 500)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return int(new_value)
+        else:
+            return param_config['value']
+    
+    def _generate_codon_size_value(self, param_config: dict, generation: int, random_seed: int) -> int:
+        """Generate codon size value."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.randint(param_config['low'], param_config['high'])
+        elif param_config['mode'] == 'custom':
+            # Custom formula: change codon size every N generations
+            change_every = param_config.get('change_every', 5)
+            change_amount = param_config.get('change_amount', 50)
+            change_operation = param_config.get('change_operation', 'add')
+            min_value = param_config.get('min_value', 100)
+            max_value = param_config.get('max_value', 512)
+            
+            # Calculate how many complete cycles have passed
+            cycle_number = generation // change_every
+            
+            if cycle_number == 0:
+                return param_config['value']
+            else:
+                if change_operation == 'add':
+                    new_value = param_config['value'] + (change_amount * cycle_number)
+                elif change_operation == 'subtract':
+                    new_value = param_config['value'] - (change_amount * cycle_number)
+                else:
+                    new_value = param_config['value']
+                
+                # Clamp to min/max values
+                new_value = max(min_value, min(max_value, new_value))
+                return int(new_value)
+        else:
+            return param_config['value']
+    
+    def _generate_categorical_value(self, param_config: dict, generation: int, random_seed: int) -> str:
+        """Generate categorical parameter value (codon_consumption, genome_representation, initialisation)."""
+        import random
+        
+        if param_config['mode'] == 'fixed':
+            return param_config['value']
+        elif param_config['mode'] == 'dynamic':
+            random.seed(random_seed + generation)
+            return random.choice(param_config['options'])
+        elif param_config['mode'] == 'custom':
+            # For now, custom mode acts like dynamic (can be extended later)
+            return self._generate_categorical_value(
+                {'mode': 'dynamic', 'options': param_config['options']},
+                generation, random_seed
+            )
+        else:
+            return param_config['value']
 
-    def _create_generation_config(self, config: SetupConfig, generation: int, parameter_configs: dict = None) -> GenerationConfig:
+    def _create_generation_config(self, config: SetupConfig, generation: int, parameter_configs: dict = None, current_elite_size: int = None) -> GenerationConfig:
         """
         Create generation-specific configuration using dynamic parameter system.
         
@@ -311,76 +721,76 @@ class GEService:
                 'initialisation': {'mode': 'fixed', 'value': config.initialisation}
             }
         
-        # Generate dynamic parameters
-        elite_size = self._generate_dynamic_parameter(
+        # Generate dynamic parameters using individual functions
+        elite_size = self._generate_elite_size_value(
             parameter_configs.get('elite_size', {'mode': 'fixed', 'value': config.elite_size}),
-            generation, config.random_seed
+            generation, config.random_seed, current_elite_size
         )
         
-        p_crossover = self._generate_dynamic_parameter(
+        p_crossover = self._generate_crossover_probability_value(
             parameter_configs.get('p_crossover', {'mode': 'fixed', 'value': config.p_crossover}),
             generation, config.random_seed
         )
         
-        p_mutation = self._generate_dynamic_parameter(
+        p_mutation = self._generate_mutation_probability_value(
             parameter_configs.get('p_mutation', {'mode': 'fixed', 'value': config.p_mutation}),
             generation, config.random_seed
         )
         
-        tournsize = self._generate_dynamic_parameter(
+        tournsize = self._generate_tournament_size_value(
             parameter_configs.get('tournsize', {'mode': 'fixed', 'value': config.tournsize}),
             generation, config.random_seed
         )
         
-        halloffame_size = self._generate_dynamic_parameter(
+        halloffame_size = self._generate_halloffame_size_value(
             parameter_configs.get('halloffame_size', {'mode': 'fixed', 'value': config.halloffame_size}),
             generation, config.random_seed
         )
         
         # Generate dynamic tree parameters
-        max_tree_depth = self._generate_dynamic_parameter(
+        max_tree_depth = self._generate_max_tree_depth_value(
             parameter_configs.get('max_tree_depth', {'mode': 'fixed', 'value': config.max_tree_depth}),
             generation, config.random_seed
         )
         
-        min_init_tree_depth = self._generate_dynamic_parameter(
+        min_init_tree_depth = self._generate_min_init_tree_depth_value(
             parameter_configs.get('min_init_tree_depth', {'mode': 'fixed', 'value': config.min_init_tree_depth}),
             generation, config.random_seed
         )
         
-        max_init_tree_depth = self._generate_dynamic_parameter(
+        max_init_tree_depth = self._generate_max_init_tree_depth_value(
             parameter_configs.get('max_init_tree_depth', {'mode': 'fixed', 'value': config.max_init_tree_depth}),
             generation, config.random_seed
         )
         
         # Generate dynamic genome parameters
-        min_init_genome_length = self._generate_dynamic_parameter(
+        min_init_genome_length = self._generate_min_init_genome_length_value(
             parameter_configs.get('min_init_genome_length', {'mode': 'fixed', 'value': config.min_init_genome_length}),
             generation, config.random_seed
         )
         
-        max_init_genome_length = self._generate_dynamic_parameter(
+        max_init_genome_length = self._generate_max_init_genome_length_value(
             parameter_configs.get('max_init_genome_length', {'mode': 'fixed', 'value': config.max_init_genome_length}),
             generation, config.random_seed
         )
         
-        codon_size = self._generate_dynamic_parameter(
+        codon_size = self._generate_codon_size_value(
             parameter_configs.get('codon_size', {'mode': 'fixed', 'value': config.codon_size}),
             generation, config.random_seed
         )
         
         # Generate dynamic categorical parameters
-        codon_consumption = self._generate_dynamic_parameter(
+        codon_consumption = self._generate_categorical_value(
             parameter_configs.get('codon_consumption', {'mode': 'fixed', 'value': config.codon_consumption}),
             generation, config.random_seed
         )
         
-        genome_representation = self._generate_dynamic_parameter(
+        genome_representation = self._generate_categorical_value(
             parameter_configs.get('genome_representation', {'mode': 'fixed', 'value': config.genome_representation}),
             generation, config.random_seed
         )
         
-        initialisation = self._generate_dynamic_parameter(
+        initialisation = self._generate_categorical_value(
             parameter_configs.get('initialisation', {'mode': 'fixed', 'value': config.initialisation}),
             generation, config.random_seed
         )
@@ -406,6 +816,55 @@ class GEService:
     
     
     
+    def _setup_toolbox(self, config: SetupConfig, fitness_class, bnf_grammar):
+        """
+        Setup DEAP toolbox with fitness evaluation and genetic operators.
+        
+        Args:
+            config (SetupConfig): Setup configuration
+            fitness_class: DEAP fitness class
+            bnf_grammar: BNF grammar object
+            
+        Returns:
+            base.Toolbox: Configured DEAP toolbox
+        """
+        # Create toolbox
+        toolbox = base.Toolbox()
+        
+        # Register fitness evaluation function
+        def fitness_wrapper(individual, points=None, *args, **kwargs):
+            """Wrapper for fitness evaluation that uses points parameter or current_points."""
+            # Use points parameter if provided (for test evaluation), otherwise use current_points (for training)
+            evaluation_points = points if points is not None else self.current_points
+            return fitness_eval(individual, evaluation_points, config.fitness_metric)
+        
+        toolbox.register("evaluate", fitness_wrapper)
+        
+        # Register selection operator
+        toolbox.register("select", tools.selTournament, tournsize=config.tournsize)
+        
+        # Register crossover operator
+        def crossover_wrapper(ind1, ind2, *args, **kwargs):
+            """Wrapper for crossover that passes required parameters."""
+            return grape.crossover_onepoint(ind1, ind2, bnf_grammar, config.max_tree_depth, config.codon_consumption)
+        
+        toolbox.register("mate", crossover_wrapper)
+        
+        # Register mutation operator
+        def mutation_wrapper(ind, *args, **kwargs):
+            """Wrapper for mutation that passes required parameters."""
+            return grape.mutation_int_flip_per_codon(ind, config.p_mutation, config.codon_size, bnf_grammar, config.max_tree_depth, config.codon_consumption)
+        
+        toolbox.register("mutate", mutation_wrapper)
+        
+        # Register population creator
+        if config.initialisation == 'random':
+            toolbox.register("populationCreator", grape.random_initialisation, creator.Individual)
+        else:
+            toolbox.register("populationCreator", grape.sensible_initialisation, creator.Individual)
+        
+        return toolbox
+
     def run_setup(self, config: SetupConfig, dataset: Dataset, 
                       grammar: Grammar, report_items: List[str],
                       parameter_configs: dict = None, live_placeholder=None) -> SetupResult:

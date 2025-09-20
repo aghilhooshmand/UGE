@@ -378,8 +378,8 @@ class Forms:
                     
                     mode = st.selectbox(
                         "Mode",
-                        ["Fixed", "Dynamic"],
-                        index=0 if st.session_state[mode_key] == "Fixed" else 1,
+                        ["Fixed", "Dynamic", "Custom"],
+                        index=0 if st.session_state[mode_key] == "Fixed" else (1 if st.session_state[mode_key] == "Dynamic" else 2),
                         key=f"{param_key}_mode_select"
                     )
                     
@@ -428,7 +428,7 @@ class Forms:
                         }
                         st.info(f"ℹ️ {param_info['name']} will remain constant at {value}")
                         
-                    else:  # Dynamic
+                    elif mode == "Dynamic":
                         if 'options' in param_info:
                             # Categorical parameter - show available options
                             st.markdown(f"**Available Options:**")
@@ -500,6 +500,156 @@ class Forms:
                                 'options': None
                             }
                             st.success(f"✅ {param_info['name']} will vary randomly between {low_value} and {high_value}")
+                    
+                    elif mode == "Custom":
+                        if 'options' in param_info:
+                            # Categorical parameters - custom mode not implemented yet
+                            st.info(f"ℹ️ Custom mode for {param_info['name']} is not yet implemented. Using dynamic mode.")
+                            
+                            parameter_configs[param_key] = {
+                                'mode': 'custom',
+                                'value': param_info['options'][0],
+                                'options': param_info['options']
+                            }
+                            st.success(f"✅ {param_info['name']} will be randomly selected from: {', '.join(param_info['options'])} (Custom mode)")
+                        else:
+                            # Numerical parameters - full custom formula interface
+                            st.markdown(f"**🎯 Custom {param_info['name']} Formula:**")
+                            
+                            # Set appropriate defaults based on parameter type
+                            if param_key in ['p_crossover', 'p_mutation']:
+                                # Probability parameters
+                                default_change_amount = 0.1 if param_key == 'p_crossover' else 0.05
+                                default_min, default_max = (0.1, 1.0) if param_key == 'p_crossover' else (0.01, 0.5)
+                            elif param_key in ['tournsize', 'halloffame_size', 'elite_size']:
+                                # Small integer parameters
+                                default_change_amount = 1
+                                default_min, default_max = (2, 20) if param_key == 'tournsize' else (1, 50) if param_key == 'halloffame_size' else (1, 10)
+                            elif param_key in ['max_tree_depth']:
+                                # Medium integer parameters
+                                default_change_amount = 2
+                                default_min, default_max = (5, 100)
+                            elif param_key in ['min_init_tree_depth', 'max_init_tree_depth']:
+                                # Small tree depth parameters
+                                default_change_amount = 1 if param_key == 'min_init_tree_depth' else 2
+                                default_min, default_max = (1, 20) if param_key == 'min_init_tree_depth' else (1, 30)
+                            elif param_key in ['min_init_genome_length']:
+                                # Genome length parameters
+                                default_change_amount = 10
+                                default_min, default_max = (10, 200)
+                            elif param_key in ['max_init_genome_length']:
+                                # Large genome length parameters
+                                default_change_amount = 20
+                                default_min, default_max = (10, 500)
+                            elif param_key in ['codon_size']:
+                                # Codon size parameters
+                                default_change_amount = 50
+                                default_min, default_max = (100, 512)
+                            else:
+                                # Default fallback
+                                default_change_amount = 1
+                                default_min, default_max = (param_info['min'], param_info['max'])
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                change_every = st.number_input(
+                                    "Change Every (Generations)",
+                                    min_value=1,
+                                    max_value=50,
+                                    value=5,
+                                    step=1,
+                                    help=f"{param_info['name']} changes every N generations",
+                                    key=f"{param_key}_change_every"
+                                )
+                                
+                                # Handle type consistency for change_amount
+                                if param_key in ['p_crossover', 'p_mutation']:
+                                    change_amount = st.number_input(
+                                        "Change Amount",
+                                        min_value=0.01,
+                                        max_value=1.0,
+                                        value=float(default_change_amount),
+                                        step=0.01,
+                                        help="Amount to add/subtract each change",
+                                        key=f"{param_key}_change_amount"
+                                    )
+                                else:
+                                    change_amount = st.number_input(
+                                        "Change Amount",
+                                        min_value=1,
+                                        max_value=100,
+                                        value=int(default_change_amount),
+                                        step=1,
+                                        help="Amount to add/subtract each change",
+                                        key=f"{param_key}_change_amount"
+                                    )
+                            
+                            with col2:
+                                change_operation = st.selectbox(
+                                    "Change Operation",
+                                    ["add", "subtract"],
+                                    index=0,
+                                    help="Whether to add or subtract the change amount",
+                                    key=f"{param_key}_change_operation"
+                                )
+                                
+                                # Handle type consistency for min_value
+                                if param_key in ['p_crossover', 'p_mutation']:
+                                    min_value = st.number_input(
+                                        "Minimum Value",
+                                        min_value=float(param_info['min']),
+                                        max_value=float(param_info['max']),
+                                        value=float(default_min),
+                                        step=0.01,
+                                        help=f"Minimum allowed {param_info['name'].lower()}",
+                                        key=f"{param_key}_min_value"
+                                    )
+                                    
+                                    max_value = st.number_input(
+                                        "Maximum Value",
+                                        min_value=float(param_info['min']),
+                                        max_value=float(param_info['max']),
+                                        value=float(default_max),
+                                        step=0.01,
+                                        help=f"Maximum allowed {param_info['name'].lower()}",
+                                        key=f"{param_key}_max_value"
+                                    )
+                                else:
+                                    min_value = st.number_input(
+                                        "Minimum Value",
+                                        min_value=int(param_info['min']),
+                                        max_value=int(param_info['max']),
+                                        value=int(default_min),
+                                        step=1,
+                                        help=f"Minimum allowed {param_info['name'].lower()}",
+                                        key=f"{param_key}_min_value"
+                                    )
+                                    
+                                    max_value = st.number_input(
+                                        "Maximum Value",
+                                        min_value=int(param_info['min']),
+                                        max_value=int(param_info['max']),
+                                        value=int(default_max),
+                                        step=1,
+                                        help=f"Maximum allowed {param_info['name'].lower()}",
+                                        key=f"{param_key}_max_value"
+                                    )
+                            
+                            parameter_configs[param_key] = {
+                                'mode': 'custom',
+                                'value': param_info['default'],
+                                'change_every': change_every,
+                                'change_amount': change_amount,
+                                'change_operation': change_operation,
+                                'min_value': min_value,
+                                'max_value': max_value,
+                                'low': param_info['min'],
+                                'high': param_info['max'],
+                                'options': None
+                            }
+                            
+                            st.success(f"✅ {param_info['name']} will {'add' if change_operation == 'add' else 'subtract'} {change_amount} every {change_every} generations")
+                            st.info(f"📊 Range: {min_value} to {max_value}")
         
         # Store parameter configurations for form submission
         parameter_configs_data = parameter_configs
@@ -566,10 +716,16 @@ class Forms:
             if mode == 'dynamic':
                 if 'options' in param_config:
                     # Categorical dynamic
-                    return f"**{param_name}:** {value} 🔄 *Dynamic* (from {param_config['options']})"
+                    return f"**{param_name}:** {value} 🔄 *Random* (from {param_config['options']})"
                 else:
                     # Numerical dynamic
-                    return f"**{param_name}:** {value} 🔄 *Dynamic* ({param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')})"
+                    return f"**{param_name}:** {value} 🔄 *Random* ({param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')})"
+            elif mode == 'custom':
+                # Custom mode - show formula details
+                change_every = param_config.get('change_every', 5)
+                change_amount = param_config.get('change_amount', 1)
+                change_operation = param_config.get('change_operation', 'add')
+                return f"**{param_name}:** {value} 🎯 *Custom* ({change_operation} {change_amount} every {change_every} gens)"
             else:
                 return f"**{param_name}:** {value} 🔒 *Fixed*"
         
