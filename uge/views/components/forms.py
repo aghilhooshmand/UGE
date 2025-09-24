@@ -18,6 +18,7 @@ from pathlib import Path
 try:
     from uge.models.setup import SetupConfig
     from uge.utils.constants import DEFAULT_CONFIG, UI_CONSTANTS
+    from uge.services.settings_service import SettingsService
 except ImportError:
     # Fallback constants if import fails due to circular imports
     DEFAULT_CONFIG = {
@@ -183,19 +184,26 @@ class Forms:
         
         with col2:
             st.markdown("**Dataset Selection**")
+            # Get default dataset from settings
+            settings_service = SettingsService()
+            default_dataset = settings_service.get_setting('defaults.dataset', 'processed.cleveland.data')
+            
             dataset = st.selectbox(
                 "Dataset", 
                 options=datasets, 
-                index=datasets.index(UI_CONSTANTS['default_dataset']) if UI_CONSTANTS['default_dataset'] in datasets else (0 if datasets else None), 
+                index=datasets.index(default_dataset) if default_dataset in datasets else (0 if datasets else None), 
                 help=help_texts.get('dataset', "Select dataset for the setup")
             )
         
         with col3:
             st.markdown("**Grammar Selection**")
+            # Get default grammar from settings
+            default_grammar = settings_service.get_setting('defaults.grammar', 'heartDisease.bnf')
+            
             grammar = st.selectbox(
                 "Grammar", 
                 options=grammars, 
-                index=grammars.index(UI_CONSTANTS['default_grammar']) if UI_CONSTANTS['default_grammar'] in grammars else (0 if grammars else None), 
+                index=grammars.index(default_grammar) if default_grammar in grammars else (0 if grammars else None), 
                 key="grammar_selectbox",  # Add key for reactivity
                 help=help_texts.get('grammar', "Select BNF grammar for the setup")
             )
@@ -852,7 +860,10 @@ class Forms:
         # Handle form submission when button is clicked
         if run_setup:
             # Get grammar from session state since it's outside the form
-            selected_grammar = st.session_state.get('grammar_selectbox', UI_CONSTANTS['default_grammar'])
+            # Get default grammar from settings
+            settings_service = SettingsService()
+            default_grammar = settings_service.get_setting('defaults.grammar', 'heartDisease.bnf')
+            selected_grammar = st.session_state.get('grammar_selectbox', default_grammar)
             
             # Get dataset configuration from session state
             label_column = st.session_state.get('label_column', DEFAULT_CONFIG['label_column'])

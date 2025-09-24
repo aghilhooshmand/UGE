@@ -6,17 +6,21 @@ and file paths used throughout the UGE application.
 
 Constants:
 - FILE_PATHS: Common file and directory paths
-- DEFAULT_CONFIG: Default setup configuration values
-- UI_CONSTANTS: User interface related constants
+- DEFAULT_CONFIG: Default setup configuration values (loaded from settings)
+- UI_CONSTANTS: User interface related constants (loaded from settings)
 
 Author: UGE Team
 """
 
 import json
 from pathlib import Path
+from uge.services.settings_service import SettingsService
 
 # Get the project root directory
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+# Initialize settings service
+_settings_service = SettingsService()
 
 # Load help texts from unified configuration
 HELP = {}
@@ -39,68 +43,24 @@ FILE_PATHS = {
     'tooltip_config': PROJECT_ROOT / "uge" / "utils" / "tooltip_config.json",
 }
 
-# Default Setup Configuration
+# Default Setup Configuration (loaded from settings)
 DEFAULT_CONFIG = {
-    # GA Parameters
-    'population': 50,
-    'generations': 20,
-    'n_runs': 3,
-    'p_crossover': 0.8,
-    'p_mutation': 0.01,
-    'elite_size': 1,
-    'tournsize': 7,
-    'halloffame_size': 1,
-    
-    # GE/GRAPE Parameters
-    'max_tree_depth': 35,
-    'min_init_tree_depth': 4,
-    'max_init_tree_depth': 13,
-    'min_init_genome_length': 95,
-    'max_init_genome_length': 115,
-    'codon_size': 255,
-    'codon_consumption': 'lazy',
-    'genome_representation': 'list',
-    'initialisation': 'sensible',
-    
-    # Dataset Parameters
-    'test_size': 0.3,
-    'random_seed': 42,
-    'fitness_metric': 'mae',
-    'label_column': 'class',
-    # Report Items
-    'default_report_items': [
-        'gen', 'invalid', 'avg', 'std', 'min', 'max', 'fitness_test',
-        'best_ind_length', 'avg_length', 'best_ind_nodes', 'avg_nodes',
-        'best_ind_depth', 'avg_depth', 'avg_used_codons', 'best_ind_used_codons',
-        'invalid_count_min', 'invalid_count_avg', 'invalid_count_max', 'invalid_count_std',
-        'nodes_length_min', 'nodes_length_avg', 'nodes_length_max', 'nodes_length_std',
-        'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time'
-    ],
-    
-    # Generation Configuration Tracking
-    'track_generation_configs': True,  # Whether to track configurations per generation
-    'generation_config_params': [
-        'population', 'p_crossover', 'p_mutation', 'elite_size', 'tournsize', 
-        'halloffame_size', 'max_tree_depth', 'codon_size', 'codon_consumption', 
-        'genome_representation'
-    ],
-    
-    # Evolution Type Options (dynamic removed)
-    'evolution_types': {
-        'fixed': {
-            'name': 'Fixed Evolution',
-            'description': 'Use the same configuration for all generations (recommended)',
-            'track_configs': True
-        }
-    },
-    'default_evolution_type': 'fixed'
+    # Load from settings service
+    **_settings_service.get_ge_parameters(),
+    **_settings_service.get_defaults(),
+    'default_report_items': _settings_service.get_report_items(),
+    'track_generation_configs': _settings_service.get_setting('generation_config.track_generation_configs', True),
+    'generation_config_params': _settings_service.get_setting('generation_config.generation_config_params', []),
+    'evolution_types': _settings_service.get_evolution_types(),
+    'default_evolution_type': _settings_service.get_setting('default_evolution_type', 'fixed')
 }
 
-# User Interface Constants
+# User Interface Constants (loaded from settings)
 UI_CONSTANTS = {
-    'page_title': "Grammatical Evolution",
-    'app_title': "🧬 Grammatical Evolution",
-    'app_subtitle': "** Learning GE with comprehensive analysis and comparison**",
+    # Load from settings service
+    **_settings_service.get_app_info(),
+    **_settings_service.get_ui_constants(),
+    **_settings_service.get_defaults(),
     
     # Navigation Options
     'navigation_pages': [
@@ -109,19 +69,7 @@ UI_CONSTANTS = {
         "📝 Grammar Editor",
         "🧪 Setup Manager",
         "📈 Analysis",
-        "⚖️ Comparison"
+        "⚖️ Comparison",
+        "⚙️ Settings"
     ],
-    
-    # Default Dataset and Grammar
-    'default_dataset': 'processed.cleveland.data',
-    'default_grammar': 'heartDisease.bnf',
-    
-    # Chart Configuration
-    'chart_height': 500,
-    'chart_template': 'plotly_white',
-    'max_log_lines': 200,
-    
-    # File Upload
-    'allowed_dataset_extensions': ['.csv', '.data', '.txt'],
-    'max_upload_size_mb': 200,
 }
