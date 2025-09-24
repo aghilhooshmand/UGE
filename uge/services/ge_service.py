@@ -839,7 +839,8 @@ class GEService:
 
     def run_setup(self, config: SetupConfig, dataset: Dataset, 
                       grammar: Grammar, report_items: List[str],
-                      parameter_configs: dict = None, live_placeholder=None) -> SetupResult:
+                      parameter_configs: dict = None, live_placeholder=None, 
+                      data_split_seed: int = None) -> SetupResult:
         """
         Run a complete GE setup.
         
@@ -871,13 +872,16 @@ class GEService:
             random.seed(config.random_seed)
             
             # Prepare data - Cleveland dataset needs special preprocessing
+            # Use data_split_seed if provided, otherwise use config.random_seed
+            split_seed = data_split_seed if data_split_seed is not None else config.random_seed
+            
             if config.dataset == 'processed.cleveland.data':
-                X_train, Y_train, X_test, Y_test = dataset.preprocess_cleveland_data(config.random_seed)
+                X_train, Y_train, X_test, Y_test = dataset.preprocess_cleveland_data(split_seed)
             else:
                 # Use 'class' as the default label column
                 label_column = config.label_column or DEFAULT_CONFIG['label_column']
                 X_train, Y_train, X_test, Y_test = dataset.preprocess_csv_data(
-                    label_column, config.test_size, config.random_seed
+                    label_column, config.test_size, split_seed
                 )
             
             # Load grammar

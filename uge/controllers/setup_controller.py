@@ -260,7 +260,8 @@ class SetupController(BaseController):
                 grammar=grammar,
                 report_items=config.report_items,
                 parameter_configs=parameter_configs,
-                live_placeholder=live_placeholder
+                live_placeholder=live_placeholder,
+                data_split_seed=config.random_seed  # Use run-specific seed for data splitting
             )
             
             return result
