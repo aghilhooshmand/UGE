@@ -37,7 +37,7 @@ class SetupConfig:
         fitness_metric (str): Fitness metric to optimize ('mae' or 'accuracy')
         fitness_direction (int): Optimization direction (1 for maximize, -1 for minimize)
         n_runs (int): Number of independent runs to perform (typically 3-10)
-        evolution_type (str): Evolution type - 'fixed' (same config all generations) or 'dynamic' (config can change per generation)
+        evolution_type (str): Evolution type - only 'fixed' is supported
         generations (int): Number of generations to evolve (typically 50-200)
         population (int): Population size (typically 100-500)
         p_crossover (float): Crossover probability (typically 0.7-0.9)
@@ -68,7 +68,7 @@ class SetupConfig:
     fitness_metric: str = 'mae'
     fitness_direction: int = field(default=-1, init=False)  # Will be set in __post_init__
     n_runs: int = 3
-    evolution_type: str = 'fixed'  # 'fixed' or 'dynamic'
+    evolution_type: str = 'fixed'
     created_at: str = field(default_factory=lambda: dt.datetime.now().isoformat())
     
     def __post_init__(self):
@@ -112,9 +112,167 @@ class SetupConfig:
         'structural_diversity', 'fitness_diversity', 'selection_time', 'generation_time'
     ])
     
+    # Dynamic Parameter Configurations
+    parameter_configs: Optional[Dict[str, Any]] = None
+    
+    def get_parameter_type(self, param_name: str, param_value: Any) -> str:
+        """
+        Determine the type of a parameter (fixed, random, custom, or dynamic).
+        
+        Args:
+            param_name (str): Name of the parameter
+            param_value (Any): Value of the parameter
+            
+        Returns:
+            str: Parameter type ('fixed', 'random', 'custom', 'dynamic')
+        """
+        # First check if this parameter has dynamic/custom configuration
+        if hasattr(self, 'parameter_configs') and self.parameter_configs and param_name in self.parameter_configs:
+            param_config = self.parameter_configs[param_name]
+            mode = param_config.get('mode', 'fixed')
+            
+            if mode == 'custom':
+                return 'custom'
+        
+        # Check if it's a custom expression (contains mathematical operators or functions)
+        if isinstance(param_value, str):
+            # Look for mathematical expressions
+            import re
+            expression_patterns = [
+                r'[+\-*/]',  # Basic arithmetic
+                r'sin|cos|tan|log|exp|sqrt',  # Math functions
+                r'random|rand|uniform|normal',  # Random functions
+                r'gen|generation',  # Generation-dependent
+                r'pop|population',  # Population-dependent
+            ]
+            
+            for pattern in expression_patterns:
+                if re.search(pattern, param_value, re.IGNORECASE):
+                    return 'custom'
+        
+        # Check if it's a random value (for numeric parameters)
+        if isinstance(param_value, (int, float)):
+            # This is a fixed numeric value
+            return 'fixed'
+        
+        # Check if it's a fixed string value
+        if isinstance(param_value, str):
+            return 'fixed'
+        
+        # Lists are treated as fixed in absence of dynamic mode
+        
+        # Default to fixed
+        return 'fixed'
+    
+    def get_parameter_info(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get detailed parameter information including types.
+        
+        Returns:
+            Dict[str, Dict[str, Any]]: Parameter information with types
+        """
+        param_info = {}
+        
+        # Define parameter categories
+        basic_params = {
+            'setup_name': self.setup_name,
+            'dataset': self.dataset,
+            'grammar': self.grammar,
+            'fitness_metric': self.fitness_metric,
+            'fitness_direction': self.fitness_direction,
+            'n_runs': self.n_runs,
+            'evolution_type': self.evolution_type,
+        }
+        
+        evolution_params = {
+            'generations': self.generations,
+            'population': self.population,
+            'p_crossover': self.p_crossover,
+            'p_mutation': self.p_mutation,
+            'elite_size': self.elite_size,
+            'tournsize': self.tournsize,
+            'halloffame_size': self.halloffame_size,
+        }
+        
+        tree_params = {
+            'max_tree_depth': self.max_tree_depth,
+            'min_init_tree_depth': self.min_init_tree_depth,
+            'max_init_tree_depth': self.max_init_tree_depth,
+            'min_init_genome_length': self.min_init_genome_length,
+            'max_init_genome_length': self.max_init_genome_length,
+        }
+        
+        genome_params = {
+            'codon_size': self.codon_size,
+            'codon_consumption': self.codon_consumption,
+            'genome_representation': self.genome_representation,
+            'initialisation': self.initialisation,
+        }
+        
+        dataset_params = {
+            'random_seed': self.random_seed,
+            'label_column': self.label_column,
+            'test_size': self.test_size,
+        }
+        
+        # Combine all parameters
+        all_params = {**basic_params, **evolution_params, **tree_params, **genome_params, **dataset_params}
+        
+        # Add report items
+        all_params['report_items'] = self.report_items
+        
+        # Process each parameter
+        for param_name, param_value in all_params.items():
+            param_type = self.get_parameter_type(param_name, param_value)
+            
+            # Get additional info for dynamic/custom parameters
+            additional_info = {}
+            if self.parameter_configs and param_name in self.parameter_configs:
+                param_config = self.parameter_configs[param_name]
+                additional_info = {
+                    'config': param_config,
+                    'mode': param_config.get('mode', 'fixed')
+                }
+                
+                if param_type == 'random':  # Dynamic mode maps to random type
+                    additional_info.update({
+                        'min_value': param_config.get('min_value', param_value),
+                        'max_value': param_config.get('max_value', param_value)
+                    })
+                elif param_type == 'custom':
+                    additional_info.update({
+                        'expression': param_config.get('expression', str(param_value))
+                    })
+            
+            param_info[param_name] = {
+                'value': param_value,
+                'type': param_type,
+                'category': self._get_parameter_category(param_name),
+                **additional_info
+            }
+        
+        return param_info
+    
+    def _get_parameter_category(self, param_name: str) -> str:
+        """Get the category of a parameter."""
+        if param_name in ['setup_name', 'dataset', 'grammar', 'fitness_metric', 'fitness_direction', 'n_runs', 'evolution_type']:
+            return 'Basic'
+        elif param_name in ['generations', 'population', 'p_crossover', 'p_mutation', 'elite_size', 'tournsize', 'halloffame_size']:
+            return 'Evolution'
+        elif param_name in ['max_tree_depth', 'min_init_tree_depth', 'max_init_tree_depth', 'min_init_genome_length', 'max_init_genome_length']:
+            return 'Tree Structure'
+        elif param_name in ['codon_size', 'codon_consumption', 'genome_representation', 'initialisation']:
+            return 'Genome'
+        elif param_name in ['random_seed', 'label_column', 'test_size']:
+            return 'Dataset'
+        elif param_name == 'report_items':
+            return 'Reporting'
+        else:
+            return 'Other'
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary format."""
-        return {
+        config_dict = {
             'setup_name': self.setup_name,
             'dataset': self.dataset,
             'grammar': self.grammar,
@@ -127,7 +285,6 @@ class SetupConfig:
             'p_crossover': self.p_crossover,
             'p_mutation': self.p_mutation,
             'elite_size': self.elite_size,
-            'elite_dynamic_config': self.elite_dynamic_config,
             'tournsize': self.tournsize,
             'halloffame_size': self.halloffame_size,
             'max_tree_depth': self.max_tree_depth,
@@ -145,6 +302,16 @@ class SetupConfig:
             'report_items': self.report_items,
             'created_at': self.created_at
         }
+        
+        # Only include elite_dynamic_config if it's not None
+        if self.elite_dynamic_config is not None:
+            config_dict['elite_dynamic_config'] = self.elite_dynamic_config
+        
+        # Only include parameter_configs if it's not None
+        if self.parameter_configs is not None:
+            config_dict['parameter_configs'] = self.parameter_configs
+        
+        return config_dict
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SetupConfig':

@@ -90,42 +90,118 @@ class SetupManagerView:
                     )
                     
                     if selected_setup:
-                        # Display selected setup details
-                        selected_setup_data = next(setup for setup in setup_data if setup["ID"] == selected_setup)
-                        
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.markdown("**Setup Details:**")
-                            st.write(f"**Name:** {selected_setup_data['Name']}")
-                            st.write(f"**Dataset:** {selected_setup_data['Dataset']}")
-                            st.write(f"**Grammar:** {selected_setup_data['Grammar']}")
-                            st.write(f"**Runs:** {selected_setup_data['Runs']}")
-                            st.write(f"**Status:** {selected_setup_data['Status']}")
-                        
-                        with col2:
-                            st.markdown("**Actions:**")
-                            
-                            # Individual delete button
-                            delete_key = f"delete_{selected_setup}"
-                            if st.button(f"🗑️ Delete Setup", key=delete_key, type="secondary"):
-                                if st.session_state.get(f'confirm_delete_{selected_setup}', False):
-                                    try:
-                                        self.storage_service.delete_setup(selected_setup)
-                                        st.success(f"Setup '{selected_setup}' deleted successfully!")
-                                        st.session_state[f'confirm_delete_{selected_setup}'] = False
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error deleting setup: {str(e)}")
-                                else:
-                                    st.session_state[f'confirm_delete_{selected_setup}'] = True
-                                    st.warning(f"Click again to confirm deletion of setup '{selected_setup}'!")
-                            
-                            # Cancel delete button
-                            if st.session_state.get(f'confirm_delete_{selected_setup}', False):
-                                if st.button(f"❌ Cancel Delete", key=f"cancel_{selected_setup}"):
-                                    st.session_state[f'confirm_delete_{selected_setup}'] = False
-                                    st.rerun()
+                        # Load the full setup to get detailed configuration
+                        try:
+                            setup = self.storage_service.load_setup(selected_setup)
+                            if setup and setup.config:
+                                # Display selected setup details
+                                selected_setup_data = next(setup for setup in setup_data if setup["ID"] == selected_setup)
+                                
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.markdown("**Setup Details:**")
+                                    st.write(f"**Name:** {selected_setup_data['Name']}")
+                                    st.write(f"**Dataset:** {selected_setup_data['Dataset']}")
+                                    st.write(f"**Grammar:** {selected_setup_data['Grammar']}")
+                                    st.write(f"**Runs:** {selected_setup_data['Runs']}")
+                                    st.write(f"**Status:** {selected_setup_data['Status']}")
+                                
+                                with col2:
+                                    st.markdown("**Actions:**")
+                                    
+                                    # Individual delete button
+                                    delete_key = f"delete_{selected_setup}"
+                                    if st.button(f"🗑️ Delete Setup", key=delete_key, type="secondary"):
+                                        if st.session_state.get(f'confirm_delete_{selected_setup}', False):
+                                            try:
+                                                self.storage_service.delete_setup(selected_setup)
+                                                st.success(f"Setup '{selected_setup}' deleted successfully!")
+                                                st.session_state[f'confirm_delete_{selected_setup}'] = False
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Error deleting setup: {str(e)}")
+                                        else:
+                                            st.session_state[f'confirm_delete_{selected_setup}'] = True
+                                            st.warning(f"Click again to confirm deletion of setup '{selected_setup}'!")
+                                    
+                                    # Cancel delete button
+                                    if st.session_state.get(f'confirm_delete_{selected_setup}', False):
+                                        if st.button(f"❌ Cancel Delete", key=f"cancel_{selected_setup}"):
+                                            st.session_state[f'confirm_delete_{selected_setup}'] = False
+                                            st.rerun()
+                                
+                                # Display detailed configuration with parameter types
+                                st.divider()
+                                st.subheader("📋 Configuration Details")
+                                
+                                # Get parameter information with types
+                                param_info = setup.config.get_parameter_info()
+                                
+                                # Group parameters by category
+                                categories = {}
+                                for param_name, info in param_info.items():
+                                    category = info['category']
+                                    if category not in categories:
+                                        categories[category] = []
+                                    categories[category].append((param_name, info))
+                                
+                                # Display parameters by category
+                                for category, params in categories.items():
+                                    with st.expander(f"📁 {category} Parameters", expanded=True):
+                                        for param_name, info in params:
+                                            param_type = info['type']
+                                            param_value = info['value']
+                                            
+                                            # Create type indicator
+                                            if param_type == 'fixed':
+                                                type_indicator = "🔒 Fixed"
+                                                type_color = "green"
+                                            elif param_type == 'random':
+                                                type_indicator = "🎲 Random"
+                                                type_color = "orange"
+                                            elif param_type == 'custom':
+                                                type_indicator = "⚙️ Custom Expression"
+                                                type_color = "blue"
+                                            else:
+                                                type_indicator = "❓ Unknown"
+                                                type_color = "gray"
+                                            
+                                            # Format parameter name
+                                            display_name = param_name.replace('_', ' ').title()
+                                            
+                                            # Format parameter value and additional info
+                                            if param_type == 'random':
+                                                # Show random parameter details (dynamic mode)
+                                                min_val = info.get('min_value', param_value)
+                                                max_val = info.get('max_value', param_value)
+                                                display_value = f"Value: {param_value} | Random between {min_val} and {max_val}"
+                                            elif param_type == 'custom':
+                                                # Show custom expression
+                                                expression = info.get('expression', str(param_value))
+                                                display_value = f"Expression: {expression}"
+                                            elif isinstance(param_value, list):
+                                                if len(param_value) > 5:
+                                                    display_value = f"[{param_value[0]}, ..., {param_value[-1]}] ({len(param_value)} items)"
+                                                else:
+                                                    display_value = str(param_value)
+                                            elif isinstance(param_value, str) and len(param_value) > 50:
+                                                display_value = f"{param_value[:50]}..."
+                                            else:
+                                                display_value = str(param_value)
+                                            
+                                            # Display parameter with type indicator
+                                            col1, col2, col3 = st.columns([3, 1, 2])
+                                            with col1:
+                                                st.write(f"**{display_name}:**")
+                                            with col2:
+                                                st.markdown(f":{type_color}[{type_indicator}]")
+                                            with col3:
+                                                st.code(display_value, language="text")
+                            else:
+                                st.error("Could not load setup configuration")
+                        except Exception as e:
+                            st.error(f"Error loading setup details: {str(e)}")
                     
                     st.divider()
                     

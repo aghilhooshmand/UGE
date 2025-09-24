@@ -85,16 +85,11 @@ DEFAULT_CONFIG = {
         'genome_representation'
     ],
     
-    # Evolution Type Options
+    # Evolution Type Options (dynamic removed)
     'evolution_types': {
         'fixed': {
             'name': 'Fixed Evolution',
-            'description': 'Use the same configuration for all generations (recommended for beginners)',
-            'track_configs': True  # Still track but all will be the same
-        },
-        'dynamic': {
-            'name': 'Dynamic Evolution', 
-            'description': 'Allow configuration to change per generation (advanced feature)',
+            'description': 'Use the same configuration for all generations (recommended)',
             'track_configs': True
         }
     },

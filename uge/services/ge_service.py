@@ -274,10 +274,6 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            # Use generation-specific seed for reproducible randomness
-            random.seed(random_seed + generation)
-            return random.randint(param_config['low'], param_config['high'])
         elif param_config['mode'] == 'custom':
             # Custom formula: change elite size every N generations and use new value for next N generations
             if current_elite_size is None:
@@ -318,9 +314,6 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            random.seed(random_seed + generation)
-            return random.uniform(param_config['low'], param_config['high'])
         elif param_config['mode'] == 'custom':
             # Custom formula: change crossover probability every N generations
             change_every = param_config.get('change_every', 5)
@@ -354,9 +347,6 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            random.seed(random_seed + generation)
-            return random.uniform(param_config['low'], param_config['high'])
         elif param_config['mode'] == 'custom':
             # Custom formula: change mutation probability every N generations
             change_every = param_config.get('change_every', 5)
@@ -390,9 +380,6 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            random.seed(random_seed + generation)
-            return random.randint(param_config['low'], param_config['high'])
         elif param_config['mode'] == 'custom':
             # Custom formula: change tournament size every N generations
             change_every = param_config.get('change_every', 5)
@@ -426,9 +413,6 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            random.seed(random_seed + generation)
-            return random.randint(param_config['low'], param_config['high'])
         elif param_config['mode'] == 'custom':
             # Custom formula: change hall of fame size every N generations
             change_every = param_config.get('change_every', 5)
@@ -462,9 +446,6 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            random.seed(random_seed + generation)
-            return random.randint(param_config['low'], param_config['high'])
         elif param_config['mode'] == 'custom':
             # Custom formula: change max tree depth every N generations
             change_every = param_config.get('change_every', 5)
@@ -498,9 +479,6 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            random.seed(random_seed + generation)
-            return random.randint(param_config['low'], param_config['high'])
         elif param_config['mode'] == 'custom':
             # Custom formula: change min init tree depth every N generations
             change_every = param_config.get('change_every', 5)
@@ -534,9 +512,6 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            random.seed(random_seed + generation)
-            return random.randint(param_config['low'], param_config['high'])
         elif param_config['mode'] == 'custom':
             # Custom formula: change max init tree depth every N generations
             change_every = param_config.get('change_every', 5)
@@ -678,13 +653,10 @@ class GEService:
         
         if param_config['mode'] == 'fixed':
             return param_config['value']
-        elif param_config['mode'] == 'dynamic':
-            random.seed(random_seed + generation)
-            return random.choice(param_config['options'])
         elif param_config['mode'] == 'custom':
             # For now, custom mode acts like dynamic (can be extended later)
             return self._generate_categorical_value(
-                {'mode': 'dynamic', 'options': param_config['options']},
+                {'mode': 'fixed', 'options': param_config['options'], 'value': param_config['options'][0]},
                 generation, random_seed
             )
         else:
@@ -939,60 +911,26 @@ class GEService:
             track_configs = DEFAULT_CONFIG.get('track_generation_configs', True)
             
             with (contextlib.redirect_stdout(logger) if logger else contextlib.nullcontext()):
-                # Check if we have any dynamic configurations
-                has_dynamic = parameter_configs and any(
-                    param_config.get('mode') == 'dynamic' 
-                    for param_config in parameter_configs.values()
+                # Use standard algorithm with fixed/custom parameters
+                population, logbook = algorithms.ge_eaSimpleWithElitism(
+                    population, toolbox, 
+                    cxpb=config.p_crossover, 
+                    mutpb=config.p_mutation,
+                    ngen=config.generations, 
+                    elite_size=config.elite_size,
+                    bnf_grammar=bnf_grammar,
+                    codon_size=config.codon_size,
+                    max_tree_depth=config.max_tree_depth,
+                    max_genome_length=config.max_init_genome_length,
+                    points_train=[X_train, Y_train],
+                    points_test=[X_test, Y_test],
+                    codon_consumption=config.codon_consumption,
+                    report_items=report_items,
+                    genome_representation=config.genome_representation,
+                    stats=stats, 
+                    halloffame=hof, 
+                    verbose=True
                 )
-                
-                if has_dynamic:
-                    # For dynamic parameters, we need to use initial values and track changes separately
-                    # The algorithm will run with initial parameter values, but we'll track the dynamic changes
-                    # This is a limitation of using the standard algorithm with dynamic parameters
-                    if self.logger:
-                        self.logger("Note: Dynamic parameters detected. Algorithm will use initial parameter values.")
-                    
-                    # Use initial parameter values for the algorithm
-                    population, logbook = algorithms.ge_eaSimpleWithElitism(
-                        population, toolbox, 
-                        cxpb=config.p_crossover, 
-                        mutpb=config.p_mutation,
-                        ngen=config.generations, 
-                        elite_size=config.elite_size,
-                        bnf_grammar=bnf_grammar,
-                        codon_size=config.codon_size,
-                        max_tree_depth=config.max_tree_depth,
-                        max_genome_length=config.max_init_genome_length,
-                        points_train=[X_train, Y_train],
-                        points_test=[X_test, Y_test],
-                        codon_consumption=config.codon_consumption,
-                        report_items=report_items,
-                        genome_representation=config.genome_representation,
-                        stats=stats, 
-                        halloffame=hof, 
-                        verbose=True
-                    )
-                else:
-                    # Use standard algorithm with fixed parameters
-                    population, logbook = algorithms.ge_eaSimpleWithElitism(
-                        population, toolbox, 
-                        cxpb=config.p_crossover, 
-                        mutpb=config.p_mutation,
-                        ngen=config.generations, 
-                        elite_size=config.elite_size,
-                        bnf_grammar=bnf_grammar,
-                        codon_size=config.codon_size,
-                        max_tree_depth=config.max_tree_depth,
-                        max_genome_length=config.max_init_genome_length,
-                        points_train=[X_train, Y_train],
-                        points_test=[X_test, Y_test],
-                        codon_consumption=config.codon_consumption,
-                        report_items=report_items,
-                        genome_representation=config.genome_representation,
-                        stats=stats, 
-                        halloffame=hof, 
-                        verbose=True
-                    )
             
             # Create generation configurations for all generations
             if track_configs:
@@ -1125,10 +1063,9 @@ class GEService:
         if config.fitness_direction not in [1, -1]:
             warnings.append("Fitness direction must be 1 (maximize) or -1 (minimize)")
         
-        # Check evolution type
-        valid_evolution_types = ['fixed', 'dynamic']
-        if config.evolution_type not in valid_evolution_types:
-            warnings.append(f"Evolution type must be one of: {valid_evolution_types}")
+        # Check evolution type (dynamic removed)
+        if config.evolution_type != 'fixed':
+            warnings.append("Evolution type must be 'fixed'")
         
         # Check dynamic elite configuration
         if config.elite_dynamic_config:

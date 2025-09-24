@@ -37,6 +37,7 @@ from uge.utils.constants import FILE_PATHS, HELP
 from uge import __version__, BUILD_INFO
 
 
+
 class UGEApp:
     """
     Main UGE Application class.

@@ -86,6 +86,66 @@ class Forms:
     """
     
     @staticmethod
+    def get_parameter_type_indicator(param_name: str, param_value: Any, parameter_configs: Dict = None) -> tuple:
+        """
+        Get parameter type indicator for display.
+        
+        Args:
+            param_name (str): Name of the parameter
+            param_value (Any): Value of the parameter
+            parameter_configs (Dict): Parameter configuration data for dynamic/custom parameters
+            
+        Returns:
+            tuple: (type_indicator, type_color, type_description)
+        """
+        # First check if this parameter has dynamic/custom configuration
+        if parameter_configs and param_name in parameter_configs:
+            param_config = parameter_configs[param_name]
+            mode = param_config.get('mode', 'fixed')
+            
+            if mode == 'dynamic':
+                # Dynamic parameter - randomly changes between two values
+                min_value = param_config.get('min_value', param_value)
+                max_value = param_config.get('max_value', param_value)
+                
+                return "🎲 Random", "orange", f"Random (between {min_value} and {max_value})"
+            
+            elif mode == 'custom':
+                # Custom expression parameter
+                expression = param_config.get('expression', str(param_value))
+                return "⚙️ Custom Expression", "blue", f"Custom: {expression}"
+        
+        # Check if it's a custom expression (contains mathematical operators or functions)
+        if isinstance(param_value, str):
+            import re
+            expression_patterns = [
+                r'[+\-*/]',  # Basic arithmetic
+                r'sin|cos|tan|log|exp|sqrt',  # Math functions
+                r'random|rand|uniform|normal',  # Random functions
+                r'gen|generation',  # Generation-dependent
+                r'pop|population',  # Population-dependent
+            ]
+            
+            for pattern in expression_patterns:
+                if re.search(pattern, param_value, re.IGNORECASE):
+                    return "⚙️ Custom Expression", "blue", "Custom mathematical expression"
+        
+        # Check if it's a random value (for numeric parameters)
+        if isinstance(param_value, (int, float)):
+            return "🔒 Fixed Value", "green", "Fixed numerical value"
+        
+        # Check if it's a fixed string value
+        if isinstance(param_value, str):
+            return "🔒 Fixed Value", "green", "Fixed string value"
+        
+        # Check if it's a list (could be random range)
+        if isinstance(param_value, list) and len(param_value) == 2:
+            return "🎲 Random Range", "orange", "Random value within range"
+        
+        # Default to fixed
+        return "🔒 Fixed Value", "green", "Fixed value"
+    
+    @staticmethod
     def create_setup_form(help_texts: Dict[str, str] = None, 
                               datasets: List[str] = None, 
                               grammars: List[str] = None) -> Tuple[bool, Dict[str, Any]]:
@@ -145,6 +205,10 @@ class Forms:
         
         with col1:
             st.markdown("**Evolution Parameters**")
+            # Show parameter type indicator
+            type_indicator, type_color, type_description = Forms.get_parameter_type_indicator('population', DEFAULT_CONFIG['population'])
+            st.markdown(f":{type_color}[{type_indicator}] {type_description}")
+            
             population = st.number_input(
                 "Population Size", 
                 min_value=10, max_value=5000, 
@@ -154,6 +218,10 @@ class Forms:
             )
         
         with col2:
+            # Show parameter type indicator
+            type_indicator, type_color, type_description = Forms.get_parameter_type_indicator('generations', DEFAULT_CONFIG['generations'])
+            st.markdown(f":{type_color}[{type_indicator}] {type_description}")
+            
             generations = st.number_input(
                 "Generations", 
                 min_value=1, max_value=2000, 
@@ -163,6 +231,10 @@ class Forms:
             )
         
         with col3:
+            # Show parameter type indicator
+            type_indicator, type_color, type_description = Forms.get_parameter_type_indicator('n_runs', DEFAULT_CONFIG['n_runs'])
+            st.markdown(f":{type_color}[{type_indicator}] {type_description}")
+            
             n_runs = st.number_input(
                 "Number of Runs", 
                 min_value=1, max_value=100, 
@@ -249,7 +321,7 @@ class Forms:
         
         # Parameter Configuration System
         st.markdown("**⚙️ Configure Parameters**")
-        st.markdown("*Configure each parameter to be Fixed (same value throughout evolution) or Dynamic (varies each generation).*")
+        st.markdown("*Configure each parameter to be Fixed or Custom.*")
         
         # Initialize session state for parameter configurations
         if 'parameter_configs' not in st.session_state:
@@ -378,8 +450,8 @@ class Forms:
                     
                     mode = st.selectbox(
                         "Mode",
-                        ["Fixed", "Dynamic", "Custom"],
-                        index=0 if st.session_state[mode_key] == "Fixed" else (1 if st.session_state[mode_key] == "Dynamic" else 2),
+                        ["Fixed", "Custom"],
+                        index=0 if st.session_state[mode_key] == "Fixed" else 1,
                         key=f"{param_key}_mode_select"
                     )
                     
@@ -503,15 +575,14 @@ class Forms:
                     
                     elif mode == "Custom":
                         if 'options' in param_info:
-                            # Categorical parameters - custom mode not implemented yet
-                            st.info(f"ℹ️ Custom mode for {param_info['name']} is not yet implemented. Using dynamic mode.")
-                            
+                            st.info(f"ℹ️ Custom mode for {param_info['name']} is not available for categorical parameters. Using fixed mode.")
+                            value = param_info['default']
                             parameter_configs[param_key] = {
-                                'mode': 'custom',
-                                'value': param_info['options'][0],
-                                'options': param_info['options']
+                                'mode': 'fixed',
+                                'value': value,
+                                'options': param_info.get('options', None)
                             }
-                            st.success(f"✅ {param_info['name']} will be randomly selected from: {', '.join(param_info['options'])} (Custom mode)")
+                            st.info(f"🔒 {param_info['name']} set to fixed value: {value}")
                         else:
                             # Numerical parameters - full custom formula interface
                             st.markdown(f"**🎯 Custom {param_info['name']} Formula:**")
@@ -705,7 +776,7 @@ class Forms:
         
         # Section 4: Current Parameter Values
         st.subheader("📋 4. Current Parameter Values")
-        st.markdown("*These are the current parameter values based on your configuration. Dynamic parameters will vary during evolution.*")
+        st.markdown("*These are the current parameter values based on your configuration. Random parameters will vary during evolution.*")
         
         # Get values and modes from parameter configurations
         def get_param_display(param_key, param_name, default_value):
@@ -713,19 +784,12 @@ class Forms:
             value = param_config.get('value', default_value)
             mode = param_config.get('mode', 'fixed')
             
-            if mode == 'dynamic':
-                if 'options' in param_config:
-                    # Categorical dynamic
-                    return f"**{param_name}:** {value} 🔄 *Random* (from {param_config['options']})"
-                else:
-                    # Numerical dynamic
-                    return f"**{param_name}:** {value} 🔄 *Random* ({param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')})"
-            elif mode == 'custom':
+            if mode == 'custom':
                 # Custom mode - show formula details
                 change_every = param_config.get('change_every', 5)
                 change_amount = param_config.get('change_amount', 1)
                 change_operation = param_config.get('change_operation', 'add')
-                return f"**{param_name}:** {value} 🎯 *Custom* ({change_operation} {change_amount} every {change_every} gens)"
+                return f"**{param_name}:** {value} ⚙️ *Custom* ({change_operation} {change_amount} every {change_every} gens)"
             else:
                 return f"**{param_name}:** {value} 🔒 *Fixed*"
         
@@ -760,23 +824,20 @@ class Forms:
             st.markdown(get_param_display('genome_representation', 'Genome Representation', DEFAULT_CONFIG['genome_representation']))
             st.markdown(get_param_display('initialisation', 'Initialisation', DEFAULT_CONFIG['initialisation']))
         
-        # Dynamic Parameters Summary (spans full width)
-        st.markdown("**📊 Dynamic Parameters Summary**")
+        # Parameter Summary (spans full width)
+        st.markdown("**📊 Parameter Summary**")
         
-        # Dynamic parameters indicator
-        dynamic_count = sum(1 for config in parameter_configs_data.values() if config.get('mode') == 'dynamic')
-        if dynamic_count > 0:
-            st.success(f"🔄 **{dynamic_count} parameters** are set to dynamic mode!")
-            
-            # Show which parameters are dynamic
-            st.markdown("**Dynamic Parameters:**")
+        # Count custom parameters
+        custom_count = sum(1 for config in parameter_configs_data.values() if config.get('mode') == 'custom')
+        
+        if custom_count > 0:
+            st.success(f"⚙️ **{custom_count} parameters** are set to custom mode!")
+            st.markdown("**Custom Parameters:**")
             for param_key, param_config in parameter_configs_data.items():
-                if param_config.get('mode') == 'dynamic':
+                if param_config.get('mode') == 'custom':
                     param_name = param_config.get('name', param_key)
-                    if 'options' in param_config:
-                        st.markdown(f"- {param_name}: {param_config['options']}")
-                    else:
-                        st.markdown(f"- {param_name}: {param_config.get('low', 'N/A')}-{param_config.get('high', 'N/A')}")
+                    expression = param_config.get('expression', 'N/A')
+                    st.markdown(f"- {param_name}: {expression}")
         else:
             st.info("🔒 **All parameters** are set to fixed mode.")
         
