@@ -79,6 +79,9 @@ class SetupView(BaseView):
             form_data (Dict[str, Any]): Form data
         """
         try:
+            # Store parameter configurations separately
+            parameter_configs = form_data.get('parameter_configs', {})
+            
             # Create setup configuration
             config = SetupConfig(
                 setup_name=form_data['setup_name'],
@@ -105,11 +108,9 @@ class SetupView(BaseView):
                 random_seed=form_data['random_seed'],
                 label_column=form_data['label_column'],
                 test_size=form_data['test_size'],
-                report_items=form_data['report_items']
+                report_items=form_data['report_items'],
+                parameter_configs=parameter_configs
             )
-            
-            # Store parameter configurations separately
-            parameter_configs = form_data.get('parameter_configs', {})
             
             # Validate that label column exists in dataset
             if config.dataset != "none":

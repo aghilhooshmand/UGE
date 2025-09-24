@@ -102,11 +102,11 @@
       "max": 5000
     },
     "generations": {
-      "min": 1,
+      "min": 7,
       "max": 2000
     },
     "n_runs": {
-      "min": 1,
+      "min": 6,
       "max": 100
     },
     "p_crossover": {

@@ -133,6 +133,8 @@ class SetupConfig:
             
             if mode == 'custom':
                 return 'custom'
+            elif mode == 'fixed':
+                return 'fixed'
         
         # Check if it's a custom expression (contains mathematical operators or functions)
         if isinstance(param_value, str):
@@ -181,7 +183,6 @@ class SetupConfig:
             'fitness_metric': self.fitness_metric,
             'fitness_direction': self.fitness_direction,
             'n_runs': self.n_runs,
-            'evolution_type': self.evolution_type,
         }
         
         evolution_params = {
@@ -255,7 +256,7 @@ class SetupConfig:
     
     def _get_parameter_category(self, param_name: str) -> str:
         """Get the category of a parameter."""
-        if param_name in ['setup_name', 'dataset', 'grammar', 'fitness_metric', 'fitness_direction', 'n_runs', 'evolution_type']:
+        if param_name in ['setup_name', 'dataset', 'grammar', 'fitness_metric', 'fitness_direction', 'n_runs']:
             return 'Basic'
         elif param_name in ['generations', 'population', 'p_crossover', 'p_mutation', 'elite_size', 'tournsize', 'halloffame_size']:
             return 'Evolution'
@@ -279,7 +280,6 @@ class SetupConfig:
             'fitness_metric': self.fitness_metric,
             'fitness_direction': self.fitness_direction,
             'n_runs': self.n_runs,
-            'evolution_type': self.evolution_type,
             'generations': self.generations,
             'population': self.population,
             'p_crossover': self.p_crossover,

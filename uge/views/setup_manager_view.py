@@ -138,6 +138,10 @@ class SetupManagerView:
                                 # Get parameter information with types
                                 param_info = setup.config.get_parameter_info()
                                 
+                                # Check if parameter_configs is available
+                                if not hasattr(setup.config, 'parameter_configs') or setup.config.parameter_configs is None:
+                                    st.warning("⚠️ This setup was created before the parameter configuration system was implemented. All parameters are shown as 'Fixed' by default.")
+                                
                                 # Group parameters by category
                                 categories = {}
                                 for param_name, info in param_info.items():
@@ -177,9 +181,29 @@ class SetupManagerView:
                                                 max_val = info.get('max_value', param_value)
                                                 display_value = f"Value: {param_value} | Random between {min_val} and {max_val}"
                                             elif param_type == 'custom':
-                                                # Show custom expression
-                                                expression = info.get('expression', str(param_value))
-                                                display_value = f"Expression: {expression}"
+                                                # Show custom configuration details
+                                                config = info.get('config', {})
+                                                mode = config.get('mode', 'custom')
+                                                base_value = config.get('value', param_value)
+                                                change_every = config.get('change_every', 5)
+                                                change_amount = config.get('change_amount', 0.01)
+                                                change_operation = config.get('change_operation', 'add')
+                                                min_value = config.get('min_value', base_value)
+                                                max_value = config.get('max_value', base_value)
+                                                
+                                                # Create descriptive text
+                                                if change_operation == 'add':
+                                                    operation_text = f"add {change_amount}"
+                                                elif change_operation == 'subtract':
+                                                    operation_text = f"subtract {change_amount}"
+                                                elif change_operation == 'multiply':
+                                                    operation_text = f"multiply by {change_amount}"
+                                                elif change_operation == 'divide':
+                                                    operation_text = f"divide by {change_amount}"
+                                                else:
+                                                    operation_text = f"apply {change_operation} with {change_amount}"
+                                                
+                                                display_value = f"Starts at {base_value}, every {change_every} generations {operation_text} (range: {min_value} to {max_value})"
                                             elif isinstance(param_value, list):
                                                 if len(param_value) > 5:
                                                     display_value = f"[{param_value[0]}, ..., {param_value[-1]}] ({len(param_value)} items)"

@@ -247,6 +247,99 @@ class SettingsView(BaseView):
                     format="%.2f"
                 )
             
+            # Second row of parameters
+            col4, col5, col6 = st.columns(3)
+            
+            with col4:
+                st.markdown("**Selection Parameters**")
+                new_tournsize = st.number_input(
+                    "Tournament Size",
+                    min_value=limits.get('tournsize', {}).get('min', 2),
+                    max_value=limits.get('tournsize', {}).get('max', 50),
+                    value=ge_params.get('tournsize', 7),
+                    step=1
+                )
+                
+                new_halloffame_size = st.number_input(
+                    "Hall of Fame Size",
+                    min_value=limits.get('halloffame_size', {}).get('min', 1),
+                    max_value=limits.get('halloffame_size', {}).get('max', 100),
+                    value=ge_params.get('halloffame_size', 1),
+                    step=1
+                )
+                
+                new_random_seed = st.number_input(
+                    "Random Seed",
+                    min_value=limits.get('random_seed', {}).get('min', 0),
+                    max_value=limits.get('random_seed', {}).get('max', 10000),
+                    value=ge_params.get('random_seed', 42),
+                    step=1
+                )
+            
+            with col5:
+                st.markdown("**Initialization Parameters**")
+                new_min_init_tree_depth = st.number_input(
+                    "Min Init Tree Depth",
+                    min_value=limits.get('min_init_tree_depth', {}).get('min', 1),
+                    max_value=limits.get('min_init_tree_depth', {}).get('max', 20),
+                    value=ge_params.get('min_init_tree_depth', 4),
+                    step=1
+                )
+                
+                new_max_init_tree_depth = st.number_input(
+                    "Max Init Tree Depth",
+                    min_value=limits.get('max_init_tree_depth', {}).get('min', 1),
+                    max_value=limits.get('max_init_tree_depth', {}).get('max', 30),
+                    value=ge_params.get('max_init_tree_depth', 13),
+                    step=1
+                )
+                
+                new_min_init_genome_length = st.number_input(
+                    "Min Init Genome Length",
+                    min_value=limits.get('min_init_genome_length', {}).get('min', 10),
+                    max_value=limits.get('min_init_genome_length', {}).get('max', 200),
+                    value=ge_params.get('min_init_genome_length', 95),
+                    step=1
+                )
+            
+            with col6:
+                st.markdown("**Genome Parameters**")
+                new_max_init_genome_length = st.number_input(
+                    "Max Init Genome Length",
+                    min_value=limits.get('max_init_genome_length', {}).get('min', 10),
+                    max_value=limits.get('max_init_genome_length', {}).get('max', 500),
+                    value=ge_params.get('max_init_genome_length', 115),
+                    step=1
+                )
+                
+                # Categorical parameters
+                codon_consumption_options = self.settings_service.get_parameter_options().get('codon_consumption', ['lazy', 'eager'])
+                current_codon_consumption = ge_params.get('codon_consumption', 'lazy')
+                codon_consumption_index = codon_consumption_options.index(current_codon_consumption) if current_codon_consumption in codon_consumption_options else 0
+                new_codon_consumption = st.selectbox(
+                    "Codon Consumption",
+                    options=codon_consumption_options,
+                    index=codon_consumption_index
+                )
+                
+                genome_representation_options = self.settings_service.get_parameter_options().get('genome_representation', ['list'])
+                current_genome_representation = ge_params.get('genome_representation', 'list')
+                genome_representation_index = genome_representation_options.index(current_genome_representation) if current_genome_representation in genome_representation_options else 0
+                new_genome_representation = st.selectbox(
+                    "Genome Representation",
+                    options=genome_representation_options,
+                    index=genome_representation_index
+                )
+                
+                initialisation_options = self.settings_service.get_parameter_options().get('initialisation', ['sensible', 'random'])
+                current_initialisation = ge_params.get('initialisation', 'sensible')
+                initialisation_index = initialisation_options.index(current_initialisation) if current_initialisation in initialisation_options else 0
+                new_initialisation = st.selectbox(
+                    "Initialisation",
+                    options=initialisation_options,
+                    index=initialisation_index
+                )
+            
             # Submit button for the form
             submitted = st.form_submit_button("💾 Update GE Parameters", type="primary")
             
@@ -262,16 +355,16 @@ class SettingsView(BaseView):
                     'max_tree_depth': new_max_tree_depth,
                     'codon_size': new_codon_size,
                     'test_size': new_test_size,
-                    'tournsize': ge_params.get('tournsize', 7),
-                    'halloffame_size': ge_params.get('halloffame_size', 1),
-                    'min_init_tree_depth': ge_params.get('min_init_tree_depth', 4),
-                    'max_init_tree_depth': ge_params.get('max_init_tree_depth', 13),
-                    'min_init_genome_length': ge_params.get('min_init_genome_length', 95),
-                    'max_init_genome_length': ge_params.get('max_init_genome_length', 115),
-                    'codon_consumption': ge_params.get('codon_consumption', 'lazy'),
-                    'genome_representation': ge_params.get('genome_representation', 'list'),
-                    'initialisation': ge_params.get('initialisation', 'sensible'),
-                    'random_seed': ge_params.get('random_seed', 42)
+                    'tournsize': new_tournsize,
+                    'halloffame_size': new_halloffame_size,
+                    'min_init_tree_depth': new_min_init_tree_depth,
+                    'max_init_tree_depth': new_max_init_tree_depth,
+                    'min_init_genome_length': new_min_init_genome_length,
+                    'max_init_genome_length': new_max_init_genome_length,
+                    'codon_consumption': new_codon_consumption,
+                    'genome_representation': new_genome_representation,
+                    'initialisation': new_initialisation,
+                    'random_seed': new_random_seed
                 }
                 st.success("✅ GE Parameters updated! Click 'Save Settings' to persist changes.")
     
@@ -365,9 +458,68 @@ class SettingsView(BaseView):
         
         st.info("Parameter limits are used to validate user input and set slider ranges in forms.")
         
-        # Display current limits in a table format
+        # Create editable form for parameter limits
+        with st.form("parameter_limits_form"):
+            st.markdown("**Edit Parameter Limits**")
+            
+            # Create columns for better layout
+            col1, col2, col3 = st.columns([2, 1, 1])
+            
+            with col1:
+                st.markdown("**Parameter**")
+            with col2:
+                st.markdown("**Min Value**")
+            with col3:
+                st.markdown("**Max Value**")
+            
+            # Store edited limits in session state
+            if 'settings_parameter_limits' not in st.session_state:
+                st.session_state['settings_parameter_limits'] = limits.copy()
+            
+            edited_limits = {}
+            
+            # Create input fields for each parameter
+            for param, limit_dict in limits.items():
+                col1, col2, col3 = st.columns([2, 1, 1])
+                
+                with col1:
+                    st.text(param)
+                
+                with col2:
+                    current_min = st.session_state['settings_parameter_limits'].get(param, {}).get('min', limit_dict.get('min', 0))
+                    new_min = st.number_input(
+                        f"min_{param}",
+                        value=current_min,
+                        step=0.1 if isinstance(current_min, float) else 1,
+                        key=f"min_{param}",
+                        label_visibility="collapsed"
+                    )
+                
+                with col3:
+                    current_max = st.session_state['settings_parameter_limits'].get(param, {}).get('max', limit_dict.get('max', 100))
+                    new_max = st.number_input(
+                        f"max_{param}",
+                        value=current_max,
+                        step=0.1 if isinstance(current_max, float) else 1,
+                        key=f"max_{param}",
+                        label_visibility="collapsed"
+                    )
+                
+                edited_limits[param] = {'min': new_min, 'max': new_max}
+            
+            # Submit button for the form
+            submitted = st.form_submit_button("💾 Update Parameter Limits", type="primary")
+            
+            if submitted:
+                # Store changes in session state
+                st.session_state['settings_parameter_limits'] = edited_limits
+                st.success("✅ Parameter limits updated! Click 'Save Settings' to persist changes.")
+        
+        # Display current limits in a table format for reference
+        st.markdown("**Current Parameter Limits**")
         limit_data = []
-        for param, limit_dict in limits.items():
+        current_limits = st.session_state.get('settings_parameter_limits', limits)
+        for param, limit_dict in current_limits.items():
             limit_data.append({
                 'Parameter': param,
                 'Min': limit_dict.get('min', 'N/A'),
@@ -376,8 +528,6 @@ class SettingsView(BaseView):
         
         if limit_data:
             st.dataframe(limit_data, use_container_width=True)
-        
-        st.warning("Parameter limits can only be modified by editing the settings.json file directly.")
     
     def _render_parameter_options(self):
         """Render parameter options section."""
@@ -430,6 +580,9 @@ class SettingsView(BaseView):
             
             if 'settings_report_items' in st.session_state:
                 self.settings_service.set_setting('report_items', st.session_state['settings_report_items'])
+            
+            if 'settings_parameter_limits' in st.session_state:
+                self.settings_service.set_setting('parameter_limits', st.session_state['settings_parameter_limits'])
             
             # Save to file
             if self.settings_service.save_settings():
