@@ -912,24 +912,18 @@ class GEService:
             
             with (contextlib.redirect_stdout(logger) if logger else contextlib.nullcontext()):
                 # Use standard algorithm with fixed/custom parameters
-                population, logbook = algorithms.ge_eaSimpleWithElitism(
-                    population, toolbox, 
-                    cxpb=config.p_crossover, 
-                    mutpb=config.p_mutation,
-                    ngen=config.generations, 
-                    elite_size=config.elite_size,
+                population, logbook = algorithms.ge_eaSimpleWithElitism_dynamic(
+                    population, toolbox,
+                    ngen=config.generations,
                     bnf_grammar=bnf_grammar,
-                    codon_size=config.codon_size,
-                    max_tree_depth=config.max_tree_depth,
-                    max_genome_length=config.max_init_genome_length,
                     points_train=[X_train, Y_train],
                     points_test=[X_test, Y_test],
-                    codon_consumption=config.codon_consumption,
                     report_items=report_items,
-                    genome_representation=config.genome_representation,
-                    stats=stats, 
-                    halloffame=hof, 
-                    verbose=True
+                    stats=stats,
+                    halloffame=hof,
+                    verbose=True,
+                    parameter_configs=parameter_configs,
+                    random_seed=config.random_seed
                 )
             
             # Create generation configurations for all generations
