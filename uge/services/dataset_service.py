@@ -61,8 +61,9 @@ class DatasetService:
         if not self.datasets_dir.exists():
             return []
         
-        return [p.name for p in self.datasets_dir.glob('*') 
-                if p.is_file() and p.suffix in {'.data', '.csv', ''}]
+        # Include common tabular dataset extensions
+        return [p.name for p in self.datasets_dir.glob('*')
+                if p.is_file() and p.suffix in {'.data', '.csv', '.txt', ''}]
     
     def get_dataset_info(self, dataset_name: str) -> Optional[DatasetInfo]:
         """

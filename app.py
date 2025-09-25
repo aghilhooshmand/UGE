@@ -72,8 +72,10 @@ class UGEApp:
         # Initialize views
         self.home_view = HomeView()
         self.setup_view = SetupView(self.setup_controller)
-        # Initialize dataset view with preview callback
+        # Initialize dataset view with upload/preview/delete callbacks
         self.dataset_view = DatasetView(
+            on_dataset_upload=self._on_dataset_upload,
+            on_dataset_delete=self._on_dataset_delete,
             on_dataset_preview=self._on_dataset_preview
         )
         self.analysis_view = AnalysisView(
@@ -179,6 +181,38 @@ class UGEApp:
         except Exception as e:
             st.error(f"Export error: {str(e)}")
             return None
+
+    def _on_dataset_upload(self, uploaded_file):
+        """Handle dataset upload and refresh dataset lists."""
+        try:
+            import pandas as pd
+            from io import StringIO
+            # Parse uploaded file
+            content = uploaded_file.getvalue()
+            try:
+                text = content.decode('utf-8')
+            except Exception:
+                text = content.decode('latin-1')
+            df = pd.read_csv(StringIO(text))
+            # Ensure extension and save
+            name = uploaded_file.name
+            self.dataset_service.save_dataset(name, df)
+            st.success(f"✅ Dataset uploaded: {name}")
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ Error uploading dataset: {e}")
+
+    def _on_dataset_delete(self, dataset_name: str):
+        """Handle dataset deletion and refresh dataset lists."""
+        try:
+            ok = self.dataset_service.delete_dataset(dataset_name)
+            if ok:
+                st.success(f"🗑️ Dataset deleted: {dataset_name}")
+            else:
+                st.warning(f"Dataset not found: {dataset_name}")
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ Error deleting dataset: {e}")
 
     def _on_dataset_preview(self, dataset_name: str):
         """Callback to build dataset preview payload for the view."""
