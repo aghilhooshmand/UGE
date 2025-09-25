@@ -336,109 +336,115 @@ class Forms:
             st.session_state.parameter_configs = {}
         
         # Define configurable parameters
+        # Load defaults/limits/options from settings.json
+        _ss = SettingsService()
+        _limits = _ss.get_parameter_limits() or {}
+        _defaults = {**(_ss.get_defaults() or {}), **(_ss.get_ge_parameters() or {})}
+        _options = _ss.get_parameter_options() or {}
+
         config_params = {
             # Genetic Algorithm Parameters
             'elite_size': {
                 'name': 'Elite Size',
-                'default': DEFAULT_CONFIG['elite_size'],
-                'min': 0,
-                'max': 50,
+                'default': _defaults.get('elite_size', DEFAULT_CONFIG['elite_size']),
+                'min': _limits.get('elite_size', {}).get('min', 0),
+                'max': _limits.get('elite_size', {}).get('max', 50),
                 'help': 'Number of elite individuals to preserve'
             },
             'p_crossover': {
                 'name': 'Crossover Probability',
-                'default': DEFAULT_CONFIG['p_crossover'],
-                'min': 0.0,
-                'max': 1.0,
+                'default': _defaults.get('p_crossover', DEFAULT_CONFIG['p_crossover']),
+                'min': _limits.get('p_crossover', {}).get('min', 0.0),
+                'max': _limits.get('p_crossover', {}).get('max', 1.0),
                 'step': 0.01,
                 'help': 'Probability of crossover operation'
             },
             'p_mutation': {
                 'name': 'Mutation Probability', 
-                'default': DEFAULT_CONFIG['p_mutation'],
-                'min': 0.0,
-                'max': 1.0,
+                'default': _defaults.get('p_mutation', DEFAULT_CONFIG['p_mutation']),
+                'min': _limits.get('p_mutation', {}).get('min', 0.0),
+                'max': _limits.get('p_mutation', {}).get('max', 1.0),
                 'step': 0.01,
                 'help': 'Probability of mutation operation'
             },
             'tournsize': {
                 'name': 'Tournament Size',
-                'default': DEFAULT_CONFIG['tournsize'],
-                'min': 2,
-                'max': 50,
+                'default': _defaults.get('tournsize', DEFAULT_CONFIG['tournsize']),
+                'min': _limits.get('tournsize', {}).get('min', 2),
+                'max': _limits.get('tournsize', {}).get('max', 50),
                 'help': 'Size of tournament for selection'
             },
             'halloffame_size': {
                 'name': 'Hall of Fame Size',
-                'default': DEFAULT_CONFIG['halloffame_size'],
-                'min': 1,
-                'max': 100,
+                'default': _defaults.get('halloffame_size', DEFAULT_CONFIG['halloffame_size']),
+                'min': _limits.get('halloffame_size', {}).get('min', 1),
+                'max': _limits.get('halloffame_size', {}).get('max', 100),
                 'help': 'Size of hall of fame'
             },
             
             # Tree Parameters
             'max_tree_depth': {
                 'name': 'Max Tree Depth',
-                'default': DEFAULT_CONFIG['max_tree_depth'],
-                'min': 5,
-                'max': 100,
+                'default': _defaults.get('max_tree_depth', DEFAULT_CONFIG['max_tree_depth']),
+                'min': _limits.get('max_tree_depth', {}).get('min', 5),
+                'max': _limits.get('max_tree_depth', {}).get('max', 100),
                 'help': 'Maximum depth of the evolved trees'
             },
             'min_init_tree_depth': {
                 'name': 'Min Init Tree Depth',
-                'default': DEFAULT_CONFIG['min_init_tree_depth'],
-                'min': 1,
-                'max': 20,
+                'default': _defaults.get('min_init_tree_depth', DEFAULT_CONFIG['min_init_tree_depth']),
+                'min': _limits.get('min_init_tree_depth', {}).get('min', 1),
+                'max': _limits.get('min_init_tree_depth', {}).get('max', 20),
                 'help': 'Minimum depth for initial trees'
             },
             'max_init_tree_depth': {
                 'name': 'Max Init Tree Depth',
-                'default': DEFAULT_CONFIG['max_init_tree_depth'],
-                'min': 1,
-                'max': 30,
+                'default': _defaults.get('max_init_tree_depth', DEFAULT_CONFIG['max_init_tree_depth']),
+                'min': _limits.get('max_init_tree_depth', {}).get('min', 1),
+                'max': _limits.get('max_init_tree_depth', {}).get('max', 100),
                 'help': 'Maximum depth for initial trees'
             },
             
             # Genome Parameters
             'min_init_genome_length': {
                 'name': 'Min Init Genome Length',
-                'default': DEFAULT_CONFIG['min_init_genome_length'],
-                'min': 10,
-                'max': 200,
+                'default': _defaults.get('min_init_genome_length', DEFAULT_CONFIG['min_init_genome_length']),
+                'min': _limits.get('min_init_genome_length', {}).get('min', 10),
+                'max': _limits.get('min_init_genome_length', {}).get('max', 200),
                 'help': 'Minimum length for initial genomes'
             },
             'max_init_genome_length': {
                 'name': 'Max Init Genome Length',
-                'default': DEFAULT_CONFIG['max_init_genome_length'],
-                'min': 10,
-                'max': 500,
+                'default': _defaults.get('max_init_genome_length', DEFAULT_CONFIG['max_init_genome_length']),
+                'min': _limits.get('max_init_genome_length', {}).get('min', 10),
+                'max': _limits.get('max_init_genome_length', {}).get('max', 500),
                 'help': 'Maximum length for initial genomes'
             },
             'codon_size': {
                 'name': 'Codon Size',
-                'default': DEFAULT_CONFIG['codon_size'],
-                'min': 100,
-                'max': 512,
+                'default': _defaults.get('codon_size', DEFAULT_CONFIG['codon_size']),
+                'min': _limits.get('codon_size', {}).get('min', 100),
+                'max': _limits.get('codon_size', {}).get('max', 512),
                 'help': 'Size of codons in the genome'
             },
             
             # Categorical Parameters
             'codon_consumption': {
                 'name': 'Codon Consumption',
-                'default': DEFAULT_CONFIG['codon_consumption'],
-                'options': ['lazy', 'eager'],
+                'default': _defaults.get('codon_consumption', DEFAULT_CONFIG['codon_consumption']),
+                'options': _options.get('codon_consumption', ['lazy', 'eager']),
                 'help': 'How codons are consumed during tree generation'
             },
             'genome_representation': {
                 'name': 'Genome Representation',
-                'default': DEFAULT_CONFIG['genome_representation'],
-                'options': ['list'],
+                'default': _defaults.get('genome_representation', DEFAULT_CONFIG['genome_representation']),
+                'options': _options.get('genome_representation', ['list']),
                 'help': 'How genomes are represented in memory'
             },
             'initialisation': {
                 'name': 'Initialisation',
-                'default': DEFAULT_CONFIG['initialisation'],
-                'options': ['sensible', 'random'],
+                'default': _defaults.get('initialisation', DEFAULT_CONFIG['initialisation']),
+                'options': _options.get('initialisation', ['sensible', 'random']),
                 'help': 'Method for generating initial trees'
             }
         }

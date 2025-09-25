@@ -129,7 +129,7 @@ class SettingsService:
                 "halloffame_size": {"min": 1, "max": 100},
                 "max_tree_depth": {"min": 5, "max": 100},
                 "min_init_tree_depth": {"min": 1, "max": 20},
-                "max_init_tree_depth": {"min": 1, "max": 30},
+                "max_init_tree_depth": {"min": 1, "max": 200},
                 "min_init_genome_length": {"min": 10, "max": 200},
                 "max_init_genome_length": {"min": 10, "max": 500},
                 "codon_size": {"min": 100, "max": 512},
