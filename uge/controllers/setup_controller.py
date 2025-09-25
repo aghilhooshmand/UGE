@@ -162,7 +162,8 @@ class SetupController(BaseController):
                 try:
                     all_run_results = {}
                     for run_idx in range(config.n_runs):
-                        if st.session_state.get(cancel_key):
+                        # Support per-setup cancel flag and a global cancel_all flag
+                        if st.session_state.get(cancel_key) or st.session_state.get('cancel_all'):
                             break
                         
                         # Update status text

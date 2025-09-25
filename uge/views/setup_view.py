@@ -129,6 +129,14 @@ class SetupView(BaseView):
             
             # Create expandable section for running details
             with st.expander("🔍 Show Running Details", expanded=True):
+                # Cancel button (placed at the very top, above real-time logging)
+                cancel_key = f"cancel_{config.setup_name}"
+                if st.button("🛑 Cancel Running", type="secondary"):
+                    st.session_state[cancel_key] = True
+                    st.session_state['cancel_all'] = True
+                    st.warning("Cancelling after current run completes...")
+
+                # Progress and status
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
