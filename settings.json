@@ -139,7 +139,7 @@
     },
     "max_init_tree_depth": {
       "min": 1,
-      "max": 30
+      "max": 100
     },
     "min_init_genome_length": {
       "min": 10,
