@@ -189,7 +189,7 @@ class ComparisonView:
         # Chart type selection
         chart_type = st.selectbox(
             "Select Chart Type",
-            ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "Configuration Comparison", "Configuration Evolution", "All Metrics"],
+            ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "Configuration Comparison", "Configuration Evolution", "t-SNE Best Individuals", "All Metrics"],
             key="comparison_chart_type"
         )
         
@@ -233,6 +233,8 @@ class ComparisonView:
             else:
                 st.warning("No generation configuration parameters available for evolution comparison.")
                 metric_type = None
+        elif chart_type == "t-SNE Best Individuals":
+            metric_type = "t-SNE"
         else:
             metric_type = "All"
         
@@ -279,6 +281,8 @@ class ComparisonView:
         elif chart_type == "Configuration Evolution":
             if metric_type:
                 self._render_configuration_evolution_chart(comparison_results, metric_type)
+        elif chart_type == "t-SNE Best Individuals":
+            self._render_tsne_best_individuals(comparison_results)
         elif chart_type == "All Metrics":
             self._render_all_metrics_chart(comparison_results)
     
@@ -769,6 +773,59 @@ class ComparisonView:
         
         df = pd.DataFrame(all_data)
         return df.to_csv(index=False)
+
+    def _render_tsne_best_individuals(self, comparison_results: Dict[str, Any]) -> None:
+        """
+        Render t-SNE projection of per-generation best individuals across setups.
+        Uses aggregate series as proxy features.
+        """
+        st.subheader("t-SNE of Best Individuals Through Generations")
+
+        # Feature selection UI
+        all_features = [
+            'training_max', 'training_avg', 'training_min', 'training_std',
+            'test_avg', 'test_std',
+            'nodes_length_max', 'nodes_length_avg', 'nodes_length_min', 'nodes_length_std',
+            'invalid_count_max', 'invalid_count_avg', 'invalid_count_min', 'invalid_count_std'
+        ]
+        selected = st.multiselect(
+            "Select features to embed",
+            all_features,
+            default=['training_max', 'test_avg', 'nodes_length_avg']
+        )
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            perplexity = st.slider("Perplexity", min_value=5.0, max_value=50.0, value=30.0, step=1.0)
+        with c2:
+            learning_rate = st.slider("Learning Rate", min_value=10.0, max_value=1000.0, value=200.0, step=10.0)
+        with c3:
+            n_iter = st.slider("Iterations", min_value=250, max_value=3000, value=1000, step=250)
+        with c4:
+            random_state = st.number_input("Random Seed", min_value=0, max_value=10000, value=42, step=1)
+
+        # Transform comparison_results to the expected series structure
+        setup_series: Dict[str, Any] = {}
+        for setup_name, setup_data in comparison_results.items():
+            if setup_name == 'setup_configs':
+                continue
+            series = {}
+            for key in ['training', 'test', 'invalid_count', 'nodes_length']:
+                if key in setup_data and setup_data[key]:
+                    series[key] = setup_data[key]
+            if series:
+                setup_series[setup_name] = series
+
+        if st.button("Plot t-SNE"):
+            ConfigCharts.plot_tsne_best_individuals(
+                setup_series,
+                selected_features=selected,
+                perplexity=perplexity,
+                learning_rate=learning_rate,
+                n_iter=n_iter,
+                random_state=int(random_state),
+                title="t-SNE of Best Individuals Across Generations"
+            )
     
     def _get_available_config_params(self, setup_data: Dict[str, Any]) -> List[str]:
         """

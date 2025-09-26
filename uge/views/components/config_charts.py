@@ -14,6 +14,8 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 from typing import Dict, List, Optional, Any
+import pandas as pd
+from sklearn.manifold import TSNE
 
 
 class ConfigCharts:
@@ -238,6 +240,137 @@ class ConfigCharts:
             height=500
         )
         
+        st.plotly_chart(fig, use_container_width=True)
+    
+    @staticmethod
+    def plot_tsne_best_individuals(setup_series: Dict[str, Dict[str, Any]],
+                                   selected_features: List[str],
+                                   perplexity: float = 30.0,
+                                   learning_rate: float = 200.0,
+                                   n_iter: int = 1000,
+                                   random_state: int = 42,
+                                   title: str = "t-SNE of Best Individuals Across Generations") -> None:
+        """
+        Plot a 2D t-SNE embedding to compare per-generation best individuals across setups.
+        Uses available per-generation aggregates as proxy features.
+        
+        Expected input per setup:
+          setup_series[setup_name] contains keys:
+            - training: {'generations', 'avg', 'max', 'min', 'std'}
+            - test: {'generations', 'avg', 'std'}
+            - invalid_count: {'generations', 'avg', 'max', 'min', 'std'}
+            - nodes_length: {'generations', 'avg', 'max', 'min', 'std'}
+        
+        Supported feature keys in selected_features:
+          'training_max', 'training_avg', 'training_min', 'training_std',
+          'test_avg', 'test_std',
+          'nodes_length_max', 'nodes_length_avg', 'nodes_length_min', 'nodes_length_std',
+          'invalid_count_max', 'invalid_count_avg', 'invalid_count_min', 'invalid_count_std'
+        """
+        if not setup_series:
+            st.warning("No data available for t-SNE.")
+            return
+        if not selected_features:
+            st.warning("Select at least one feature for t-SNE.")
+            return
+
+        # Build a unified dataframe of rows: one per (setup, generation)
+        rows = []
+        for setup_name, data in setup_series.items():
+            # Determine number of generations from training generations
+            gens = data.get('training', {}).get('generations', []) or \
+                   data.get('test', {}).get('generations', []) or []
+            for idx, gen in enumerate(gens):
+                row = {
+                    'setup': setup_name,
+                    'generation': gen
+                }
+                # Map features
+                def get(arr):
+                    return arr[idx] if arr and idx < len(arr) else None
+
+                # Training
+                tr = data.get('training', {})
+                row['training_max'] = get(tr.get('max'))
+                row['training_avg'] = get(tr.get('avg'))
+                row['training_min'] = get(tr.get('min'))
+                row['training_std'] = get(tr.get('std'))
+
+                # Test
+                te = data.get('test', {})
+                row['test_avg'] = get(te.get('avg'))
+                row['test_std'] = get(te.get('std'))
+
+                # Nodes length
+                nl = data.get('nodes_length', {})
+                row['nodes_length_max'] = get(nl.get('max'))
+                row['nodes_length_avg'] = get(nl.get('avg'))
+                row['nodes_length_min'] = get(nl.get('min'))
+                row['nodes_length_std'] = get(nl.get('std'))
+
+                # Invalid count
+                inv = data.get('invalid_count', {})
+                row['invalid_count_max'] = get(inv.get('max'))
+                row['invalid_count_avg'] = get(inv.get('avg'))
+                row['invalid_count_min'] = get(inv.get('min'))
+                row['invalid_count_std'] = get(inv.get('std'))
+
+                rows.append(row)
+
+        if not rows:
+            st.warning("No rows constructed for t-SNE.")
+            return
+
+        df = pd.DataFrame(rows)
+
+        # Filter to generations that have all selected features present
+        feature_df = df[['setup', 'generation'] + selected_features].dropna()
+        if feature_df.empty:
+            st.warning("Selected features have no overlapping data across generations.")
+            return
+
+        X = feature_df[selected_features].values
+        try:
+            tsne = TSNE(
+                n_components=2,
+                perplexity=perplexity,
+                learning_rate=learning_rate,
+                random_state=random_state,
+                init='pca'
+            )
+            # Try to set n_iter if supported by this sklearn version
+            try:
+                # Some sklearn versions accept n_iter in constructor; others have fixed default
+                tsne_with_iter = TSNE(
+                    n_components=2,
+                    perplexity=perplexity,
+                    learning_rate=learning_rate,
+                    random_state=random_state,
+                    init='pca',
+                    n_iter=n_iter
+                )
+                tsne = tsne_with_iter
+            except TypeError:
+                pass
+            embedding = tsne.fit_transform(X)
+        except Exception as e:
+            st.error(f"t-SNE failed: {e}")
+            return
+
+        feature_df['tsne_x'] = embedding[:, 0]
+        feature_df['tsne_y'] = embedding[:, 1]
+
+        # Plot scatter with color by setup and hover showing generation and features
+        hover_cols = ['setup', 'generation'] + selected_features
+        fig = px.scatter(
+            feature_df,
+            x='tsne_x', y='tsne_y',
+            color='setup',
+            hover_data=hover_cols,
+            title=title,
+            template='plotly_white'
+        )
+        fig.update_traces(marker=dict(size=8, opacity=0.85))
         st.plotly_chart(fig, use_container_width=True)
     
     @staticmethod
