@@ -308,6 +308,10 @@ class AnalysisController(BaseController):
                 'result': result.to_dict(),
                 'statistics': self._calculate_run_statistics(result)
             }
+            
+            # Include generation configs if available
+            if hasattr(result, 'generation_configs') and result.generation_configs:
+                analysis['results'][run_id]['generation_configs'] = result.generation_configs
         
         # Calculate overall statistics
         analysis['statistics'] = self._calculate_setup_statistics(setup)

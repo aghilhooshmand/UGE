@@ -322,6 +322,87 @@ class ConfigCharts:
                     st.info(f"No data available for {param.replace('_', ' ')}")
     
     @staticmethod
+    def plot_setup_configuration_comparison(setup_configs: Dict[str, Any], 
+                                          config_param: str = 'elite_size',
+                                          title: str = "Configuration Comparison Across Setups") -> None:
+        """
+        Plot configuration parameter comparison across multiple setups.
+        This shows the average value of a configuration parameter across all runs for each setup.
+        
+        Args:
+            setup_configs (Dict[str, Any]): Dictionary of setup configurations by setup_id
+            config_param (str): Configuration parameter to compare
+            title (str): Chart title
+        """
+        if not setup_configs:
+            st.warning("⚠️ No setup configurations available for comparison.")
+            return
+        
+        # Extract configuration values for each setup
+        setup_names = []
+        config_values = []
+        
+        for setup_id, config in setup_configs.items():
+            # Get setup name from config
+            setup_name = config.get('setup_name', setup_id)
+            setup_names.append(setup_name)
+            
+            # Get the configuration parameter value
+            if config_param in config:
+                config_values.append(config[config_param])
+            else:
+                config_values.append(None)
+        
+        # Filter out None values
+        valid_data = [(name, value) for name, value in zip(setup_names, config_values) if value is not None]
+        if not valid_data:
+            st.warning(f"⚠️ No valid {config_param} values found in setup configurations.")
+            return
+        
+        valid_names, valid_values = zip(*valid_data)
+        
+        # Create figure
+        fig = go.Figure()
+        
+        # Add bar chart
+        fig.add_trace(go.Bar(
+            x=list(valid_names),
+            y=list(valid_values),
+            name=f'{config_param.replace("_", " ").title()}',
+            marker_color='lightblue',
+            text=[f'{v:.3f}' if isinstance(v, float) else str(v) for v in valid_values],
+            textposition='auto'
+        ))
+        
+        # Update layout
+        fig.update_layout(
+            title=title,
+            xaxis_title='Setup',
+            yaxis_title=f'{config_param.replace("_", " ").title()}',
+            showlegend=False,
+            template='plotly_white',
+            height=500
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Add summary table
+        st.subheader("📊 Configuration Comparison Summary")
+        
+        # Create comparison table
+        comparison_data = []
+        for name, value in valid_data:
+            comparison_data.append({
+                'Setup': name,
+                f'{config_param.replace("_", " ").title()}': f'{value:.3f}' if isinstance(value, float) else str(value)
+            })
+        
+        if comparison_data:
+            import pandas as pd
+            df = pd.DataFrame(comparison_data)
+            st.dataframe(df, hide_index=True, use_container_width=True)
+    
+    @staticmethod
     def get_available_config_params(setup_results: Dict[str, Any]) -> List[str]:
         """
         Get list of available configuration parameters from setup results.

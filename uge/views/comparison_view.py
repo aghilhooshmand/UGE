@@ -76,12 +76,6 @@ class ComparisonView:
                                 # Transform the comparison results to match expected format
                                 transformed_results = self._transform_comparison_results(comparison_results, selected_setup_names)
                                 
-                                # Debug information
-                                st.write(f"Debug: Found {len(transformed_results)} setups to compare")
-                                for setup_name, data in transformed_results.items():
-                                    training_gen = len(data['training']['generations']) if data['training']['generations'] else 0
-                                    test_gen = len(data['test']['generations']) if data['test']['generations'] else 0
-                                    st.write(f"Debug: {setup_name} - Training: {training_gen} gens, Test: {test_gen} gens")
                                 
                                 # Store results in session state
                                 st.session_state.comparison_results = transformed_results
@@ -122,6 +116,12 @@ class ComparisonView:
         # Get aggregate data from comparison results
         aggregate_data = comparison_results.get('aggregate_data', {})
         setup_configs = comparison_results.get('setup_configs', {})
+        
+        # Preserve setup_configs in the transformed results
+        transformed['setup_configs'] = setup_configs
+        
+        # Also preserve the original setup analysis data for generation configs
+        original_setups = comparison_results.get('setups', [])
         
         for i, setup_name in enumerate(selected_setup_names):
             setup_id = list(aggregate_data.keys())[i] if i < len(aggregate_data) else None
@@ -169,6 +169,10 @@ class ComparisonView:
                     'invalid_count': invalid_count_data,
                     'nodes_length': nodes_length_data
                 }
+                
+                # Add the original setup analysis data for generation configs
+                if i < len(original_setups):
+                    transformed[setup_name]['results'] = original_setups[i].get('results', {})
         
         return transformed
     
@@ -185,7 +189,7 @@ class ComparisonView:
         # Chart type selection
         chart_type = st.selectbox(
             "Select Chart Type",
-            ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "Configuration Comparison", "All Metrics"],
+            ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "Configuration Comparison", "Configuration Evolution", "All Metrics"],
             key="comparison_chart_type"
         )
         
@@ -204,9 +208,8 @@ class ComparisonView:
                 key=f"comparison_metric_{chart_type.lower().replace(' ', '_')}"
             )
         elif chart_type == "Configuration Comparison":
-            # Get available configuration parameters from the first setup
-            first_setup_data = list(comparison_results.values())[0]
-            available_config_params = self._get_available_config_params(first_setup_data)
+            # Get available configuration parameters from setup configs
+            available_config_params = self._get_available_setup_config_params(comparison_results, selected_setups)
             
             if available_config_params:
                 metric_type = st.selectbox(
@@ -216,6 +219,19 @@ class ComparisonView:
                 )
             else:
                 st.warning("No configuration parameters available for comparison.")
+                metric_type = None
+        elif chart_type == "Configuration Evolution":
+            # Get available configuration parameters from generation configs
+            available_config_params = self._get_available_generation_config_params(comparison_results)
+            
+            if available_config_params:
+                metric_type = st.selectbox(
+                    "Select Configuration Parameter",
+                    available_config_params,
+                    key="evolution_config_param"
+                )
+            else:
+                st.warning("No generation configuration parameters available for evolution comparison.")
                 metric_type = None
         else:
             metric_type = "All"
@@ -260,6 +276,9 @@ class ComparisonView:
         elif chart_type == "Configuration Comparison":
             if metric_type:
                 self._render_configuration_comparison_chart(comparison_results, metric_type)
+        elif chart_type == "Configuration Evolution":
+            if metric_type:
+                self._render_configuration_evolution_chart(comparison_results, metric_type)
         elif chart_type == "All Metrics":
             self._render_all_metrics_chart(comparison_results)
     
@@ -807,10 +826,72 @@ class ComparisonView:
             comparison_results (Dict[str, Any]): Comparison results data
             config_param (str): Configuration parameter to compare
         """
-        # Transform comparison results to the format expected by ConfigCharts
-        setup_results = {}
+        # Get setup configs from the comparison results
+        setup_configs = comparison_results.get('setup_configs', {})
         
+        if not setup_configs:
+            st.warning("No setup configuration data available for comparison.")
+            return
+        
+        # Use ConfigCharts to render the comparison
+        ConfigCharts.plot_setup_configuration_comparison(
+            setup_configs,
+            config_param=config_param,
+            title=f"{config_param.replace('_', ' ').title()} Comparison Across Setups"
+        )
+    
+    def _get_available_setup_config_params(self, comparison_results: Dict[str, Any], selected_setups: List[str]) -> List[str]:
+        """
+        Get available configuration parameters from setup configurations.
+        
+        Args:
+            comparison_results (Dict[str, Any]): Comparison results data
+            selected_setups (List[str]): List of selected setup IDs
+            
+        Returns:
+            List[str]: List of available configuration parameter names
+        """
+        # Get setup configs from the comparison results
+        setup_configs = comparison_results.get('setup_configs', {})
+        
+        if not setup_configs:
+            return []
+        
+        # Get configuration parameters from the first setup config
+        first_setup_id = selected_setups[0] if selected_setups else list(setup_configs.keys())[0]
+        first_config = setup_configs.get(first_setup_id, {})
+        
+        if not first_config:
+            return []
+        
+        # Get numeric configuration parameters
+        numeric_params = []
+        for param, value in first_config.items():
+            if param in ['setup_name', 'created_at', 'completed_at']:
+                continue
+            try:
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    numeric_params.append(param)
+            except:
+                continue
+        
+        return numeric_params
+    
+    def _get_available_generation_config_params(self, comparison_results: Dict[str, Any]) -> List[str]:
+        """
+        Get available configuration parameters from generation configurations.
+        
+        Args:
+            comparison_results (Dict[str, Any]): Comparison results data
+            
+        Returns:
+            List[str]: List of available configuration parameter names
+        """
+        # Look for generation configs in the comparison results
         for setup_name, setup_data in comparison_results.items():
+            if setup_name == 'setup_configs':
+                continue
+                
             # Try to get generation configs from the setup data
             generation_configs = None
             if 'results' in setup_data:
@@ -820,6 +901,63 @@ class ComparisonView:
                     first_result = list(results.values())[0]
                     if hasattr(first_result, 'generation_configs'):
                         generation_configs = first_result.generation_configs
+                    elif isinstance(first_result, dict) and 'generation_configs' in first_result:
+                        generation_configs = first_result['generation_configs']
+            elif 'generation_configs' in setup_data:
+                # If it's direct generation configs
+                generation_configs = setup_data['generation_configs']
+            
+            if generation_configs:
+                # Get available configuration parameters from the first generation config
+                first_gen_config = generation_configs[0]
+                if isinstance(first_gen_config, dict):
+                    config_params = list(first_gen_config.keys())
+                else:
+                    config_params = [attr for attr in dir(first_gen_config) 
+                                   if not attr.startswith('_') and not callable(getattr(first_gen_config, attr))]
+                
+                # Remove non-numeric parameters
+                numeric_params = []
+                for param in config_params:
+                    if param in ['generation', 'timestamp']:
+                        continue
+                    try:
+                        value = first_gen_config[param] if isinstance(first_gen_config, dict) else getattr(first_gen_config, param)
+                        if isinstance(value, (int, float)) and not isinstance(value, bool):
+                            numeric_params.append(param)
+                    except:
+                        continue
+                
+                return numeric_params
+        
+        return []
+    
+    def _render_configuration_evolution_chart(self, comparison_results: Dict[str, Any], config_param: str) -> None:
+        """
+        Render configuration evolution chart across setups.
+        
+        Args:
+            comparison_results (Dict[str, Any]): Comparison results data
+            config_param (str): Configuration parameter to compare
+        """
+        # Transform comparison results to the format expected by ConfigCharts
+        setup_results = {}
+        
+        for setup_name, setup_data in comparison_results.items():
+            if setup_name == 'setup_configs':
+                continue
+                
+            # Try to get generation configs from the setup data
+            generation_configs = None
+            if 'results' in setup_data:
+                # If it's a Setup object
+                results = setup_data['results']
+                if results:
+                    first_result = list(results.values())[0]
+                    if hasattr(first_result, 'generation_configs'):
+                        generation_configs = first_result.generation_configs
+                    elif isinstance(first_result, dict) and 'generation_configs' in first_result:
+                        generation_configs = first_result['generation_configs']
             elif 'generation_configs' in setup_data:
                 # If it's direct generation configs
                 generation_configs = setup_data['generation_configs']
@@ -831,7 +969,8 @@ class ComparisonView:
             ConfigCharts.plot_configuration_comparison(
                 setup_results,
                 config_param=config_param,
-                title=f"{config_param.replace('_', ' ').title()} Comparison Across Setups"
+                title=f"{config_param.replace('_', ' ').title()} Evolution Across Setups"
             )
         else:
-            st.warning("No configuration data available for comparison.")
+            st.warning("No generation configuration data available for evolution comparison.")
+    
