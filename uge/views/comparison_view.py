@@ -804,6 +804,8 @@ class ComparisonView:
         with c4:
             random_state = st.number_input("Random Seed", min_value=0, max_value=10000, value=42, step=1)
 
+        negate = st.checkbox("Lower-is-better (negate fitness)", value=True)
+
         # Transform comparison_results to the expected series structure
         setup_series: Dict[str, Any] = {}
         for setup_name, setup_data in comparison_results.items():
@@ -820,6 +822,7 @@ class ComparisonView:
             ConfigCharts.plot_tsne_best_individuals(
                 setup_series,
                 selected_features=selected,
+                negate_fitness=negate,
                 perplexity=perplexity,
                 learning_rate=learning_rate,
                 n_iter=n_iter,

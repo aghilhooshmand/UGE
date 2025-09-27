@@ -245,6 +245,7 @@ class ConfigCharts:
     @staticmethod
     def plot_tsne_best_individuals(setup_series: Dict[str, Dict[str, Any]],
                                    selected_features: List[str],
+                                   negate_fitness: bool = False,
                                    perplexity: float = 30.0,
                                    learning_rate: float = 200.0,
                                    n_iter: int = 1000,
@@ -325,6 +326,12 @@ class ConfigCharts:
 
         # Filter to generations that have all selected features present
         feature_df = df[['setup', 'generation'] + selected_features].dropna()
+        # Optionally negate fitness features so that larger means better for visualization
+        if negate_fitness and not feature_df.empty:
+            for feat in selected_features:
+                # Negate only train/test fitness aggregates, not stds
+                if (feat.startswith('training_') or feat.startswith('test_')) and not feat.endswith('_std'):
+                    feature_df[feat] = -feature_df[feat]
         if feature_df.empty:
             st.warning("Selected features have no overlapping data across generations.")
             return
