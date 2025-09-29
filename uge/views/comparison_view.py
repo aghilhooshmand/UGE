@@ -111,21 +111,41 @@ class ComparisonView:
                 
                 # Convert selected names back to IDs for processing
                 selected_setups = [exp_options[name] for name in selected_setup_names]
+                # Map IDs back to their current names
+                id_to_name = {v: k for k, v in exp_options.items()}
                 
                 if len(selected_setups) >= 2:
+                    # Optional rename UI
+                    with st.expander("✏️ Set Setup Names (optional)"):
+                        if 'setup_display_names' not in st.session_state:
+                            st.session_state.setup_display_names = {}
+                        for setup_id in selected_setups:
+                            current_default = st.session_state.setup_display_names.get(setup_id, id_to_name.get(setup_id, setup_id))
+                            new_name = st.text_input(
+                                f"Name for {id_to_name.get(setup_id, setup_id)}",
+                                value=current_default,
+                                key=f"rename_{setup_id}"
+                            )
+                            st.session_state.setup_display_names[setup_id] = new_name.strip() or current_default
+                    
                     if st.button("🔍 Compare Setups"):
                         with st.spinner("Comparing setups..."):
                             comparison_results = comparison_controller.compare_setups(selected_setups)
                             
                             if comparison_results:
                                 # Transform the comparison results to match expected format
-                                transformed_results = self._transform_comparison_results(comparison_results, selected_setup_names)
+                                # Build display names (custom if provided)
+                                display_names = [
+                                    st.session_state.setup_display_names.get(setup_id, id_to_name.get(setup_id, setup_id))
+                                    for setup_id in selected_setups
+                                ]
+                                transformed_results = self._transform_comparison_results(comparison_results, display_names)
                                 
                                 
                                 # Store results in session state
                                 st.session_state.comparison_results = transformed_results
                                 st.session_state.selected_setups = selected_setups
-                                st.session_state.selected_setup_names = selected_setup_names
+                                st.session_state.selected_setup_names = display_names
                             else:
                                 st.error("Failed to generate comparison results. Please check that your setups have completed runs.")
                     
