@@ -177,7 +177,8 @@ class ConfigCharts:
     @staticmethod
     def plot_configuration_comparison(setup_results: Dict[str, Dict[str, Any]], 
                                     config_param: str = 'elite_size',
-                                    title: str = "Configuration Comparison Across Setups") -> None:
+                                    title: str = "Configuration Comparison Across Setups",
+                                    color_map: Optional[Dict[str, str]] = None) -> None:
         """
         Plot configuration comparison across multiple setups.
         
@@ -219,7 +220,7 @@ class ConfigCharts:
                 if valid_data:
                     valid_gens, valid_values = zip(*valid_data)
                     
-                    color = colors[i % len(colors)]
+                    color = color_map.get(setup_name) if color_map else colors[i % len(colors)]
                     fig.add_trace(go.Scatter(
                         x=valid_gens,
                         y=valid_values,
@@ -250,7 +251,8 @@ class ConfigCharts:
                                    learning_rate: float = 200.0,
                                    n_iter: int = 1000,
                                    random_state: int = 42,
-                                   title: str = "t-SNE of Best Individuals Across Generations") -> None:
+                                   title: str = "t-SNE of Best Individuals Across Generations",
+                                   color_map: Optional[Dict[str, str]] = None) -> None:
         """
         Plot a 2D t-SNE embedding to compare per-generation best individuals across setups.
         Uses available per-generation aggregates as proxy features.
@@ -375,7 +377,8 @@ class ConfigCharts:
             color='setup',
             hover_data=hover_cols,
             title=title,
-            template='plotly_white'
+            template='plotly_white',
+            color_discrete_map=color_map if color_map else None
         )
         fig.update_traces(marker=dict(size=8, opacity=0.85))
         st.plotly_chart(fig, use_container_width=True)
@@ -464,7 +467,8 @@ class ConfigCharts:
     @staticmethod
     def plot_setup_configuration_comparison(setup_configs: Dict[str, Any], 
                                           config_param: str = 'elite_size',
-                                          title: str = "Configuration Comparison Across Setups") -> None:
+                                          title: str = "Configuration Comparison Across Setups",
+                                          color_map: Optional[Dict[str, str]] = None) -> None:
         """
         Plot configuration parameter comparison across multiple setups.
         This shows the average value of a configuration parameter across all runs for each setup.
@@ -505,11 +509,17 @@ class ConfigCharts:
         fig = go.Figure()
         
         # Add bar chart
+        # Determine colors for each setup
+        if color_map:
+            marker_colors = [color_map.get(name, 'lightblue') for name in valid_names]
+        else:
+            marker_colors = 'lightblue'
+
         fig.add_trace(go.Bar(
             x=list(valid_names),
             y=list(valid_values),
             name=f'{config_param.replace("_", " ").title()}',
-            marker_color='lightblue',
+            marker_color=marker_colors,
             text=[f'{v:.3f}' if isinstance(v, float) else str(v) for v in valid_values],
             textposition='auto'
         ))

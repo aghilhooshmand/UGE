@@ -7,6 +7,7 @@ Handles the UI for setup comparison and analysis.
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
 from typing import Dict, Any, List
 from uge.services.storage_service import StorageService
@@ -29,6 +30,50 @@ class ComparisonView:
             storage_service (StorageService): Storage service instance
         """
         self.storage_service = storage_service
+    
+    @staticmethod
+    def _build_color_map(setup_names: List[str]) -> Dict[str, str]:
+        """Build a deterministic unique color for each setup name.
+        Uses multiple qualitative palettes, then falls back to HSV generation.
+        """
+        # Collect palettes
+        palettes = []
+        try:
+            palettes.extend([
+                px.colors.qualitative.Plotly,
+                px.colors.qualitative.Set1,
+                px.colors.qualitative.Set2,
+                px.colors.qualitative.Set3,
+                px.colors.qualitative.Dark24,
+                px.colors.qualitative.Pastel,
+            ])
+        except Exception:
+            palettes.append(['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'])
+
+        # Flatten and de-duplicate while preserving order
+        flat_colors: List[str] = []
+        seen = set()
+        for pal in palettes:
+            for c in pal:
+                if c not in seen:
+                    seen.add(c)
+                    flat_colors.append(c)
+
+        color_map: Dict[str, str] = {}
+        n = len(setup_names)
+        # Assign from flat palette first
+        for i, name in enumerate(setup_names):
+            if i < len(flat_colors):
+                color_map[name] = flat_colors[i]
+            else:
+                # Generate additional distinct hues in HSV
+                # Evenly space hues; fixed saturation/value for readability
+                import colorsys
+                extra_index = i - len(flat_colors)
+                hue = (extra_index / max(1, n - len(flat_colors) + 1)) % 1.0
+                r, g, b = colorsys.hsv_to_rgb(hue, 0.65, 0.85)
+                color_map[name] = '#%02x%02x%02x' % (int(r * 255), int(g * 255), int(b * 255))
+        return color_map
     
     def render_comparison(self, comparison_controller) -> None:
         """
@@ -185,6 +230,10 @@ class ComparisonView:
             selected_setups (List[str]): List of selected setup IDs
         """
         st.subheader("📊 Comparison Results")
+
+        # Rebuild a deterministic unique color map for current selection
+        setup_names_order = st.session_state.get('selected_setup_names', [k for k in comparison_results.keys() if k != 'setup_configs'])
+        st.session_state.setup_color_map = self._build_color_map(setup_names_order)
         
         # Chart type selection
         chart_type = st.selectbox(
@@ -296,6 +345,7 @@ class ComparisonView:
             metric_type (str): "Average", "Maximum", "Minimum", or "Average with STD Bars"
         """
         fig = go.Figure()
+        color_map = st.session_state.get('setup_color_map', {})
         
         if not comparison_results:
             st.warning("No comparison data available.")
@@ -356,7 +406,7 @@ class ComparisonView:
                         y=y_values,
                         mode='lines+markers',
                         name=trace_name,
-                        line=dict(width=2),
+                        line=dict(width=2, color=color_map.get(setup_name)),
                         marker=dict(size=6)
                     ))
                     traces_added += 1
@@ -405,6 +455,7 @@ class ComparisonView:
             metric_type (str): "Average", "Maximum", "Minimum", or "Average with STD Bars"
         """
         fig = go.Figure()
+        color_map = st.session_state.get('setup_color_map', {})
         
         if not comparison_results:
             st.warning("No comparison data available.")
@@ -457,7 +508,7 @@ class ComparisonView:
                     y=y_values,
                     mode='lines+markers',
                     name=trace_name,
-                    line=dict(width=2),
+                    line=dict(width=2, color=color_map.get(setup_name)),
                     marker=dict(size=6)
                 ))
                 traces_added += 1
@@ -505,6 +556,7 @@ class ComparisonView:
             metric_type (str): "Average", "Maximum", "Minimum", or "Average with STD Bars"
         """
         fig = go.Figure()
+        color_map = st.session_state.get('setup_color_map', {})
         
         if not comparison_results:
             st.warning("No comparison data available.")
@@ -557,7 +609,7 @@ class ComparisonView:
                     y=y_values,
                     mode='lines+markers',
                     name=trace_name,
-                    line=dict(width=2),
+                    line=dict(width=2, color=color_map.get(setup_name)),
                     marker=dict(size=6)
                 ))
                 traces_added += 1
@@ -614,6 +666,7 @@ class ComparisonView:
             st.warning("No comparison data available.")
             return
         
+        color_map = st.session_state.get('setup_color_map', {})
         for setup_name, setup_data in comparison_results.items():
             # Training fitness - show min, max, avg
             if 'training' in setup_data and setup_data['training']:
@@ -630,7 +683,7 @@ class ComparisonView:
                         x=gens, y=avg, 
                         name=f"{setup_name} (Train Avg)", 
                         mode='lines+markers',
-                        line=dict(width=2),
+                        line=dict(width=2, color=color_map.get(setup_name)),
                         error_y=dict(
                             type='data',
                             symmetric=True,
@@ -647,7 +700,7 @@ class ComparisonView:
                             x=gens, y=max_vals, 
                             name=f"{setup_name} (Train Max)", 
                             mode='lines',
-                            line=dict(width=1, dash='dot')
+                            line=dict(width=1, dash='dot', color=color_map.get(setup_name))
                         ), row=1, col=1)
                     
                     # Min line
@@ -656,7 +709,7 @@ class ComparisonView:
                             x=gens, y=min_vals, 
                             name=f"{setup_name} (Train Min)", 
                             mode='lines',
-                            line=dict(width=1, dash='dot')
+                            line=dict(width=1, dash='dot', color=color_map.get(setup_name))
                         ), row=1, col=1)
             
             # Test fitness - show min, max, avg
@@ -688,7 +741,7 @@ class ComparisonView:
                             x=valid_gens, y=valid_avg, 
                             name=f"{setup_name} (Test Avg)", 
                             mode='lines+markers',
-                            line=dict(width=2),
+                            line=dict(width=2, color=color_map.get(setup_name)),
                             error_y=dict(
                                 type='data',
                                 symmetric=True,
@@ -705,7 +758,7 @@ class ComparisonView:
                                 x=valid_gens, y=valid_max, 
                                 name=f"{setup_name} (Test Max)", 
                                 mode='lines',
-                                line=dict(width=1, dash='dot')
+                                line=dict(width=1, dash='dot', color=color_map.get(setup_name))
                             ), row=1, col=2)
                         
                         # Min line
@@ -714,7 +767,7 @@ class ComparisonView:
                                 x=valid_gens, y=valid_min, 
                                 name=f"{setup_name} (Test Min)", 
                                 mode='lines',
-                                line=dict(width=1, dash='dot')
+                                line=dict(width=1, dash='dot', color=color_map.get(setup_name))
                             ), row=1, col=2)
         
         fig.update_layout(
@@ -827,7 +880,8 @@ class ComparisonView:
                 learning_rate=learning_rate,
                 n_iter=n_iter,
                 random_state=int(random_state),
-                title="t-SNE of Best Individuals Across Generations"
+                title="t-SNE of Best Individuals Across Generations",
+                color_map=st.session_state.get('setup_color_map')
             )
     
     def _get_available_config_params(self, setup_data: Dict[str, Any]) -> List[str]:
@@ -897,7 +951,8 @@ class ComparisonView:
         ConfigCharts.plot_setup_configuration_comparison(
             setup_configs,
             config_param=config_param,
-            title=f"{config_param.replace('_', ' ').title()} Comparison Across Setups"
+            title=f"{config_param.replace('_', ' ').title()} Comparison Across Setups",
+            color_map=st.session_state.get('setup_color_map')
         )
     
     def _get_available_setup_config_params(self, comparison_results: Dict[str, Any], selected_setups: List[str]) -> List[str]:
@@ -1029,7 +1084,8 @@ class ComparisonView:
             ConfigCharts.plot_configuration_comparison(
                 setup_results,
                 config_param=config_param,
-                title=f"{config_param.replace('_', ' ').title()} Evolution Across Setups"
+                title=f"{config_param.replace('_', ' ').title()} Evolution Across Setups",
+                color_map=st.session_state.get('setup_color_map')
             )
         else:
             st.warning("No generation configuration data available for evolution comparison.")
