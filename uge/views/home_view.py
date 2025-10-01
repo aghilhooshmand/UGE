@@ -22,8 +22,8 @@ class HomeView(BaseView):
         Initialize the HomeView.
         """
         super().__init__(
-            title="🧬 UGE - Unified Grammatical Evolution",
-            description="Welcome to the UGE application"
+            title="🧬 GE-Lab - Grammatical Evolution Laboratory",
+            description="Welcome to GE-Lab - A Laboratory for learning how Grammatical Evolution works"
         )
     
     def render(self) -> None:
@@ -35,10 +35,10 @@ class HomeView(BaseView):
         # Hero Section
         st.markdown("""
         <div style="text-align: center; padding: 2rem 0;">
-            <h1 style="color: #1f77b4; font-size: 3rem; margin-bottom: 1rem;">🧬 UGE</h1>
-            <h2 style="color: #666; font-size: 1.5rem; margin-bottom: 2rem;">Unified Grammatical Evolution Application</h2>
+            <h1 style="color: #1f77b4; font-size: 3rem; margin-bottom: 1rem;">🧬 GE-Lab</h1>
+            <h2 style="color: #666; font-size: 1.5rem; margin-bottom: 2rem;">Grammatical Evolution Laboratory</h2>
             <p style="font-size: 1.2rem; color: #888; max-width: 800px; margin: 0 auto;">
-                A sophisticated web application that provides a user-friendly interface for conducting 
+                A Laboratory for learning how Grammatical Evolution works. A sophisticated web application that provides a user-friendly interface for conducting 
                 Grammatical Evolution setups with advanced visualization and analysis capabilities.
             </p>
         </div>
@@ -189,13 +189,13 @@ class HomeView(BaseView):
         1. **Clone the repository**:
            ```bash
            git clone <repository-url>
-           cd UGE
+           cd GE-Lab
            ```
         
         2. **Create virtual environment**:
            ```bash
-           python -m venv UGE_env
-           source UGE_env/bin/activate  # On Windows: UGE_env\\Scripts\\activate
+           python -m venv GE-Lab_env
+           source GE-Lab_env/bin/activate  # On Windows: GE-Lab_env\\Scripts\\activate
            ```
         
         3. **Install dependencies**:
@@ -216,7 +216,7 @@ class HomeView(BaseView):
         st.subheader("🏗️ Architecture")
         
         st.markdown("""
-        The UGE application follows the **Model-View-Controller (MVC)** architectural pattern:
+        The GE-Lab application follows the **Model-View-Controller (MVC)** architectural pattern:
         
         - **Models**: Data structures and business entities (`uge/models/`)
         - **Views**: User interface and presentation logic (`uge/views/`)
@@ -259,6 +259,6 @@ class HomeView(BaseView):
         st.markdown("""
         <div style="text-align: center; color: #666; padding: 2rem 0;">
             <p>Built with ❤️ using Streamlit and Python</p>
-            <p><strong>Happy Setuping with UGE! 🧬✨</strong></p>
+            <p><strong>Happy Experimenting with GE-Lab! 🧬✨</strong></p>
         </div>
         """, unsafe_allow_html=True)

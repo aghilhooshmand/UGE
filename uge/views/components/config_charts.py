@@ -1,5 +1,5 @@
 """
-Configuration Charts Component for UGE Application
+Configuration Charts Component for GE-Lab Application
 
 This module provides chart and visualization components specifically for
 displaying configuration parameter evolution across generations.
@@ -7,7 +7,7 @@ displaying configuration parameter evolution across generations.
 Classes:
 - ConfigCharts: Configuration-specific chart utilities
 
-Author: UGE Team
+Author: GE-Lab Team
 """
 
 import streamlit as st
@@ -20,7 +20,7 @@ from sklearn.manifold import TSNE
 
 class ConfigCharts:
     """
-    Configuration-specific chart utilities for the UGE application.
+    Configuration-specific chart utilities for the GE-Lab application.
     
     This class provides methods for creating charts that visualize
     how configuration parameters change across generations.

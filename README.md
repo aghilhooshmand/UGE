@@ -1,8 +1,8 @@
-# 🧬 UGE (Unified Grammatical Evolution) Application
+# 🧬 GE-Lab (Grammatical Evolution Laboratory) Application
 
 ## 📖 Complete Project Documentation
 
-Welcome to the UGE application - a comprehensive Streamlit-based web application for running and analyzing Grammatical Evolution setups. This document provides complete documentation for understanding, using, and developing with the UGE system.
+Welcome to GE-Lab - a comprehensive Streamlit-based web application for running and analyzing Grammatical Evolution setups. A Laboratory for learning how Grammatical Evolution works. This document provides complete documentation for understanding, using, and developing with the GE-Lab system.
 
 ## 🎯 Table of Contents
 
@@ -16,9 +16,9 @@ Welcome to the UGE application - a comprehensive Streamlit-based web application
 
 ## 🌟 Project Overview
 
-### What is UGE?
+### What is GE-Lab?
 
-UGE is a sophisticated web application that provides a user-friendly interface for conducting Grammatical Evolution (GE) setups. It combines the power of evolutionary algorithms with modern web technologies to make GE research accessible and efficient.
+GE-Lab is a sophisticated web application that provides a user-friendly interface for conducting Grammatical Evolution (GE) setups. A Laboratory for learning how Grammatical Evolution works. It combines the power of evolutionary algorithms with modern web technologies to make GE research accessible and efficient.
 
 ### Key Features
 
@@ -58,14 +58,14 @@ UGE is a sophisticated web application that provides a user-friendly interface f
 
 ```bash
 git clone <repository-url>
-cd UGE
+cd GE-Lab
 ```
 
 2. **Create virtual environment**:
 
 ```bash
-python -m venv UGE_env
-source UGE_env/bin/activate  # On Windows: UGE_env\Scripts\activate
+python -m venv GE-Lab_env
+source GE-Lab_env/bin/activate  # On Windows: GE-Lab_env\Scripts\activate
 ```
 
 3. **Install dependencies**:
@@ -86,7 +86,7 @@ streamlit run app.py
 
 1. **Navigate to "Run Setup"** page
 2. **Select a dataset** (e.g., `clinical_breast_cancer_RFC.csv`)
-3. **Choose a grammar** (e.g., `UGE_Classification.bnf`)
+3. **Choose a grammar** (e.g., `GE_Classification.bnf`)
 4. **Set setup name** (auto-generated)
 5. **Configure parameters** (or use defaults)
 6. **Click "🚀 Run Setup"**
@@ -94,7 +94,7 @@ streamlit run app.py
 
 ### Dynamic Parameter Configuration
 
-The UGE application supports a sophisticated **Parameter Configuration System** that allows you to control each parameter individually:
+The GE-Lab application supports a sophisticated **Parameter Configuration System** that allows you to control each parameter individually:
 
 #### 🔧 **Parameter Types**
 
@@ -150,7 +150,7 @@ The **Grammar Editor** provides professional-grade BNF grammar management:
 
 ### MVC Pattern Implementation
 
-The UGE application follows the Model-View-Controller (MVC) architectural pattern:
+The GE-Lab application follows the Model-View-Controller (MVC) architectural pattern:
 
 #### Models (`uge/models/`)
 
@@ -362,7 +362,7 @@ setup_view.render()
 config = SetupConfig(
     setup_name="My Setup",
     dataset="clinical_breast_cancer_RFC.csv",
-    grammar="UGE_Classification.bnf",
+    grammar="GE_Classification.bnf",
     n_runs=3,
     generations=50
 )
@@ -429,7 +429,7 @@ Charts.plot_setup_wide_with_bars(
 ### Project Structure
 
 ```
-UGE/
+GE-Lab/
 ├── app.py                    # Main Streamlit application
 ├── requirements.txt          # Python dependencies
 ├── README.md                # Basic project information
@@ -469,7 +469,7 @@ UGE/
 │   ├── clinical_breast_cancer_RFC.csv
 │   └── processed.cleveland.data
 ├── grammars/                # BNF grammar files
-│   ├── UGE_Classification.bnf
+│   ├── GE_Classification.bnf
 │   ├── heartDisease.bnf
 │   └── Your_Grammar.bnf
 └── results/                 # Setup results
@@ -570,7 +570,7 @@ The project follows Python best practices:
 ```bash
 # Error: ModuleNotFoundError: No module named 'streamlit'
 # Solution: Activate virtual environment
-source UGE_env/bin/activate
+source GE-Lab_env/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -643,6 +643,6 @@ For questions, issues, or contributions:
 
 ---
 
-**Happy Setuping with UGE! 🧬✨**
+**Happy Experimenting with GE-Lab! 🧬✨**
 
-This comprehensive documentation should provide everything needed to understand, use, and develop with the UGE application. The modular architecture makes it easy to extend and customize for specific research needs.
+This comprehensive documentation should provide everything needed to understand, use, and develop with the GE-Lab application. The modular architecture makes it easy to extend and customize for specific research needs.

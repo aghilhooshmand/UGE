@@ -1,8 +1,8 @@
 """
-UGE - Grammatical Evolution Platform
+GE-Lab - Grammatical Evolution Laboratory
 
 Main Streamlit application using MVC architecture.
-This is the entry point for the UGE platform.
+A Laboratory for learning how Grammatical Evolution works.
 
 Author: FORGE Team
 """
@@ -14,7 +14,7 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, Any
 
-# Ensure imports resolve from UGE folder
+# Ensure imports resolve from GE-Lab folder
 CURRENT_DIR = Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(CURRENT_DIR))
@@ -40,9 +40,9 @@ from uge import __version__, BUILD_INFO
 
 
 
-class UGEApp:
+class GELabApp:
     """
-    Main UGE Application class.
+    Main GE-Lab Application class.
     
     This class orchestrates the entire application using the MVC pattern.
     It initializes controllers, views, and services, and manages the main
@@ -50,7 +50,7 @@ class UGEApp:
     """
     
     def __init__(self):
-        """Initialize the UGE application."""
+        """Initialize the GE-Lab application."""
         self.setup_controller = SetupController(
             on_setup_start=self._on_setup_start,
             on_setup_progress=self._on_setup_progress,
@@ -288,7 +288,7 @@ class UGEApp:
             
             # Additional info
             st.markdown("### ℹ️ About")
-            st.markdown("**UGE Platform** - Grammatical Evolution for Machine Learning")
+            st.markdown("**GE-Lab** - A Laboratory for learning how Grammatical Evolution works")
             st.markdown("Create, run, and analyze GE setups with ease.")
             
             st.markdown("---")
@@ -374,10 +374,10 @@ class UGEApp:
             st.error(f"Unknown page: {page}")
     
     def run(self):
-        """Run the UGE application."""
+        """Run the GE-Lab application."""
         # Page configuration
         st.set_page_config(
-            page_title="UGE - Grammatical Evolution Platform",
+            page_title="GE-Lab - Grammatical Evolution Laboratory",
             page_icon="🧬",
             layout="wide",
             initial_sidebar_state="expanded"
@@ -393,9 +393,9 @@ class UGEApp:
         self.render_page(current_page)
 
 def main():
-    """Main entry point for the UGE application."""
+    """Main entry point for the GE-Lab application."""
     try:
-        app = UGEApp()
+        app = GELabApp()
         app.run()
     except Exception as e:
         st.error(f"Application error: {str(e)}")
