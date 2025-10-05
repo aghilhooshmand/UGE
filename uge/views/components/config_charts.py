@@ -244,144 +244,359 @@ class ConfigCharts:
         st.plotly_chart(fig, use_container_width=True)
     
     @staticmethod
-    def plot_tsne_best_individuals(setup_series: Dict[str, Dict[str, Any]],
-                                   selected_features: List[str],
-                                   negate_fitness: bool = False,
-                                   perplexity: float = 30.0,
-                                   learning_rate: float = 200.0,
-                                   n_iter: int = 1000,
-                                   random_state: int = 42,
-                                   title: str = "t-SNE of Best Individuals Across Generations",
-                                   color_map: Optional[Dict[str, str]] = None) -> None:
+    def plot_tsne_phenotype_analysis(setup_data: Dict[str, Any],
+                                     storage_service: Any,
+                                     selected_setups: List[str],
+                                     n_best_per_run: int = 15,
+                                     selected_generations: List[int] = None,
+                                     perplexity: float = 30.0,
+                                     learning_rate: float = 200.0,
+                                     n_iter: int = 1000,
+                                     random_state: int = 42,
+                                     color_map: Optional[Dict[str, str]] = None) -> None:
         """
-        Plot a 2D t-SNE embedding to compare per-generation best individuals across setups.
-        Uses available per-generation aggregates as proxy features.
+        Plot t-SNE phenotype analysis following the paper's methodology:
+        "Phenotype analysis" - comparing algorithms based on their solutions.
         
-        Expected input per setup:
-          setup_series[setup_name] contains keys:
-            - training: {'generations', 'avg', 'max', 'min', 'std'}
-            - test: {'generations', 'avg', 'std'}
-            - invalid_count: {'generations', 'avg', 'max', 'min', 'std'}
-            - nodes_length: {'generations', 'avg', 'max', 'min', 'std'}
+        This creates t-SNE embeddings using the best N individuals from each run,
+        visualizing them with:
+        - Symbol size representing error (smaller = higher error, larger = lower error)
+        - Special markers for best training and best test individuals
+        - Generation-specific visualization to see evolution over time
         
-        Supported feature keys in selected_features:
-          'training_max', 'training_avg', 'training_min', 'training_std',
-          'test_avg', 'test_std',
-          'nodes_length_max', 'nodes_length_avg', 'nodes_length_min', 'nodes_length_std',
-          'invalid_count_max', 'invalid_count_avg', 'invalid_count_min', 'invalid_count_std'
+        Args:
+            setup_data: Dictionary containing setup information and results
+            storage_service: Storage service to load full setup data
+            selected_setups: List of setup IDs to compare
+            n_best_per_run: Number of best individuals to extract per run (default: 15)
+            selected_generations: List of generations to analyze (default: all)
+            perplexity: t-SNE perplexity parameter
+            learning_rate: t-SNE learning rate
+            n_iter: Number of t-SNE iterations
+            random_state: Random seed for reproducibility
+            color_map: Dictionary mapping setup names to colors
+        
+        Reference:
+            This implementation is based on the phenotype analysis methodology from:
+            
+            Lourenço, N., Assunção, F., Madureira, G., Machado, P., & Penousal Machado (2024).
+            "Probabilistic Grammatical Evolution"
+            In Proceedings of the Genetic and Evolutionary Computation Conference (GECCO '24).
+            DOI: https://doi.org/10.1145/3712256.3726444
+            
+            The paper uses t-SNE to visualize best individuals from each run and fold,
+            projecting them into 2D space to analyze phenotypic space exploration and
+            compare how different algorithms (SGE, Co-PSGE, SGEF, PSGE) explore the
+            solution space. Symbol size represents error (larger = better fitness),
+            with special markers for best training (star) and best test (hexagon) individuals.
         """
-        if not setup_series:
-            st.warning("No data available for t-SNE.")
+        # Get setup names from session state
+        setup_names = st.session_state.get('selected_setup_names', [])
+        if not setup_names or not selected_setups:
+            st.warning("No setups selected for t-SNE phenotype analysis.")
             return
-        if not selected_features:
-            st.warning("Select at least one feature for t-SNE.")
+        
+        st.info(f"📊 Analyzing phenotypes from {len(selected_setups)} setups...")
+        
+        # Step 1: Extract best N individuals from each run of each setup
+        all_individuals = []
+        best_train_per_setup = {}  # Track best training individual per setup
+        best_test_per_setup = {}   # Track best test individual per setup
+        
+        for i, setup_id in enumerate(selected_setups):
+            setup_name = setup_names[i] if i < len(setup_names) else setup_id
+            
+            try:
+                # Load full setup data
+                setup = storage_service.load_setup(setup_id)
+                if not setup or not setup.results:
+                    continue
+                
+                # Track best individuals for this setup
+                best_train_fitness = float('-inf')
+                best_test_fitness = float('-inf')
+                best_train_individual = None
+                best_test_individual = None
+                
+                # Extract individuals from each run
+                for run_id, result in setup.results.items():
+                    if not hasattr(result, 'max') or not result.max:
+                        continue
+                    
+                    # Determine which generations to analyze
+                    n_gens = len(result.max)
+                    if selected_generations is None:
+                        gens_to_analyze = list(range(n_gens))
+                    else:
+                        gens_to_analyze = [g for g in selected_generations if g < n_gens]
+                    
+                    # For each generation, extract best N individuals
+                    for gen_idx in gens_to_analyze:
+                        # Since we only have aggregated data, we'll use the generation's
+                        # best fitness as a proxy for the "best individual" from that generation
+                        individual = {
+                            'setup': setup_name,
+                            'setup_id': setup_id,
+                            'run_id': run_id,
+                            'generation': gen_idx,
+                            # Phenotype features (what the individual "looks like")
+                            'fitness_train': result.max[gen_idx] if gen_idx < len(result.max) else None,
+                            'fitness_test': result.fitness_test[gen_idx] if gen_idx < len(result.fitness_test) else None,
+                            'nodes_length': result.nodes_length_max[gen_idx] if hasattr(result, 'nodes_length_max') and gen_idx < len(result.nodes_length_max) else None,
+                            'tree_depth': result.max_tree_depth[gen_idx] if hasattr(result, 'max_tree_depth') and gen_idx < len(result.max_tree_depth) else None,
+                            'invalid_count': result.invalid_count_max[gen_idx] if hasattr(result, 'invalid_count_max') and gen_idx < len(result.invalid_count_max) else None,
+                            'codon_consumption': result.codon_consumption_max[gen_idx] if hasattr(result, 'codon_consumption_max') and gen_idx < len(result.codon_consumption_max) else None,
+                            # Error (for sizing) - lower is better
+                            'error_train': -result.max[gen_idx] if gen_idx < len(result.max) else None,
+                            'error_test': -result.fitness_test[gen_idx] if gen_idx < len(result.fitness_test) else None,
+                        }
+                        
+                        all_individuals.append(individual)
+                        
+                        # Track best training individual
+                        if individual['fitness_train'] is not None and individual['fitness_train'] > best_train_fitness:
+                            best_train_fitness = individual['fitness_train']
+                            best_train_individual = len(all_individuals) - 1
+                        
+                        # Track best test individual
+                        if individual['fitness_test'] is not None and individual['fitness_test'] > best_test_fitness:
+                            best_test_fitness = individual['fitness_test']
+                            best_test_individual = len(all_individuals) - 1
+                
+                best_train_per_setup[setup_name] = best_train_individual
+                best_test_per_setup[setup_name] = best_test_individual
+                
+            except Exception as e:
+                st.warning(f"Could not load data for setup {setup_name}: {str(e)}")
+                continue
+        
+        if not all_individuals:
+            st.error("No individuals extracted for t-SNE analysis.")
             return
-
-        # Build a unified dataframe of rows: one per (setup, generation)
-        rows = []
-        for setup_name, data in setup_series.items():
-            # Determine number of generations from training generations
-            gens = data.get('training', {}).get('generations', []) or \
-                   data.get('test', {}).get('generations', []) or []
-            for idx, gen in enumerate(gens):
-                row = {
-                    'setup': setup_name,
-                    'generation': gen
-                }
-                # Map features
-                def get(arr):
-                    return arr[idx] if arr and idx < len(arr) else None
-
-                # Training
-                tr = data.get('training', {})
-                row['training_max'] = get(tr.get('max'))
-                row['training_avg'] = get(tr.get('avg'))
-                row['training_min'] = get(tr.get('min'))
-                row['training_std'] = get(tr.get('std'))
-
-                # Test
-                te = data.get('test', {})
-                row['test_avg'] = get(te.get('avg'))
-                row['test_std'] = get(te.get('std'))
-
-                # Nodes length
-                nl = data.get('nodes_length', {})
-                row['nodes_length_max'] = get(nl.get('max'))
-                row['nodes_length_avg'] = get(nl.get('avg'))
-                row['nodes_length_min'] = get(nl.get('min'))
-                row['nodes_length_std'] = get(nl.get('std'))
-
-                # Invalid count
-                inv = data.get('invalid_count', {})
-                row['invalid_count_max'] = get(inv.get('max'))
-                row['invalid_count_avg'] = get(inv.get('avg'))
-                row['invalid_count_min'] = get(inv.get('min'))
-                row['invalid_count_std'] = get(inv.get('std'))
-
-                rows.append(row)
-
-        if not rows:
-            st.warning("No rows constructed for t-SNE.")
+        
+        st.success(f"✅ Extracted {len(all_individuals)} individuals from all runs and generations")
+        
+        # Step 2: Create feature matrix for t-SNE
+        df = pd.DataFrame(all_individuals)
+        
+        # Select phenotype features (characteristics of the solution)
+        feature_cols = ['fitness_train', 'fitness_test', 'nodes_length', 'tree_depth', 
+                       'invalid_count', 'codon_consumption']
+        
+        # Filter to rows with all features present
+        df_features = df[['setup', 'setup_id', 'run_id', 'generation', 'error_train'] + feature_cols].dropna()
+        
+        if df_features.empty or len(df_features) < 2:
+            st.error("Insufficient data with all features for t-SNE analysis.")
             return
-
-        df = pd.DataFrame(rows)
-
-        # Filter to generations that have all selected features present
-        feature_df = df[['setup', 'generation'] + selected_features].dropna()
-        # Optionally negate fitness features so that larger means better for visualization
-        if negate_fitness and not feature_df.empty:
-            for feat in selected_features:
-                # Negate only train/test fitness aggregates, not stds
-                if (feat.startswith('training_') or feat.startswith('test_')) and not feat.endswith('_std'):
-                    feature_df[feat] = -feature_df[feat]
-        if feature_df.empty:
-            st.warning("Selected features have no overlapping data across generations.")
-            return
-
-        X = feature_df[selected_features].values
+        
+        st.info(f"📉 Using {len(df_features)} individuals with complete phenotype data")
+        
+        # Step 3: Perform t-SNE
+        X = df_features[feature_cols].values
+        
         try:
+            # Normalize features
+            from sklearn.preprocessing import StandardScaler
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+            
+            # Run t-SNE
             tsne = TSNE(
                 n_components=2,
-                perplexity=perplexity,
+                perplexity=min(perplexity, len(X_scaled) - 1),
                 learning_rate=learning_rate,
                 random_state=random_state,
                 init='pca'
             )
-            # Try to set n_iter if supported by this sklearn version
+            # Try to set n_iter if supported
             try:
-                # Some sklearn versions accept n_iter in constructor; others have fixed default
-                tsne_with_iter = TSNE(
+                tsne = TSNE(
                     n_components=2,
-                    perplexity=perplexity,
+                    perplexity=min(perplexity, len(X_scaled) - 1),
                     learning_rate=learning_rate,
                     random_state=random_state,
                     init='pca',
                     n_iter=n_iter
                 )
-                tsne = tsne_with_iter
             except TypeError:
                 pass
-            embedding = tsne.fit_transform(X)
+            
+            embedding = tsne.fit_transform(X_scaled)
+            df_features['tsne_x'] = embedding[:, 0]
+            df_features['tsne_y'] = embedding[:, 1]
+            
         except Exception as e:
-            st.error(f"t-SNE failed: {e}")
+            st.error(f"t-SNE failed: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
             return
-
-        feature_df['tsne_x'] = embedding[:, 0]
-        feature_df['tsne_y'] = embedding[:, 1]
-
-        # Plot scatter with color by setup and hover showing generation and features
-        hover_cols = ['setup', 'generation'] + selected_features
-        fig = px.scatter(
-            feature_df,
-            x='tsne_x', y='tsne_y',
-            color='setup',
-            hover_data=hover_cols,
-            title=title,
+        
+        # Step 4: Create visualization following the paper's style
+        import plotly.graph_objects as go
+        
+        fig = go.Figure()
+        
+        # Symbol mapping for each setup
+        symbols = ['circle', 'diamond', 'square', 'cross', 'x', 'triangle-up', 'triangle-down', 'pentagon']
+        
+        # Plot each setup with different symbol
+        for idx, setup_name in enumerate(setup_names):
+            setup_df = df_features[df_features['setup'] == setup_name]
+            if setup_df.empty:
+                continue
+            
+            # Get color for this setup
+            color = color_map.get(setup_name) if color_map else px.colors.qualitative.Plotly[idx % len(px.colors.qualitative.Plotly)]
+            symbol = symbols[idx % len(symbols)]
+            
+            # Normalize error for sizing: smaller error = larger marker
+            # Map error to marker size: lower error (better fitness) = larger size
+            min_error = df_features['error_train'].min()
+            max_error = df_features['error_train'].max()
+            error_range = max_error - min_error
+            if error_range > 0:
+                # Invert: lower error = larger size (5-20 range)
+                sizes = 5 + 15 * (1 - (setup_df['error_train'] - min_error) / error_range)
+            else:
+                sizes = [10] * len(setup_df)
+            
+            # Regular individuals
+            fig.add_trace(go.Scatter(
+                x=setup_df['tsne_x'],
+                y=setup_df['tsne_y'],
+                mode='markers',
+                name=setup_name,
+                marker=dict(
+                    size=sizes,
+                    color=color,
+                    symbol=symbol,
+                    opacity=0.6,
+                    line=dict(width=0.5, color='white')
+                ),
+                text=[f"Setup: {setup_name}<br>Gen: {g}<br>Run: {r}<br>Train: {ft:.4f}<br>Test: {ftest:.4f}<br>Nodes: {n}" 
+                      for g, r, ft, ftest, n in zip(setup_df['generation'], setup_df['run_id'], 
+                                                     setup_df['fitness_train'], setup_df['fitness_test'], 
+                                                     setup_df['nodes_length'])],
+                hoverinfo='text',
+                showlegend=True
+            ))
+        
+        # Add special markers for best training and best test individuals
+        for setup_name in setup_names:
+            color = color_map.get(setup_name) if color_map else px.colors.qualitative.Plotly[setup_names.index(setup_name) % len(px.colors.qualitative.Plotly)]
+            
+            # Best training individual (star)
+            best_train_idx = best_train_per_setup.get(setup_name)
+            if best_train_idx is not None and best_train_idx < len(df_features):
+                row = df_features.iloc[best_train_idx]
+                fig.add_trace(go.Scatter(
+                    x=[row['tsne_x']],
+                    y=[row['tsne_y']],
+                    mode='markers',
+                    name=f'{setup_name} Best Train',
+                    marker=dict(
+                        size=25,
+                        color=color,
+                        symbol='star',
+                        line=dict(width=2, color='black')
+                    ),
+                    text=f"BEST TRAIN<br>Setup: {setup_name}<br>Fitness: {row['fitness_train']:.4f}",
+                    hoverinfo='text',
+                    showlegend=False
+                ))
+            
+            # Best test individual (hexagon)
+            best_test_idx = best_test_per_setup.get(setup_name)
+            if best_test_idx is not None and best_test_idx < len(df_features):
+                row = df_features.iloc[best_test_idx]
+                fig.add_trace(go.Scatter(
+                    x=[row['tsne_x']],
+                    y=[row['tsne_y']],
+                    mode='markers',
+                    name=f'{setup_name} Best Test',
+                    marker=dict(
+                        size=25,
+                        color=color,
+                        symbol='hexagon',
+                        line=dict(width=2, color='black')
+                    ),
+                    text=f"BEST TEST<br>Setup: {setup_name}<br>Fitness: {row['fitness_test']:.4f}",
+                    hoverinfo='text',
+                    showlegend=False
+                ))
+        
+        # Update layout
+        fig.update_layout(
+            title="t-SNE Phenotype Analysis: Best Individuals Across Generations<br><sub>Symbol size: larger = better fitness | ★ = Best Train | ⬡ = Best Test</sub>",
+            xaxis_title="t-SNE Dimension 1",
+            yaxis_title="t-SNE Dimension 2",
             template='plotly_white',
-            color_discrete_map=color_map if color_map else None
+            height=700,
+            hovermode='closest',
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01
+            )
         )
-        fig.update_traces(marker=dict(size=8, opacity=0.85))
+        
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Add interpretation guide
+        with st.expander("📖 How to Interpret This Visualization"):
+            st.markdown("""
+            ### Phenotype Analysis Interpretation Guide
+            
+            This visualization follows the methodology from GE literature for comparing algorithms
+            based on their phenotypic characteristics (the solutions they produce).
+            
+            #### What You're Seeing:
+            - **Each point** represents a best individual from a specific generation and run
+            - **Symbol type** distinguishes different setups/algorithms
+            - **Symbol size** represents fitness: **larger symbols = better fitness** (lower error)
+            - **★ Star** marks the best training individual for each setup
+            - **⬡ Hexagon** marks the best test individual for each setup
+            - **Colors** distinguish different setups
+            
+            #### What to Look For:
+            
+            1. **Clustering**: Do individuals from the same setup cluster together?
+               - Tight clusters suggest consistent solution patterns
+               - Spread out points suggest diverse exploration
+            
+            2. **Separation**: Are different setups in different regions?
+               - Distinct regions indicate different phenotypic spaces explored
+               - Overlap suggests similar solutions despite different algorithms
+            
+            3. **Best Solutions Location**: Where are the ★ and ⬡ markers?
+               - If best solutions are in a specific region, that region may contain optimal phenotypes
+               - If a setup's best solutions are far from its cluster, it may indicate rare discoveries
+            
+            4. **Evolution Over Generations**: If analyzing specific generations:
+               - Early generations may cluster in one area
+               - Later generations may expand to explore new regions
+               - This shows phenotypic space exploration over time
+            
+            #### Example Insights:
+            - **"Setup A explores the left side, Setup B the right"** → Different search strategies
+            - **"Best solutions are all on the right"** → Right region contains better phenotypes
+            - **"Setup C's solutions are smaller/simpler"** → May generate less complex solutions
+            - **"Best Train and Best Test are close"** → Similar phenotypic characteristics
+            
+            **Reference**: This analysis is based on the phenotype visualization methodology from:
+            
+            > Lourenço, N., Assunção, F., Madureira, G., Machado, P., & Penousal Machado (2024).
+            > "Probabilistic Grammatical Evolution"  
+            > *Proceedings of the Genetic and Evolutionary Computation Conference (GECCO '24)*  
+            > DOI: [10.1145/3712256.3726444](https://doi.org/10.1145/3712256.3726444)
+            
+            The paper demonstrates how t-SNE visualization of best individuals reveals how different
+            GE variants (SGE, Co-PSGE, SGEF, PSGE) explore distinct regions of the phenotypic space,
+            helping to understand why some algorithms find better solutions than others.
+            """)
+        
     
     @staticmethod
     def create_configuration_dashboard(setup_results: Dict[str, Any]) -> None:

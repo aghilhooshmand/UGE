@@ -314,7 +314,7 @@ class ComparisonView:
                 metric_type = "All"
             
             # Render the appropriate chart
-            self._render_comparison_chart(comparison_results, chart_type, metric_type)
+            self._render_comparison_chart(comparison_results, chart_type, metric_type, selected_setups)
         
         with tab2:
             # Statistical comparison
@@ -337,7 +337,7 @@ class ComparisonView:
                     mime="text/csv"
                 )
     
-    def _render_comparison_chart(self, comparison_results: Dict[str, Any], chart_type: str, metric_type: str = "All") -> None:
+    def _render_comparison_chart(self, comparison_results: Dict[str, Any], chart_type: str, metric_type: str = "All", selected_setups: List[str] = None) -> None:
         """
         Render comparison chart based on chart type and metric type.
         
@@ -345,6 +345,7 @@ class ComparisonView:
             comparison_results (Dict[str, Any]): Comparison results data
             chart_type (str): Type of chart to render
             metric_type (str): Type of metric to display
+            selected_setups (List[str]): List of selected setup IDs (required for t-SNE)
         """
         if chart_type == "Training Fitness":
             self._render_fitness_chart(comparison_results, "training", metric_type)
@@ -361,7 +362,10 @@ class ComparisonView:
             if metric_type:
                 self._render_configuration_evolution_chart(comparison_results, metric_type)
         elif chart_type == "t-SNE Best Individuals":
-            self._render_tsne_best_individuals(comparison_results)
+            if selected_setups:
+                self._render_tsne_best_individuals(comparison_results, selected_setups)
+            else:
+                st.error("Setup IDs are required for t-SNE analysis.")
         elif chart_type == "All Metrics":
             self._render_all_metrics_chart(comparison_results)
     
@@ -857,62 +861,107 @@ class ComparisonView:
         df = pd.DataFrame(all_data)
         return df.to_csv(index=False)
 
-    def _render_tsne_best_individuals(self, comparison_results: Dict[str, Any]) -> None:
+    def _render_tsne_best_individuals(self, comparison_results: Dict[str, Any], selected_setups: List[str]) -> None:
         """
-        Render t-SNE projection of per-generation best individuals across setups.
-        Uses aggregate series as proxy features.
+        Render t-SNE phenotype analysis following GE literature methodology.
+        Visualizes best individuals from each run to show phenotypic space exploration.
         """
-        st.subheader("t-SNE of Best Individuals Through Generations")
+        st.subheader("🧬 t-SNE Phenotype Analysis")
+        
+        st.markdown("""
+        This analysis visualizes the **phenotypic characteristics** of solutions across setups,
+        following methodology from Grammatical Evolution literature. Each point represents a best
+        individual from a specific generation and run, projected into 2D space using t-SNE.
+        
+        **Reference**: Lourenço et al. (2024). "Probabilistic Grammatical Evolution". 
+        *GECCO '24*. DOI: [10.1145/3712256.3726444](https://doi.org/10.1145/3712256.3726444)
+        """)
 
-        # Feature selection UI
-        all_features = [
-            'training_max', 'training_avg', 'training_min', 'training_std',
-            'test_avg', 'test_std',
-            'nodes_length_max', 'nodes_length_avg', 'nodes_length_min', 'nodes_length_std',
-            'invalid_count_max', 'invalid_count_avg', 'invalid_count_min', 'invalid_count_std'
-        ]
-        selected = st.multiselect(
-            "Select features to embed",
-            all_features,
-            default=['training_max', 'test_avg', 'nodes_length_avg']
-        )
-
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            perplexity = st.slider("Perplexity", min_value=5.0, max_value=50.0, value=30.0, step=1.0)
-        with c2:
-            learning_rate = st.slider("Learning Rate", min_value=10.0, max_value=1000.0, value=200.0, step=10.0)
-        with c3:
-            n_iter = st.slider("Iterations", min_value=250, max_value=3000, value=1000, step=250)
-        with c4:
-            random_state = st.number_input("Random Seed", min_value=0, max_value=10000, value=42, step=1)
-
-        negate = st.checkbox("Lower-is-better (negate fitness)", value=True)
-
-        # Transform comparison_results to the expected series structure
-        setup_series: Dict[str, Any] = {}
-        for setup_name, setup_data in comparison_results.items():
-            if setup_name == 'setup_configs':
-                continue
-            series = {}
-            for key in ['training', 'test', 'invalid_count', 'nodes_length']:
-                if key in setup_data and setup_data[key]:
-                    series[key] = setup_data[key]
-            if series:
-                setup_series[setup_name] = series
-
-        if st.button("Plot t-SNE"):
-            ConfigCharts.plot_tsne_best_individuals(
-                setup_series,
-                selected_features=selected,
-                negate_fitness=negate,
-                perplexity=perplexity,
-                learning_rate=learning_rate,
-                n_iter=n_iter,
-                random_state=int(random_state),
-                title="t-SNE of Best Individuals Across Generations",
-                color_map=st.session_state.get('setup_color_map')
+        # Configuration UI
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Generation Selection")
+            gen_option = st.radio(
+                "Which generations to analyze?",
+                ["All Generations", "Specific Generations", "Final Generation Only"],
+                key="tsne_gen_option"
             )
+            
+            if gen_option == "Specific Generations":
+                # Get max generations from first setup
+                first_setup = self.storage_service.load_setup(selected_setups[0])
+                if first_setup and first_setup.results:
+                    first_result = list(first_setup.results.values())[0]
+                    max_gens = len(first_result.max) if hasattr(first_result, 'max') else 50
+                    
+                    selected_gens_str = st.text_input(
+                        "Enter generations (comma-separated, e.g., 0,10,20,50)",
+                        value="0,25,50",
+                        key="tsne_selected_gens"
+                    )
+                    try:
+                        selected_generations = [int(g.strip()) for g in selected_gens_str.split(',')]
+                    except:
+                        st.error("Invalid generation format")
+                        selected_generations = None
+                else:
+                    selected_generations = None
+            elif gen_option == "Final Generation Only":
+                # Will be handled by getting the last generation
+                selected_generations = [-1]  # Special marker for final generation
+            else:
+                selected_generations = None  # All generations
+        
+        with col2:
+            st.markdown("#### t-SNE Parameters")
+            perplexity = st.slider("Perplexity", min_value=5.0, max_value=50.0, value=30.0, step=5.0,
+                                  help="Controls local vs global structure. Lower = more local detail")
+            learning_rate = st.slider("Learning Rate", min_value=10.0, max_value=500.0, value=200.0, step=50.0,
+                                     help="Step size for optimization")
+            n_iter = st.slider("Iterations", min_value=250, max_value=2000, value=1000, step=250,
+                              help="Number of optimization iterations")
+            random_state = st.number_input("Random Seed", min_value=0, max_value=10000, value=42, step=1,
+                                          help="For reproducibility")
+
+        # Info about what will be visualized
+        with st.expander("ℹ️ What phenotype features are used?"):
+            st.markdown("""
+            The t-SNE embedding is created using these **phenotypic features** of each individual:
+            
+            - **Fitness (Training & Test)**: How well the solution performs
+            - **Nodes Length**: Number of terminal symbols (solution complexity)
+            - **Tree Depth**: Maximum depth of the parse tree
+            - **Invalid Count**: Number of invalid individuals encountered
+            - **Codon Consumption**: How many codons were used
+            
+            These features characterize the **phenotype** (what the solution looks like and how it behaves),
+            not just its fitness. This allows us to see if different setups explore different regions of
+            the phenotypic space.
+            """)
+
+        if st.button("🔬 Generate t-SNE Phenotype Analysis", type="primary"):
+            with st.spinner("Extracting individuals and computing t-SNE embedding..."):
+                # Handle special case for final generation
+                if selected_generations == [-1]:
+                    # Get final generation index from first setup
+                    first_setup = self.storage_service.load_setup(selected_setups[0])
+                    if first_setup and first_setup.results:
+                        first_result = list(first_setup.results.values())[0]
+                        final_gen = len(first_result.max) - 1 if hasattr(first_result, 'max') else 49
+                        selected_generations = [final_gen]
+                
+                ConfigCharts.plot_tsne_phenotype_analysis(
+                    setup_data=comparison_results,
+                    storage_service=self.storage_service,
+                    selected_setups=selected_setups,
+                    n_best_per_run=15,  # Following the paper's methodology
+                    selected_generations=selected_generations,
+                    perplexity=perplexity,
+                    learning_rate=learning_rate,
+                    n_iter=n_iter,
+                    random_state=int(random_state),
+                    color_map=st.session_state.get('setup_color_map')
+                )
     
     def _get_available_config_params(self, setup_data: Dict[str, Any]) -> List[str]:
         """
