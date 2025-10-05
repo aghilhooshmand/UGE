@@ -10,8 +10,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 from typing import Dict, Any, List
+import numpy as np
 from uge.services.storage_service import StorageService
 from uge.views.components.config_charts import ConfigCharts
+from uge.utils.statistical_tests import StatisticalTests
 
 
 class ComparisonView:
@@ -255,60 +257,68 @@ class ComparisonView:
         setup_names_order = st.session_state.get('selected_setup_names', [k for k in comparison_results.keys() if k != 'setup_configs'])
         st.session_state.setup_color_map = self._build_color_map(setup_names_order)
         
-        # Chart type selection
-        chart_type = st.selectbox(
-            "Select Chart Type",
-            ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "Configuration Comparison", "Configuration Evolution", "t-SNE Best Individuals", "All Metrics"],
-            key="comparison_chart_type"
-        )
+        # Create tabs for different views
+        tab1, tab2 = st.tabs(["📈 Visual Comparison", "📊 Statistical Analysis"])
         
-        # Metric selection for detailed charts
-        if chart_type in ["Training Fitness", "Test Fitness"]:
-            data_type = "training" if chart_type == "Training Fitness" else "test"
-            metric_type = st.selectbox(
-                f"Select {chart_type} Metric",
-                ["Average", "Maximum", "Minimum", "Average with STD Bars"],
-                key=f"comparison_metric_{data_type}"
+        with tab1:
+            # Chart type selection
+            chart_type = st.selectbox(
+                "Select Chart Type",
+                ["Training Fitness", "Test Fitness", "Number of Invalid", "Nodes Length Evolution", "Configuration Comparison", "Configuration Evolution", "t-SNE Best Individuals", "All Metrics"],
+                key="comparison_chart_type"
             )
-        elif chart_type in ["Number of Invalid", "Nodes Length Evolution"]:
-            metric_type = st.selectbox(
-                f"Select {chart_type} Metric",
-                ["Average", "Maximum", "Minimum", "Average with STD Bars"],
-                key=f"comparison_metric_{chart_type.lower().replace(' ', '_')}"
-            )
-        elif chart_type == "Configuration Comparison":
-            # Get available configuration parameters from setup configs
-            available_config_params = self._get_available_setup_config_params(comparison_results, selected_setups)
             
-            if available_config_params:
+            # Metric selection for detailed charts
+            if chart_type in ["Training Fitness", "Test Fitness"]:
+                data_type = "training" if chart_type == "Training Fitness" else "test"
                 metric_type = st.selectbox(
-                    "Select Configuration Parameter",
-                    available_config_params,
-                    key="comparison_config_param"
+                    f"Select {chart_type} Metric",
+                    ["Average", "Maximum", "Minimum", "Average with STD Bars"],
+                    key=f"comparison_metric_{data_type}"
                 )
+            elif chart_type in ["Number of Invalid", "Nodes Length Evolution"]:
+                metric_type = st.selectbox(
+                    f"Select {chart_type} Metric",
+                    ["Average", "Maximum", "Minimum", "Average with STD Bars"],
+                    key=f"comparison_metric_{chart_type.lower().replace(' ', '_')}"
+                )
+            elif chart_type == "Configuration Comparison":
+                # Get available configuration parameters from setup configs
+                available_config_params = self._get_available_setup_config_params(comparison_results, selected_setups)
+                
+                if available_config_params:
+                    metric_type = st.selectbox(
+                        "Select Configuration Parameter",
+                        available_config_params,
+                        key="comparison_config_param"
+                    )
+                else:
+                    st.warning("No configuration parameters available for comparison.")
+                    metric_type = None
+            elif chart_type == "Configuration Evolution":
+                # Get available configuration parameters from generation configs
+                available_config_params = self._get_available_generation_config_params(comparison_results)
+                
+                if available_config_params:
+                    metric_type = st.selectbox(
+                        "Select Configuration Parameter",
+                        available_config_params,
+                        key="evolution_config_param"
+                    )
+                else:
+                    st.warning("No generation configuration parameters available for evolution comparison.")
+                    metric_type = None
+            elif chart_type == "t-SNE Best Individuals":
+                metric_type = "t-SNE"
             else:
-                st.warning("No configuration parameters available for comparison.")
-                metric_type = None
-        elif chart_type == "Configuration Evolution":
-            # Get available configuration parameters from generation configs
-            available_config_params = self._get_available_generation_config_params(comparison_results)
+                metric_type = "All"
             
-            if available_config_params:
-                metric_type = st.selectbox(
-                    "Select Configuration Parameter",
-                    available_config_params,
-                    key="evolution_config_param"
-                )
-            else:
-                st.warning("No generation configuration parameters available for evolution comparison.")
-                metric_type = None
-        elif chart_type == "t-SNE Best Individuals":
-            metric_type = "t-SNE"
-        else:
-            metric_type = "All"
+            # Render the appropriate chart
+            self._render_comparison_chart(comparison_results, chart_type, metric_type)
         
-        # Render the appropriate chart
-        self._render_comparison_chart(comparison_results, chart_type, metric_type)
+        with tab2:
+            # Statistical comparison
+            self._render_statistical_comparison(comparison_results, selected_setups)
         
         # Export options
         col1, col2 = st.columns(2)
@@ -1109,4 +1119,368 @@ class ComparisonView:
             )
         else:
             st.warning("No generation configuration data available for evolution comparison.")
+    
+    def _render_statistical_comparison(self, comparison_results: Dict[str, Any], selected_setups: List[str]) -> None:
+        """
+        Render statistical significance tests for setup comparisons.
+        
+        Args:
+            comparison_results (Dict[str, Any]): Comparison results data
+            selected_setups (List[str]): List of selected setup IDs
+        """
+        st.markdown("### 📊 Statistical Significance Testing")
+        st.markdown("""
+        Compare setups using rigorous statistical tests following best practices from the 
+        Evolutionary Computation and Machine Learning literature.
+        
+        **References:**
+        - Demšar (JMLR 2006)
+        - Derrac et al. (SWARM & EC 2011)
+        - García & Herrera (2008)
+        """)
+        
+        setup_names = st.session_state.get('selected_setup_names', [k for k in comparison_results.keys() if k != 'setup_configs'])
+        
+        if len(setup_names) < 2:
+            st.warning("Need at least 2 setups for statistical comparison.")
+            return
+        
+        # Get raw run data for each setup
+        try:
+            # Load setup objects to get individual run results
+            setup_data_for_stats = {}
+            for i, setup_id in enumerate(selected_setups):
+                setup = self.storage_service.load_setup(setup_id)
+                if setup and setup.results:
+                    setup_name = setup_names[i]
+                    setup_data_for_stats[setup_name] = {
+                        'setup_id': setup_id,
+                        'setup_obj': setup,
+                        'config': setup.config
+                    }
+            
+            if len(setup_data_for_stats) < 2:
+                st.error("Could not load setup data for statistical comparison.")
+                return
+            
+            # Metric selection
+            st.markdown("#### Select Metric and Generation for Comparison")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                metric_options = {
+                    "Best Training Fitness (Final)": "final_training",
+                    "Best Test Fitness (Final)": "final_test",
+                    "Average Training Fitness (Final)": "avg_training_final",
+                    "Best Training Fitness (All Generations)": "best_training_all",
+                    "Average Training Fitness (All Generations)": "avg_training_all"
+                }
+                selected_metric = st.selectbox(
+                    "Metric to Compare",
+                    list(metric_options.keys()),
+                    key="stat_metric"
+                )
+                metric_key = metric_options[selected_metric]
+            
+            with col2:
+                # For generation-specific comparisons
+                if "Final" in selected_metric:
+                    generation_idx = -1  # Last generation
+                    st.info("Using final generation results")
+                else:
+                    # Get number of generations (assume all setups have same number)
+                    first_setup = list(setup_data_for_stats.values())[0]
+                    first_result = list(first_setup['setup_obj'].results.values())[0]
+                    n_gens = len(first_result.max) if hasattr(first_result, 'max') else 50
+                    
+                    generation_idx = st.slider(
+                        "Select Generation",
+                        0, n_gens - 1,
+                        n_gens - 1,
+                        key="stat_generation"
+                    )
+            
+            # Extract data for comparison
+            st.markdown("#### Extracting Run Data...")
+            extracted_data = {}
+            
+            for setup_name, data in setup_data_for_stats.items():
+                setup_obj = data['setup_obj']
+                runs_data = []
+                
+                for run_id, result in setup_obj.results.items():
+                    if "final_training" in metric_key:
+                        value = result.best_training_fitness
+                    elif "final_test" in metric_key:
+                        value = result.best_test_fitness if hasattr(result, 'best_test_fitness') else result.fitness_test[-1] if result.fitness_test else None
+                    elif "best_training_all" in metric_key:
+                        value = result.max[generation_idx] if generation_idx < len(result.max) else result.max[-1]
+                    elif "avg_training_all" in metric_key:
+                        value = result.avg[generation_idx] if generation_idx < len(result.avg) else result.avg[-1]
+                    elif "avg_training_final" in metric_key:
+                        value = result.avg[-1] if result.avg else None
+                    else:
+                        value = None
+                    
+                    if value is not None:
+                        runs_data.append(value)
+                
+                if runs_data:
+                    extracted_data[setup_name] = np.array(runs_data)
+            
+            if len(extracted_data) < 2:
+                st.error("Could not extract sufficient data for comparison.")
+                return
+            
+            # Display descriptive statistics
+            st.markdown("#### 📈 Descriptive Statistics")
+            desc_df = pd.DataFrame({
+                'Setup': list(extracted_data.keys()),
+                'N Runs': [len(data) for data in extracted_data.values()],
+                'Mean': [np.mean(data) for data in extracted_data.values()],
+                'Median': [np.median(data) for data in extracted_data.values()],
+                'Std Dev': [np.std(data, ddof=1) for data in extracted_data.values()],
+                'Min': [np.min(data) for data in extracted_data.values()],
+                'Max': [np.max(data) for data in extracted_data.values()]
+            })
+            st.dataframe(desc_df, use_container_width=True)
+            
+            # Scenario A: Two setups, independent runs
+            if len(extracted_data) == 2:
+                st.markdown("#### 🔬 Statistical Test: Two Independent Samples")
+                st.info("**Scenario A**: One problem, 2 algorithms, independent runs")
+                
+                setup_names_list = list(extracted_data.keys())
+                group1 = extracted_data[setup_names_list[0]]
+                group2 = extracted_data[setup_names_list[1]]
+                
+                # Perform comprehensive comparison
+                with st.spinner("Running statistical tests..."):
+                    results = StatisticalTests.compare_two_setups(
+                        group1, group2,
+                        setup1_name=setup_names_list[0],
+                        setup2_name=setup_names_list[1],
+                        metric_name=selected_metric,
+                        check_assumptions=True
+                    )
+                
+                # Display normality tests
+                if 'normality' in results:
+                    with st.expander("📊 Normality Tests (Shapiro-Wilk)"):
+                        norm_col1, norm_col2 = st.columns(2)
+                        with norm_col1:
+                            st.markdown(f"**{setup_names_list[0]}**")
+                            norm1 = results['normality']['setup1']
+                            st.write(f"- Statistic: {norm1['statistic']:.4f}")
+                            st.write(f"- p-value: {norm1['p_value']:.4f}")
+                            st.write(f"- Result: {norm1['interpretation']}")
+                        
+                        with norm_col2:
+                            st.markdown(f"**{setup_names_list[1]}**")
+                            norm2 = results['normality']['setup2']
+                            st.write(f"- Statistic: {norm2['statistic']:.4f}")
+                            st.write(f"- p-value: {norm2['p_value']:.4f}")
+                            st.write(f"- Result: {norm2['interpretation']}")
+                        
+                        st.info(f"**Recommendation**: Use {results['recommendation']} test")
+                
+                # Display primary test results
+                st.markdown("#### 🎯 Primary Statistical Test")
+                test = results['primary_test']
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Test", test['test'])
+                with col2:
+                    st.metric("p-value", f"{test['p_value']:.4f}")
+                with col3:
+                    sig_emoji = "✅" if test['significant'] else "❌"
+                    st.metric("Significant (α=0.05)", f"{sig_emoji} {test['significant']}")
+                
+                # Effect sizes
+                st.markdown("#### 📏 Effect Sizes")
+                if 'effect_size_a12' in test:
+                    eff_col1, eff_col2 = st.columns(2)
+                    with eff_col1:
+                        st.metric(
+                            "Vargha-Delaney A₁₂",
+                            f"{test['effect_size_a12']:.3f}",
+                            help="Probability that a random value from Setup 1 > Setup 2. 0.5=no effect, 0.56=small, 0.64=medium, 0.71=large"
+                        )
+                        st.caption(f"Interpretation: **{test['a12_interpretation']}**")
+                    
+                    with eff_col2:
+                        st.metric(
+                            "Cliff's Delta (δ)",
+                            f"{test['effect_size_delta']:.3f}",
+                            help="Effect size ranging from -1 to 1. |δ|: <0.147=negligible, <0.33=small, <0.474=medium, ≥0.474=large"
+                        )
+                        st.caption(f"Interpretation: **{test['delta_interpretation']}**")
+                elif 'effect_size_cohens_d' in test:
+                    st.metric(
+                        "Cohen's d",
+                        f"{test['effect_size_cohens_d']:.3f}",
+                        help="Standardized difference between means. |d|: 0.2=small, 0.5=medium, 0.8=large"
+                    )
+                    st.caption(f"Interpretation: **{test['d_interpretation']}**")
+                
+                # Bootstrap confidence intervals
+                st.markdown("#### 🔄 Bootstrap 95% Confidence Interval for Difference")
+                boot_ci = results['bootstrap_ci']
+                st.write(f"**Difference in Means**: {boot_ci['difference']:.4f}")
+                st.write(f"**95% CI**: [{boot_ci['ci_lower']:.4f}, {boot_ci['ci_upper']:.4f}]")
+                
+                if boot_ci['ci_lower'] > 0:
+                    st.success(f"✅ {setup_names_list[0]} is consistently better (CI does not include 0)")
+                elif boot_ci['ci_upper'] < 0:
+                    st.success(f"✅ {setup_names_list[1]} is consistently better (CI does not include 0)")
+                else:
+                    st.info("ℹ️ Confidence interval includes 0 (inconclusive)")
+                
+                # Interpretation
+                st.markdown("#### 💡 Interpretation")
+                st.info(results['interpretation'])
+                
+                # Visualization
+                st.markdown("#### 📊 Distribution Comparison")
+                fig = go.Figure()
+                
+                for setup_name, data in extracted_data.items():
+                    color = st.session_state.get('setup_color_map', {}).get(setup_name, '#1f77b4')
+                    fig.add_trace(go.Box(
+                        y=data,
+                        name=setup_name,
+                        marker_color=color,
+                        boxmean='sd'
+                    ))
+                
+                fig.update_layout(
+                    title=f"Distribution of {selected_metric}",
+                    yaxis_title=selected_metric,
+                    xaxis_title="Setup",
+                    showlegend=False
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Scenario B: More than 2 setups, independent runs
+            elif len(extracted_data) > 2:
+                st.markdown("#### 🔬 Statistical Test: Multiple Independent Samples")
+                st.info("**Scenario B**: One problem, 3+ algorithms, independent runs")
+                
+                groups = list(extracted_data.values())
+                setup_names_list = list(extracted_data.keys())
+                
+                # Kruskal-Wallis test
+                with st.spinner("Running Kruskal-Wallis test..."):
+                    kw_results = StatisticalTests.kruskal_wallis(groups)
+                
+                st.markdown("#### 🎯 Kruskal-Wallis H Test")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("H Statistic", f"{kw_results['statistic']:.4f}")
+                with col2:
+                    st.metric("p-value", f"{kw_results['p_value']:.4f}")
+                with col3:
+                    sig_emoji = "✅" if kw_results['significant'] else "❌"
+                    st.metric("Significant", f"{sig_emoji} {kw_results['significant']}")
+                with col4:
+                    st.metric("η²", f"{kw_results['effect_size_eta_squared']:.3f}")
+                
+                if kw_results['significant']:
+                    st.success("✅ Significant difference detected among setups!")
+                    st.markdown("#### 🔍 Post-hoc Pairwise Comparisons (Mann-Whitney U)")
+                    
+                    # Perform pairwise comparisons
+                    pairwise_results = []
+                    for i in range(len(setup_names_list)):
+                        for j in range(i + 1, len(setup_names_list)):
+                            mw_result = StatisticalTests.mann_whitney_u(groups[i], groups[j])
+                            pairwise_results.append({
+                                'Setup 1': setup_names_list[i],
+                                'Setup 2': setup_names_list[j],
+                                'p-value': mw_result['p_value'],
+                                'Significant': '✅' if mw_result['p_value'] < 0.05 else '❌',
+                                'A₁₂': f"{mw_result['effect_size_a12']:.3f}",
+                                'δ': f"{mw_result['effect_size_delta']:.3f}",
+                                'Effect': mw_result['a12_interpretation']
+                            })
+                    
+                    pairwise_df = pd.DataFrame(pairwise_results)
+                    st.dataframe(pairwise_df, use_container_width=True)
+                    
+                    st.caption("⚠️ Note: For multiple comparisons, consider applying Holm-Bonferroni correction")
+                else:
+                    st.info("No significant difference detected among setups (p > 0.05)")
+                
+                # Visualization
+                st.markdown("#### 📊 Distribution Comparison")
+                fig = go.Figure()
+                
+                for setup_name, data in extracted_data.items():
+                    color = st.session_state.get('setup_color_map', {}).get(setup_name, '#1f77b4')
+                    fig.add_trace(go.Box(
+                        y=data,
+                        name=setup_name,
+                        marker_color=color,
+                        boxmean='sd'
+                    ))
+                
+                fig.update_layout(
+                    title=f"Distribution of {selected_metric}",
+                    yaxis_title=selected_metric,
+                    xaxis_title="Setup",
+                    showlegend=True
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Guidelines
+            with st.expander("📚 Statistical Testing Guidelines for EA/GE"):
+                st.markdown("""
+                ### Best Practices for Statistical Testing in Evolutionary Algorithms
+                
+                #### When comparing 2 setups (Scenario A):
+                1. **Check normality** using Shapiro-Wilk test
+                2. **If data is normal**: Use Welch's t-test (robust to unequal variances)
+                3. **If data is non-normal** (common in EAs): Use Mann-Whitney U test
+                4. **Always report**:
+                   - Effect size (A₁₂ or Cliff's δ for nonparametric; Cohen's d for parametric)
+                   - Bootstrap 95% confidence intervals
+                   - p-value with interpretation
+                
+                #### When comparing 3+ setups (Scenario B):
+                1. **Use Kruskal-Wallis** H test (nonparametric, recommended for EAs)
+                2. **If significant**: Perform post-hoc pairwise comparisons
+                   - Use Dunn's test or Mann-Whitney U
+                   - Apply Holm-Bonferroni correction for multiple comparisons
+                3. **Report effect sizes** for each pairwise comparison
+                
+                #### Effect Size Interpretation:
+                
+                **Vargha-Delaney A₁₂:**
+                - 0.50: No effect
+                - 0.56: Small effect
+                - 0.64: Medium effect
+                - 0.71: Large effect
+                
+                **Cliff's Delta (|δ|):**
+                - < 0.147: Negligible
+                - < 0.33: Small
+                - < 0.474: Medium
+                - ≥ 0.474: Large
+                
+                **Cohen's d (|d|):**
+                - 0.2: Small effect
+                - 0.5: Medium effect
+                - 0.8: Large effect
+                
+                #### Key References:
+                - Demšar, J. (2006). Statistical Comparisons of Classifiers over Multiple Data Sets. JMLR.
+                - Derrac, J., et al. (2011). A practical tutorial on the use of nonparametric statistical tests. SWARM & EC.
+                - García, S., & Herrera, F. (2008). An Extension on Statistical Comparisons of Classifiers. ML.
+                """)
+        
+        except Exception as e:
+            st.error(f"Error in statistical comparison: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
     
