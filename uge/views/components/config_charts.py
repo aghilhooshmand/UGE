@@ -334,21 +334,26 @@ class ConfigCharts:
                     for gen_idx in gens_to_analyze:
                         # Since we only have aggregated data, we'll use the generation's
                         # best fitness as a proxy for the "best individual" from that generation
+                        
+                        # Extract fitness values with None checks
+                        fitness_train = result.max[gen_idx] if gen_idx < len(result.max) else None
+                        fitness_test = result.fitness_test[gen_idx] if hasattr(result, 'fitness_test') and gen_idx < len(result.fitness_test) else None
+                        
                         individual = {
                             'setup': setup_name,
                             'setup_id': setup_id,
                             'run_id': run_id,
                             'generation': gen_idx,
                             # Phenotype features (what the individual "looks like")
-                            'fitness_train': result.max[gen_idx] if gen_idx < len(result.max) else None,
-                            'fitness_test': result.fitness_test[gen_idx] if gen_idx < len(result.fitness_test) else None,
+                            'fitness_train': fitness_train,
+                            'fitness_test': fitness_test,
                             'nodes_length': result.nodes_length_max[gen_idx] if hasattr(result, 'nodes_length_max') and gen_idx < len(result.nodes_length_max) else None,
                             'tree_depth': result.max_tree_depth[gen_idx] if hasattr(result, 'max_tree_depth') and gen_idx < len(result.max_tree_depth) else None,
                             'invalid_count': result.invalid_count_max[gen_idx] if hasattr(result, 'invalid_count_max') and gen_idx < len(result.invalid_count_max) else None,
                             'codon_consumption': result.codon_consumption_max[gen_idx] if hasattr(result, 'codon_consumption_max') and gen_idx < len(result.codon_consumption_max) else None,
-                            # Error (for sizing) - lower is better
-                            'error_train': -result.max[gen_idx] if gen_idx < len(result.max) else None,
-                            'error_test': -result.fitness_test[gen_idx] if gen_idx < len(result.fitness_test) else None,
+                            # Error (for sizing) - lower is better (only negate if not None)
+                            'error_train': -fitness_train if fitness_train is not None else None,
+                            'error_test': -fitness_test if fitness_test is not None else None,
                         }
                         
                         all_individuals.append(individual)
@@ -368,10 +373,18 @@ class ConfigCharts:
                 
             except Exception as e:
                 st.warning(f"Could not load data for setup {setup_name}: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
                 continue
         
         if not all_individuals:
-            st.error("No individuals extracted for t-SNE analysis.")
+            st.error("❌ No individuals extracted for t-SNE analysis.")
+            st.info("""
+            **Possible reasons**:
+            - Setups may not have completed runs with results
+            - Required phenotype features (fitness, nodes_length, etc.) may be missing
+            - Check that your setups have finished running successfully
+            """)
             return
         
         st.success(f"✅ Extracted {len(all_individuals)} individuals from all runs and generations")
@@ -379,18 +392,57 @@ class ConfigCharts:
         # Step 2: Create feature matrix for t-SNE
         df = pd.DataFrame(all_individuals)
         
-        # Select phenotype features (characteristics of the solution)
-        feature_cols = ['fitness_train', 'fitness_test', 'nodes_length', 'tree_depth', 
-                       'invalid_count', 'codon_consumption']
+        # Analyze which features are available
+        all_possible_features = ['fitness_train', 'fitness_test', 'nodes_length', 'tree_depth', 
+                                 'invalid_count', 'codon_consumption']
         
-        # Filter to rows with all features present
-        df_features = df[['setup', 'setup_id', 'run_id', 'generation', 'error_train'] + feature_cols].dropna()
+        # Check availability of each feature
+        feature_availability = {}
+        for feat in all_possible_features:
+            non_null_count = df[feat].notna().sum()
+            feature_availability[feat] = {
+                'count': non_null_count,
+                'percentage': (non_null_count / len(df)) * 100
+            }
         
-        if df_features.empty or len(df_features) < 2:
-            st.error("Insufficient data with all features for t-SNE analysis.")
+        # Show feature availability
+        with st.expander("📊 Feature Availability Analysis"):
+            st.write("**Available phenotype features:**")
+            for feat, info in feature_availability.items():
+                st.write(f"- **{feat}**: {info['count']}/{len(df)} ({info['percentage']:.1f}%)")
+        
+        # Select features that have at least some data (>50% availability)
+        available_features = [feat for feat, info in feature_availability.items() 
+                             if info['percentage'] >= 50]
+        
+        if len(available_features) < 2:
+            st.error(f"❌ Insufficient features available for t-SNE analysis. Need at least 2 features with >50% data.")
+            st.info("""
+            **Required features**: At least 2 of: fitness_train, fitness_test, nodes_length, tree_depth, invalid_count, codon_consumption
+            
+            **Tip**: Make sure your setups track these metrics during evolution.
+            """)
             return
         
-        st.info(f"📉 Using {len(df_features)} individuals with complete phenotype data")
+        st.info(f"📊 Using {len(available_features)} available features: {', '.join(available_features)}")
+        
+        # Filter to rows with all available features present
+        df_features = df[['setup', 'setup_id', 'run_id', 'generation', 'error_train'] + available_features].dropna()
+        
+        if df_features.empty or len(df_features) < 2:
+            st.error(f"❌ After filtering, insufficient data for t-SNE analysis.")
+            st.info(f"""
+            **Extracted**: {len(all_individuals)} individuals  
+            **After filtering for complete data**: {len(df_features)} individuals
+            
+            This means most individuals are missing one or more of the selected features.
+            """)
+            return
+        
+        st.success(f"✅ Using {len(df_features)} individuals with complete phenotype data ({(len(df_features)/len(all_individuals)*100):.1f}% of extracted)")
+        
+        # Use the available features for t-SNE
+        feature_cols = available_features
         
         # Step 3: Perform t-SNE
         X = df_features[feature_cols].values
