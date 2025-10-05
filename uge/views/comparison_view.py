@@ -1297,98 +1297,88 @@ class ComparisonView:
             # Scenario A: Two setups, independent runs
             if len(extracted_data) == 2:
                 st.markdown("#### 🔬 Statistical Test: Two Independent Samples")
-                st.info("**Scenario A**: One problem, 2 algorithms, independent runs")
                 
                 setup_names_list = list(extracted_data.keys())
                 group1 = extracted_data[setup_names_list[0]]
                 group2 = extracted_data[setup_names_list[1]]
                 
-                # Perform comprehensive comparison
-                with st.spinner("Running statistical tests..."):
-                    results = StatisticalTests.compare_two_setups(
-                        group1, group2,
-                        setup1_name=setup_names_list[0],
-                        setup2_name=setup_names_list[1],
-                        metric_name=selected_metric,
-                        check_assumptions=True
-                    )
+                # Step 1: Check normality
+                st.markdown("#### 📊 Step 1: Check Normality (Shapiro-Wilk Test)")
                 
-                # Display normality tests
-                if 'normality' in results:
-                    with st.expander("📊 Normality Tests (Shapiro-Wilk)"):
-                        norm_col1, norm_col2 = st.columns(2)
-                        with norm_col1:
-                            st.markdown(f"**{setup_names_list[0]}**")
-                            norm1 = results['normality']['setup1']
-                            st.write(f"- Statistic: {norm1['statistic']:.4f}")
-                            st.write(f"- p-value: {norm1['p_value']:.4f}")
-                            st.write(f"- Result: {norm1['interpretation']}")
-                        
-                        with norm_col2:
-                            st.markdown(f"**{setup_names_list[1]}**")
-                            norm2 = results['normality']['setup2']
-                            st.write(f"- Statistic: {norm2['statistic']:.4f}")
-                            st.write(f"- p-value: {norm2['p_value']:.4f}")
-                            st.write(f"- Result: {norm2['interpretation']}")
-                        
-                        st.info(f"**Recommendation**: Use {results['recommendation']} test")
+                with st.spinner("Checking normality..."):
+                    norm1 = StatisticalTests.check_normality(group1)
+                    norm2 = StatisticalTests.check_normality(group2)
                 
-                # Display primary test results
-                st.markdown("#### 🎯 Primary Statistical Test")
-                test = results['primary_test']
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**{setup_names_list[0]}**")
+                    st.write(f"- p-value: {norm1['p_value']:.4f}")
+                    if norm1['is_normal']:
+                        st.success(f"✅ Normal distribution")
+                    else:
+                        st.warning(f"❌ NOT normal distribution")
                 
+                with col2:
+                    st.markdown(f"**{setup_names_list[1]}**")
+                    st.write(f"- p-value: {norm2['p_value']:.4f}")
+                    if norm2['is_normal']:
+                        st.success(f"✅ Normal distribution")
+                    else:
+                        st.warning(f"❌ NOT normal distribution")
+                
+                # Step 2: Choose and run appropriate test
+                st.markdown("#### 🎯 Step 2: Run Appropriate Statistical Test")
+                
+                # Determine which test to use
+                use_parametric = norm1['is_normal'] and norm2['is_normal']
+                
+                if use_parametric:
+                    st.info("**Both distributions are normal** → Using **Welch's t-test** (parametric)")
+                    with st.spinner("Running Welch's t-test..."):
+                        test_result = StatisticalTests.welch_t_test(group1, group2)
+                else:
+                    st.info("**At least one distribution is non-normal** → Using **Mann-Whitney U test** (non-parametric)")
+                    with st.spinner("Running Mann-Whitney U test..."):
+                        test_result = StatisticalTests.mann_whitney_u(group1, group2)
+                
+                # Display results
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Test", test['test'])
+                    st.metric("Test Used", test_result['test'])
                 with col2:
-                    st.metric("p-value", f"{test['p_value']:.4f}")
+                    st.metric("p-value", f"{test_result['p_value']:.4f}")
                 with col3:
-                    sig_emoji = "✅" if test['significant'] else "❌"
-                    st.metric("Significant (α=0.05)", f"{sig_emoji} {test['significant']}")
-                
-                # Effect sizes
-                st.markdown("#### 📏 Effect Sizes")
-                if 'effect_size_a12' in test:
-                    eff_col1, eff_col2 = st.columns(2)
-                    with eff_col1:
-                        st.metric(
-                            "Vargha-Delaney A₁₂",
-                            f"{test['effect_size_a12']:.3f}",
-                            help="Probability that a random value from Setup 1 > Setup 2. 0.5=no effect, 0.56=small, 0.64=medium, 0.71=large"
-                        )
-                        st.caption(f"Interpretation: **{test['a12_interpretation']}**")
-                    
-                    with eff_col2:
-                        st.metric(
-                            "Cliff's Delta (δ)",
-                            f"{test['effect_size_delta']:.3f}",
-                            help="Effect size ranging from -1 to 1. |δ|: <0.147=negligible, <0.33=small, <0.474=medium, ≥0.474=large"
-                        )
-                        st.caption(f"Interpretation: **{test['delta_interpretation']}**")
-                elif 'effect_size_cohens_d' in test:
-                    st.metric(
-                        "Cohen's d",
-                        f"{test['effect_size_cohens_d']:.3f}",
-                        help="Standardized difference between means. |d|: 0.2=small, 0.5=medium, 0.8=large"
-                    )
-                    st.caption(f"Interpretation: **{test['d_interpretation']}**")
-                
-                # Bootstrap confidence intervals
-                st.markdown("#### 🔄 Bootstrap 95% Confidence Interval for Difference")
-                boot_ci = results['bootstrap_ci']
-                st.write(f"**Difference in Means**: {boot_ci['difference']:.4f}")
-                st.write(f"**95% CI**: [{boot_ci['ci_lower']:.4f}, {boot_ci['ci_upper']:.4f}]")
-                
-                if boot_ci['ci_lower'] > 0:
-                    st.success(f"✅ {setup_names_list[0]} is consistently better (CI does not include 0)")
-                elif boot_ci['ci_upper'] < 0:
-                    st.success(f"✅ {setup_names_list[1]} is consistently better (CI does not include 0)")
-                else:
-                    st.info("ℹ️ Confidence interval includes 0 (inconclusive)")
+                    if test_result['significant']:
+                        st.metric("Result", "✅ Significant", help="p < 0.05")
+                    else:
+                        st.metric("Result", "❌ Not Significant", help="p ≥ 0.05")
                 
                 # Interpretation
                 st.markdown("#### 💡 Interpretation")
-                st.info(results['interpretation'])
+                if test_result['significant']:
+                    mean1 = np.mean(group1)
+                    mean2 = np.mean(group2)
+                    if mean1 > mean2:
+                        better = setup_names_list[0]
+                        worse = setup_names_list[1]
+                    else:
+                        better = setup_names_list[1]
+                        worse = setup_names_list[0]
+                    
+                    st.success(f"""
+                    **{better}** performs **significantly better** than **{worse}** 
+                    (p = {test_result['p_value']:.4f}).
+                    
+                    This means the difference is statistically significant and unlikely due to random chance.
+                    """)
+                else:
+                    st.info(f"""
+                    **No significant difference** between {setup_names_list[0]} and {setup_names_list[1]} 
+                    (p = {test_result['p_value']:.4f}).
+                    
+                    The observed difference could be due to random variation.
+                    """)
+                
                 
                 # Visualization
                 st.markdown("#### 📊 Distribution Comparison")
@@ -1447,11 +1437,8 @@ class ComparisonView:
                             pairwise_results.append({
                                 'Setup 1': setup_names_list[i],
                                 'Setup 2': setup_names_list[j],
-                                'p-value': mw_result['p_value'],
-                                'Significant': '✅' if mw_result['p_value'] < 0.05 else '❌',
-                                'A₁₂': f"{mw_result['effect_size_a12']:.3f}",
-                                'δ': f"{mw_result['effect_size_delta']:.3f}",
-                                'Effect': mw_result['a12_interpretation']
+                                'p-value': f"{mw_result['p_value']:.4f}",
+                                'Significant': '✅ Yes' if mw_result['p_value'] < 0.05 else '❌ No'
                             })
                     
                     pairwise_df = pd.DataFrame(pairwise_results)
@@ -1483,49 +1470,47 @@ class ComparisonView:
                 st.plotly_chart(fig, use_container_width=True)
             
             # Guidelines
-            with st.expander("📚 Statistical Testing Guidelines for EA/GE"):
+            with st.expander("📚 Simple Guidelines for Statistical Testing"):
                 st.markdown("""
-                ### Best Practices for Statistical Testing in Evolutionary Algorithms
+                ### Statistical Testing for Evolutionary Algorithms
                 
-                #### When comparing 2 setups (Scenario A):
-                1. **Check normality** using Shapiro-Wilk test
-                2. **If data is normal**: Use Welch's t-test (robust to unequal variances)
-                3. **If data is non-normal** (common in EAs): Use Mann-Whitney U test
-                4. **Always report**:
-                   - Effect size (A₁₂ or Cliff's δ for nonparametric; Cohen's d for parametric)
-                   - Bootstrap 95% confidence intervals
-                   - p-value with interpretation
+                #### 🎯 The Standard Approach:
                 
-                #### When comparing 3+ setups (Scenario B):
-                1. **Use Kruskal-Wallis** H test (nonparametric, recommended for EAs)
-                2. **If significant**: Perform post-hoc pairwise comparisons
-                   - Use Dunn's test or Mann-Whitney U
-                   - Apply Holm-Bonferroni correction for multiple comparisons
-                3. **Report effect sizes** for each pairwise comparison
+                **Step 1: Check Normality**
+                - Use **Shapiro-Wilk test**
+                - **p > 0.05** → Data is normal ✅
+                - **p ≤ 0.05** → Data is NOT normal ❌
                 
-                #### Effect Size Interpretation:
+                **Step 2: Choose Test Based on Normality**
+                - **Both normal** → Use **Welch's t-test**
+                - **At least one non-normal** → Use **Mann-Whitney U test** ⭐ (most common in EA)
                 
-                **Vargha-Delaney A₁₂:**
-                - 0.50: No effect
-                - 0.56: Small effect
-                - 0.64: Medium effect
-                - 0.71: Large effect
+                **Step 3: Interpret p-value**
+                - **p < 0.05** → Significant difference ✅
+                - **p ≥ 0.05** → No significant difference ❌
                 
-                **Cliff's Delta (|δ|):**
-                - < 0.147: Negligible
-                - < 0.33: Small
-                - < 0.474: Medium
-                - ≥ 0.474: Large
+                ---
                 
-                **Cohen's d (|d|):**
-                - 0.2: Small effect
-                - 0.5: Medium effect
-                - 0.8: Large effect
+                #### 📊 For 3+ Setups:
                 
-                #### Key References:
-                - Demšar, J. (2006). Statistical Comparisons of Classifiers over Multiple Data Sets. JMLR.
-                - Derrac, J., et al. (2011). A practical tutorial on the use of nonparametric statistical tests. SWARM & EC.
-                - García, S., & Herrera, F. (2008). An Extension on Statistical Comparisons of Classifiers. ML.
+                1. Use **Kruskal-Wallis H test** (overall test)
+                2. If significant → Do **pairwise Mann-Whitney U tests**
+                3. Apply **Holm-Bonferroni correction** for multiple comparisons
+                
+                ---
+                
+                #### ⚠️ Important Notes:
+                
+                - **Always run 30+ times** per setup (minimum 10)
+                - **Use independent random seeds** for each run
+                - EA/GE results are often **non-normal** → Mann-Whitney U is safer
+                - **Report both**: normality test results + final p-value
+                
+                ---
+                
+                #### 📚 References:
+                - Demšar (2006): Statistical Comparisons - JMLR
+                - Derrac et al. (2011): Nonparametric Tests - SWARM & EC
                 """)
         
         except Exception as e:
