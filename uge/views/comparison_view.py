@@ -913,20 +913,45 @@ class ComparisonView:
                 selected_generations = None  # All generations
         
         with col2:
-            st.markdown("#### t-SNE Parameters")
-            perplexity = st.slider("Perplexity", min_value=5.0, max_value=50.0, value=30.0, step=5.0,
-                                  help="Controls local vs global structure. Lower = more local detail")
-            learning_rate = st.slider("Learning Rate", min_value=10.0, max_value=500.0, value=200.0, step=50.0,
-                                     help="Step size for optimization")
-            n_iter = st.slider("Iterations", min_value=250, max_value=2000, value=1000, step=250,
-                              help="Number of optimization iterations")
-            random_state = st.number_input("Random Seed", min_value=0, max_value=10000, value=42, step=1,
-                                          help="For reproducibility")
+            st.markdown("#### Feature Selection")
+            available_features = {
+                'fitness_train': 'Fitness (Training)',
+                'fitness_test': 'Fitness (Test)',
+                'nodes_length': 'Nodes Length',
+                'tree_depth': 'Tree Depth',
+                'invalid_count': 'Invalid Count',
+                'codon_consumption': 'Codon Consumption'
+            }
+            
+            selected_features = st.multiselect(
+                "Select phenotype features for t-SNE:",
+                options=list(available_features.keys()),
+                default=['fitness_train', 'fitness_test', 'nodes_length'],
+                format_func=lambda x: available_features[x],
+                help="Choose which features to use for the t-SNE embedding. More features = more dimensions considered."
+            )
+            
+            if len(selected_features) < 2:
+                st.warning("⚠️ Please select at least 2 features for meaningful t-SNE analysis")
+
+        # t-SNE Parameters in expandable section
+        with st.expander("🔧 Advanced t-SNE Parameters", expanded=False):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                perplexity = st.slider("Perplexity", min_value=5.0, max_value=50.0, value=30.0, step=5.0,
+                                      help="Controls local vs global structure. Lower = more local detail")
+                learning_rate = st.slider("Learning Rate", min_value=10.0, max_value=500.0, value=200.0, step=50.0,
+                                         help="Step size for optimization")
+            with col_b:
+                n_iter = st.slider("Iterations", min_value=250, max_value=2000, value=1000, step=250,
+                                  help="Number of optimization iterations")
+                random_state = st.number_input("Random Seed", min_value=0, max_value=10000, value=42, step=1,
+                                              help="For reproducibility")
 
         # Info about what will be visualized
-        with st.expander("ℹ️ What phenotype features are used?"):
+        with st.expander("ℹ️ What are phenotype features?"):
             st.markdown("""
-            The t-SNE embedding is created using these **phenotypic features** of each individual:
+            The t-SNE embedding is created using **phenotypic features** of each individual:
             
             - **Fitness (Training & Test)**: How well the solution performs
             - **Nodes Length**: Number of terminal symbols (solution complexity)
@@ -937,9 +962,16 @@ class ComparisonView:
             These features characterize the **phenotype** (what the solution looks like and how it behaves),
             not just its fitness. This allows us to see if different setups explore different regions of
             the phenotypic space.
+            
+            **Tip**: Start with fitness + nodes_length, then experiment with adding other features.
             """)
 
         if st.button("🔬 Generate t-SNE Phenotype Analysis", type="primary"):
+            # Validate feature selection
+            if len(selected_features) < 2:
+                st.error("❌ Please select at least 2 features for t-SNE analysis")
+                return
+            
             with st.spinner("Extracting individuals and computing t-SNE embedding..."):
                 # Handle special case for final generation
                 if selected_generations == [-1]:
@@ -956,6 +988,7 @@ class ComparisonView:
                     selected_setups=selected_setups,
                     n_best_per_run=15,  # Following the paper's methodology
                     selected_generations=selected_generations,
+                    selected_features=selected_features,  # Pass user-selected features
                     perplexity=perplexity,
                     learning_rate=learning_rate,
                     n_iter=n_iter,
@@ -1217,26 +1250,49 @@ class ComparisonView:
             col1, col2 = st.columns(2)
             
             with col1:
-                metric_options = {
-                    "Best Training Fitness (Final)": "final_training",
-                    "Best Test Fitness (Final)": "final_test",
-                    "Average Training Fitness (Final)": "avg_training_final",
-                    "Best Training Fitness (All Generations)": "best_training_all",
-                    "Average Training Fitness (All Generations)": "avg_training_all"
+                metric_categories = {
+                    "Fitness Metrics": {
+                        "Best Training Fitness (Final)": "final_training",
+                        "Best Test Fitness (Final)": "final_test",
+                        "Average Training Fitness (Final)": "avg_training_final",
+                        "Best Training Fitness (Generation)": "best_training_gen",
+                        "Average Training Fitness (Generation)": "avg_training_gen"
+                    },
+                    "Phenotype Metrics - Per Generation": {
+                        "Nodes Length - Min": "nodes_length_min_gen",
+                        "Nodes Length - Avg": "nodes_length_avg_gen",
+                        "Nodes Length - Max": "nodes_length_max_gen",
+                        "Invalid Count - Min": "invalid_count_min_gen",
+                        "Invalid Count - Avg": "invalid_count_avg_gen",
+                        "Invalid Count - Max": "invalid_count_max_gen"
+                    },
+                    "Best Individual Characteristics - Per Run": {
+                        "Tree Depth (of best individual)": "best_depth_final",
+                        "Genome Length (of best individual)": "best_genome_length_final",
+                        "Used Codons Ratio (of best individual)": "best_used_codons_final"
+                    }
                 }
+                
+                # Flatten options for selectbox
+                all_options = {}
+                for category, options in metric_categories.items():
+                    for label, key in options.items():
+                        all_options[f"{category} → {label}"] = key
+                
                 selected_metric = st.selectbox(
                     "Metric to Compare",
-                    list(metric_options.keys()),
-                    key="stat_metric"
+                    list(all_options.keys()),
+                    key="stat_metric",
+                    help="Choose which metric to statistically compare between setups"
                 )
-                metric_key = metric_options[selected_metric]
+                metric_key = all_options[selected_metric]
             
             with col2:
                 # For generation-specific comparisons
                 if "Final" in selected_metric:
                     generation_idx = -1  # Last generation
                     st.info("Using final generation results")
-                else:
+                elif "Generation" in selected_metric:
                     # Get number of generations (assume all setups have same number)
                     first_setup = list(setup_data_for_stats.values())[0]
                     first_result = list(first_setup['setup_obj'].results.values())[0]
@@ -1246,8 +1302,11 @@ class ComparisonView:
                         "Select Generation",
                         0, n_gens - 1,
                         n_gens - 1,
-                        key="stat_generation"
+                        key="stat_generation",
+                        help="Compare setups at a specific generation"
                     )
+                else:
+                    generation_idx = -1
             
             # Extract data for comparison
             st.markdown("#### Extracting Run Data...")
@@ -1258,18 +1317,43 @@ class ComparisonView:
                 runs_data = []
                 
                 for run_id, result in setup_obj.results.items():
-                    if "final_training" in metric_key:
+                    value = None
+                    
+                    # Fitness metrics
+                    if metric_key == "final_training":
                         value = result.best_training_fitness
-                    elif "final_test" in metric_key:
-                        value = result.best_test_fitness if hasattr(result, 'best_test_fitness') else result.fitness_test[-1] if result.fitness_test else None
-                    elif "best_training_all" in metric_key:
-                        value = result.max[generation_idx] if generation_idx < len(result.max) else result.max[-1]
-                    elif "avg_training_all" in metric_key:
-                        value = result.avg[generation_idx] if generation_idx < len(result.avg) else result.avg[-1]
-                    elif "avg_training_final" in metric_key:
+                    elif metric_key == "final_test":
+                        value = result.best_test_fitness if hasattr(result, 'best_test_fitness') else (result.fitness_test[-1] if result.fitness_test else None)
+                    elif metric_key == "avg_training_final":
                         value = result.avg[-1] if result.avg else None
-                    else:
-                        value = None
+                    elif metric_key == "best_training_gen":
+                        value = result.max[generation_idx] if hasattr(result, 'max') and generation_idx < len(result.max) else None
+                    elif metric_key == "avg_training_gen":
+                        value = result.avg[generation_idx] if hasattr(result, 'avg') and generation_idx < len(result.avg) else None
+                    
+                    # Phenotype metrics - Nodes Length (per generation)
+                    elif metric_key == "nodes_length_min_gen":
+                        value = result.nodes_length_min[generation_idx] if hasattr(result, 'nodes_length_min') and generation_idx < len(result.nodes_length_min) else None
+                    elif metric_key == "nodes_length_avg_gen":
+                        value = result.nodes_length_avg[generation_idx] if hasattr(result, 'nodes_length_avg') and generation_idx < len(result.nodes_length_avg) else None
+                    elif metric_key == "nodes_length_max_gen":
+                        value = result.nodes_length_max[generation_idx] if hasattr(result, 'nodes_length_max') and generation_idx < len(result.nodes_length_max) else None
+                    
+                    # Phenotype metrics - Invalid Count (per generation)
+                    elif metric_key == "invalid_count_min_gen":
+                        value = result.invalid_count_min[generation_idx] if hasattr(result, 'invalid_count_min') and generation_idx < len(result.invalid_count_min) else None
+                    elif metric_key == "invalid_count_avg_gen":
+                        value = result.invalid_count_avg[generation_idx] if hasattr(result, 'invalid_count_avg') and generation_idx < len(result.invalid_count_avg) else None
+                    elif metric_key == "invalid_count_max_gen":
+                        value = result.invalid_count_max[generation_idx] if hasattr(result, 'invalid_count_max') and generation_idx < len(result.invalid_count_max) else None
+                    
+                    # Phenotype metrics - Best Individual characteristics (final values)
+                    elif metric_key == "best_depth_final":
+                        value = result.best_depth if hasattr(result, 'best_depth') else None
+                    elif metric_key == "best_genome_length_final":
+                        value = result.best_genome_length if hasattr(result, 'best_genome_length') else None
+                    elif metric_key == "best_used_codons_final":
+                        value = result.best_used_codons if hasattr(result, 'best_used_codons') else None
                     
                     if value is not None:
                         runs_data.append(value)
@@ -1281,8 +1365,38 @@ class ComparisonView:
                 st.error("Could not extract sufficient data for comparison.")
                 return
             
-            # Display descriptive statistics
-            st.markdown("#### 📈 Descriptive Statistics")
+            # Display raw data values for each setup
+            st.markdown("#### 📋 Raw Data from Each Run")
+            st.markdown("These are the actual values extracted from each run that will be used for statistical testing:")
+            
+            # Create expandable sections for each setup's raw data
+            for setup_name, data in extracted_data.items():
+                with st.expander(f"📊 {setup_name} - {len(data)} runs", expanded=False):
+                    # Create a DataFrame with run index and values
+                    raw_data_df = pd.DataFrame({
+                        'Run #': [f"Run {i+1}" for i in range(len(data))],
+                        'Value': data
+                    })
+                    
+                    # Display as a table
+                    st.dataframe(raw_data_df, use_container_width=True, height=min(400, len(data) * 35 + 38))
+                    
+                    # Quick stats for this setup
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Mean", f"{np.mean(data):.4f}")
+                    with col2:
+                        st.metric("Median", f"{np.median(data):.4f}")
+                    with col3:
+                        st.metric("Std Dev", f"{np.std(data, ddof=1):.4f}")
+                    
+                    # Show sorted values
+                    st.markdown("**Sorted values (ascending):**")
+                    sorted_values = sorted(data)
+                    st.write(", ".join([f"{v:.4f}" for v in sorted_values]))
+            
+            # Display descriptive statistics summary
+            st.markdown("#### 📈 Summary Statistics (All Setups)")
             desc_df = pd.DataFrame({
                 'Setup': list(extracted_data.keys()),
                 'N Runs': [len(data) for data in extracted_data.values()],

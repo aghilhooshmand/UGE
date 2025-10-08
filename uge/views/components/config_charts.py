@@ -249,6 +249,7 @@ class ConfigCharts:
                                      selected_setups: List[str],
                                      n_best_per_run: int = 15,
                                      selected_generations: List[int] = None,
+                                     selected_features: List[str] = None,
                                      perplexity: float = 30.0,
                                      learning_rate: float = 200.0,
                                      n_iter: int = 1000,
@@ -270,6 +271,7 @@ class ConfigCharts:
             selected_setups: List of setup IDs to compare
             n_best_per_run: Number of best individuals to extract per run (default: 15)
             selected_generations: List of generations to analyze (default: all)
+            selected_features: List of phenotype features to use for t-SNE (default: all available)
             perplexity: t-SNE perplexity parameter
             learning_rate: t-SNE learning rate
             n_iter: Number of t-SNE iterations
@@ -302,6 +304,7 @@ class ConfigCharts:
         all_individuals = []
         best_train_per_setup = {}  # Track best training individual per setup
         best_test_per_setup = {}   # Track best test individual per setup
+        setup_fitness_directions = {}  # Track fitness direction for each setup
         
         for i, setup_id in enumerate(selected_setups):
             setup_name = setup_names[i] if i < len(setup_names) else setup_id
@@ -312,9 +315,18 @@ class ConfigCharts:
                 if not setup or not setup.results:
                     continue
                 
-                # Track best individuals for this setup
-                best_train_fitness = float('-inf')
-                best_test_fitness = float('-inf')
+                # Get fitness direction from setup config
+                fitness_direction = setup.config.fitness_direction if hasattr(setup.config, 'fitness_direction') else -1
+                setup_fitness_directions[setup_name] = fitness_direction
+                
+                # Track best individuals for this setup (based on direction)
+                if fitness_direction == 1:  # maximize (higher is better)
+                    best_train_fitness = float('-inf')
+                    best_test_fitness = float('-inf')
+                else:  # minimize (lower is better)
+                    best_train_fitness = float('inf')
+                    best_test_fitness = float('inf')
+                
                 best_train_individual = None
                 best_test_individual = None
                 
@@ -339,11 +351,21 @@ class ConfigCharts:
                         fitness_train = result.max[gen_idx] if gen_idx < len(result.max) else None
                         fitness_test = result.fitness_test[gen_idx] if hasattr(result, 'fitness_test') and gen_idx < len(result.fitness_test) else None
                         
+                        # Calculate error based on fitness direction
+                        # Error is always "lower is better" for marker sizing
+                        if fitness_direction == 1:  # maximize: error = -fitness (higher fitness = lower error)
+                            error_train = -fitness_train if fitness_train is not None else None
+                            error_test = -fitness_test if fitness_test is not None else None
+                        else:  # minimize: error = fitness (lower fitness = lower error)
+                            error_train = fitness_train if fitness_train is not None else None
+                            error_test = fitness_test if fitness_test is not None else None
+                        
                         individual = {
                             'setup': setup_name,
                             'setup_id': setup_id,
                             'run_id': run_id,
                             'generation': gen_idx,
+                            'fitness_direction': fitness_direction,
                             # Phenotype features (what the individual "looks like")
                             'fitness_train': fitness_train,
                             'fitness_test': fitness_test,
@@ -351,22 +373,34 @@ class ConfigCharts:
                             'tree_depth': result.max_tree_depth[gen_idx] if hasattr(result, 'max_tree_depth') and gen_idx < len(result.max_tree_depth) else None,
                             'invalid_count': result.invalid_count_max[gen_idx] if hasattr(result, 'invalid_count_max') and gen_idx < len(result.invalid_count_max) else None,
                             'codon_consumption': result.codon_consumption_max[gen_idx] if hasattr(result, 'codon_consumption_max') and gen_idx < len(result.codon_consumption_max) else None,
-                            # Error (for sizing) - lower is better (only negate if not None)
-                            'error_train': -fitness_train if fitness_train is not None else None,
-                            'error_test': -fitness_test if fitness_test is not None else None,
+                            # Error (for sizing) - always lower is better
+                            'error_train': error_train,
+                            'error_test': error_test,
                         }
                         
                         all_individuals.append(individual)
                         
-                        # Track best training individual
-                        if individual['fitness_train'] is not None and individual['fitness_train'] > best_train_fitness:
-                            best_train_fitness = individual['fitness_train']
-                            best_train_individual = len(all_individuals) - 1
+                        # Track best training individual (based on direction)
+                        if individual['fitness_train'] is not None:
+                            if fitness_direction == 1:  # maximize
+                                if individual['fitness_train'] > best_train_fitness:
+                                    best_train_fitness = individual['fitness_train']
+                                    best_train_individual = len(all_individuals) - 1
+                            else:  # minimize
+                                if individual['fitness_train'] < best_train_fitness:
+                                    best_train_fitness = individual['fitness_train']
+                                    best_train_individual = len(all_individuals) - 1
                         
-                        # Track best test individual
-                        if individual['fitness_test'] is not None and individual['fitness_test'] > best_test_fitness:
-                            best_test_fitness = individual['fitness_test']
-                            best_test_individual = len(all_individuals) - 1
+                        # Track best test individual (based on direction)
+                        if individual['fitness_test'] is not None:
+                            if fitness_direction == 1:  # maximize
+                                if individual['fitness_test'] > best_test_fitness:
+                                    best_test_fitness = individual['fitness_test']
+                                    best_test_individual = len(all_individuals) - 1
+                            else:  # minimize
+                                if individual['fitness_test'] < best_test_fitness:
+                                    best_test_fitness = individual['fitness_test']
+                                    best_test_individual = len(all_individuals) - 1
                 
                 best_train_per_setup[setup_name] = best_train_individual
                 best_test_per_setup[setup_name] = best_test_individual
@@ -392,13 +426,14 @@ class ConfigCharts:
         # Step 2: Create feature matrix for t-SNE
         df = pd.DataFrame(all_individuals)
         
-        # Analyze which features are available
-        all_possible_features = ['fitness_train', 'fitness_test', 'nodes_length', 'tree_depth', 
-                                 'invalid_count', 'codon_consumption']
+        # Use user-selected features or default to all available
+        if selected_features is None or len(selected_features) == 0:
+            selected_features = ['fitness_train', 'fitness_test', 'nodes_length', 'tree_depth', 
+                                'invalid_count', 'codon_consumption']
         
-        # Check availability of each feature
+        # Check availability of selected features
         feature_availability = {}
-        for feat in all_possible_features:
+        for feat in selected_features:
             non_null_count = df[feat].notna().sum()
             feature_availability[feat] = {
                 'count': non_null_count,
@@ -406,25 +441,30 @@ class ConfigCharts:
             }
         
         # Show feature availability
-        with st.expander("📊 Feature Availability Analysis"):
-            st.write("**Available phenotype features:**")
+        with st.expander("📊 Selected Features Availability"):
+            st.write("**Availability of your selected features:**")
             for feat, info in feature_availability.items():
-                st.write(f"- **{feat}**: {info['count']}/{len(df)} ({info['percentage']:.1f}%)")
+                availability_icon = "✅" if info['percentage'] >= 50 else "⚠️"
+                st.write(f"{availability_icon} **{feat}**: {info['count']}/{len(df)} ({info['percentage']:.1f}%)")
         
-        # Select features that have at least some data (>50% availability)
+        # Use only features that have at least some data (>30% availability for flexibility)
         available_features = [feat for feat, info in feature_availability.items() 
-                             if info['percentage'] >= 50]
+                             if info['percentage'] >= 30]
         
         if len(available_features) < 2:
-            st.error(f"❌ Insufficient features available for t-SNE analysis. Need at least 2 features with >50% data.")
-            st.info("""
-            **Required features**: At least 2 of: fitness_train, fitness_test, nodes_length, tree_depth, invalid_count, codon_consumption
+            st.error(f"❌ Insufficient features available for t-SNE analysis. Need at least 2 features with >30% data.")
+            st.info(f"""
+            **Selected features**: {', '.join(selected_features)}
+            **Available features**: {', '.join(available_features) if available_features else 'None'}
             
-            **Tip**: Make sure your setups track these metrics during evolution.
+            **Tip**: Try selecting different features, or ensure your setups track these metrics during evolution.
             """)
             return
         
-        st.info(f"📊 Using {len(available_features)} available features: {', '.join(available_features)}")
+        if len(available_features) < len(selected_features):
+            st.warning(f"⚠️ Some selected features have low availability. Using {len(available_features)} features: {', '.join(available_features)}")
+        else:
+            st.info(f"📊 Using {len(available_features)} selected features: {', '.join(available_features)}")
         
         # Filter to rows with all available features present
         df_features = df[['setup', 'setup_id', 'run_id', 'generation', 'error_train'] + available_features].dropna()
@@ -436,6 +476,7 @@ class ConfigCharts:
             **After filtering for complete data**: {len(df_features)} individuals
             
             This means most individuals are missing one or more of the selected features.
+            Try selecting features with higher availability.
             """)
             return
         
@@ -513,6 +554,25 @@ class ConfigCharts:
             else:
                 sizes = [10] * len(setup_df)
             
+            # Build hover text with all selected features
+            hover_texts = []
+            for _, row in setup_df.iterrows():
+                hover_parts = [
+                    f"<b>{setup_name}</b>",
+                    f"Generation: {row['generation']}",
+                    f"Run: {row['run_id'][-8:]}",  # Show last 8 chars of run ID
+                    "<br><b>Selected Features:</b>"
+                ]
+                
+                # Add all selected features that were used for t-SNE
+                for feat in feature_cols:
+                    feat_value = row.get(feat)
+                    if feat_value is not None:
+                        feat_name = feat.replace('_', ' ').title()
+                        hover_parts.append(f"  • {feat_name}: {feat_value:.4f}")
+                
+                hover_texts.append("<br>".join(hover_parts))
+            
             # Regular individuals
             fig.add_trace(go.Scatter(
                 x=setup_df['tsne_x'],
@@ -526,10 +586,7 @@ class ConfigCharts:
                     opacity=0.6,
                     line=dict(width=0.5, color='white')
                 ),
-                text=[f"Setup: {setup_name}<br>Gen: {g}<br>Run: {r}<br>Train: {ft:.4f}<br>Test: {ftest:.4f}<br>Nodes: {n}" 
-                      for g, r, ft, ftest, n in zip(setup_df['generation'], setup_df['run_id'], 
-                                                     setup_df['fitness_train'], setup_df['fitness_test'], 
-                                                     setup_df['nodes_length'])],
+                text=hover_texts,
                 hoverinfo='text',
                 showlegend=True
             ))
@@ -542,6 +599,21 @@ class ConfigCharts:
             best_train_idx = best_train_per_setup.get(setup_name)
             if best_train_idx is not None and best_train_idx < len(df_features):
                 row = df_features.iloc[best_train_idx]
+                
+                # Build hover text with all features
+                hover_parts_train = [
+                    f"<b>★ BEST TRAINING</b>",
+                    f"Setup: {setup_name}",
+                    f"Generation: {row['generation']}",
+                    f"Run: {row['run_id'][-8:]}",
+                    "<br><b>Features:</b>"
+                ]
+                for feat in feature_cols:
+                    feat_value = row.get(feat)
+                    if feat_value is not None:
+                        feat_name = feat.replace('_', ' ').title()
+                        hover_parts_train.append(f"  • {feat_name}: {feat_value:.4f}")
+                
                 fig.add_trace(go.Scatter(
                     x=[row['tsne_x']],
                     y=[row['tsne_y']],
@@ -553,7 +625,7 @@ class ConfigCharts:
                         symbol='star',
                         line=dict(width=2, color='black')
                     ),
-                    text=f"BEST TRAIN<br>Setup: {setup_name}<br>Fitness: {row['fitness_train']:.4f}",
+                    text="<br>".join(hover_parts_train),
                     hoverinfo='text',
                     showlegend=False
                 ))
@@ -562,6 +634,21 @@ class ConfigCharts:
             best_test_idx = best_test_per_setup.get(setup_name)
             if best_test_idx is not None and best_test_idx < len(df_features):
                 row = df_features.iloc[best_test_idx]
+                
+                # Build hover text with all features
+                hover_parts_test = [
+                    f"<b>⬡ BEST TEST</b>",
+                    f"Setup: {setup_name}",
+                    f"Generation: {row['generation']}",
+                    f"Run: {row['run_id'][-8:]}",
+                    "<br><b>Features:</b>"
+                ]
+                for feat in feature_cols:
+                    feat_value = row.get(feat)
+                    if feat_value is not None:
+                        feat_name = feat.replace('_', ' ').title()
+                        hover_parts_test.append(f"  • {feat_name}: {feat_value:.4f}")
+                
                 fig.add_trace(go.Scatter(
                     x=[row['tsne_x']],
                     y=[row['tsne_y']],
@@ -573,7 +660,7 @@ class ConfigCharts:
                         symbol='hexagon',
                         line=dict(width=2, color='black')
                     ),
-                    text=f"BEST TEST<br>Setup: {setup_name}<br>Fitness: {row['fitness_test']:.4f}",
+                    text="<br>".join(hover_parts_test),
                     hoverinfo='text',
                     showlegend=False
                 ))
@@ -596,6 +683,16 @@ class ConfigCharts:
         
         st.plotly_chart(fig, use_container_width=True)
         
+        # Show fitness directions for each setup
+        if setup_fitness_directions:
+            with st.expander("⚙️ Setup Fitness Directions"):
+                st.markdown("**How fitness is optimized for each setup:**")
+                for setup_name, direction in setup_fitness_directions.items():
+                    if direction == 1:
+                        st.write(f"- **{setup_name}**: Maximize fitness (higher is better) ↗️")
+                    else:
+                        st.write(f"- **{setup_name}**: Minimize fitness (lower is better) ↘️")
+        
         # Add interpretation guide
         with st.expander("📖 How to Interpret This Visualization"):
             st.markdown("""
@@ -607,10 +704,14 @@ class ConfigCharts:
             #### What You're Seeing:
             - **Each point** represents a best individual from a specific generation and run
             - **Symbol type** distinguishes different setups/algorithms
-            - **Symbol size** represents fitness: **larger symbols = better fitness** (lower error)
+            - **Symbol size** represents fitness quality: **larger symbols = better performance**
+              - For maximization (fitness_direction = 1): larger = higher fitness
+              - For minimization (fitness_direction = -1): larger = lower fitness (closer to 0)
             - **★ Star** marks the best training individual for each setup
             - **⬡ Hexagon** marks the best test individual for each setup
             - **Colors** distinguish different setups
+            
+            > **Note**: Check "Setup Fitness Directions" above to see which setups maximize vs minimize fitness.
             
             #### What to Look For:
             
