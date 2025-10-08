@@ -24,9 +24,9 @@
     "label_column": "class"
   },
   "ge_parameters": {
-    "population": 110,
-    "generations": 20,
-    "n_runs": 8,
+    "population": 500,
+    "generations": 50,
+    "n_runs": 30,
     "p_crossover": 0.8,
     "p_mutation": 0.01,
     "elite_size": 1,

@@ -191,9 +191,9 @@ class GEService:
         def crossover_wrapper(ind1, ind2, *args, **kwargs):
             return grape.crossover_onepoint(ind1, ind2, bnf_grammar, config.max_tree_depth, config.codon_consumption)
         
-        # Create mutation wrapper
-        def mutation_wrapper(ind, *args, **kwargs):
-            return grape.mutation_int_flip_per_codon(ind, config.p_mutation, config.codon_size, 
+        # Create mutation wrapper that accepts dynamic mutpb parameter
+        def mutation_wrapper(ind, mutpb, *args, **kwargs):
+            return grape.mutation_int_flip_per_codon(ind, mutpb, config.codon_size, 
                                                    bnf_grammar, config.max_tree_depth, config.codon_consumption)
         
         # Register operators
