@@ -252,7 +252,7 @@ class ComparisonView:
             selected_setups (List[str]): List of selected setup IDs
         """
         st.subheader("📊 Comparison Results")
-
+        
         # Rebuild a deterministic unique color map for current selection
         setup_names_order = st.session_state.get('selected_setup_names', [k for k in comparison_results.keys() if k != 'setup_configs'])
         st.session_state.setup_color_map = self._build_color_map(setup_names_order)

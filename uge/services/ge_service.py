@@ -676,7 +676,7 @@ class GEService:
         """
         # If no parameter configs provided, use fixed values
         if not parameter_configs:
-            dynamic_configs = {
+            parameter_configs = {
                 'elite_size': {'mode': 'fixed', 'value': config.elite_size},
                 'p_crossover': {'mode': 'fixed', 'value': config.p_crossover},
                 'p_mutation': {'mode': 'fixed', 'value': config.p_mutation},
@@ -822,10 +822,10 @@ class GEService:
         
         toolbox.register("mate", crossover_wrapper)
         
-        # Register mutation operator
-        def mutation_wrapper(ind, *args, **kwargs):
-            """Wrapper for mutation that passes required parameters."""
-            return grape.mutation_int_flip_per_codon(ind, config.p_mutation, config.codon_size, bnf_grammar, config.max_tree_depth, config.codon_consumption)
+        # Register mutation operator - accepts dynamic mutpb parameter
+        def mutation_wrapper(ind, mutpb, *args, **kwargs):
+            """Wrapper for mutation that accepts dynamic mutation probability."""
+            return grape.mutation_int_flip_per_codon(ind, mutpb, config.codon_size, bnf_grammar, config.max_tree_depth, config.codon_consumption)
         
         toolbox.register("mutate", mutation_wrapper)
         
